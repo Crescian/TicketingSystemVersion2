@@ -48,7 +48,7 @@ class Tickets extends Model
 
     public function feedback()
     {
-        return $this->hasOne(TicketFeedback::class, 'ticket_id');
+        return $this->hasOne(TicketFeedBack::class, 'ticket_id');
     }
 
 

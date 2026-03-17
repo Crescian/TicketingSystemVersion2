@@ -1,0 +1,42 @@
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: ticketing_app
+    volumes:
+      - .:/var/www/html
+    expose:
+      - "9000"
+    networks:
+    - ticketing        # ← ADD THIS
+
+  redis:
+    image: redis:latest
+    container_name: ticketing_redis
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "cmlinux"]
+    networks:
+      - ticketing
+    restart: unless-stopped
+
+  pgsql:
+    image: postgres:16.3
+    container_name: ticketing_pgsql
+    environment:
+      POSTGRES_DB: ticketing_system
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: leonio
+    # Named volume ensures DB persists after container is removed
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - ticketing
+    restart: unless-stopped
+
+networks:
+  ticketing:
+    driver: bridge
+
+volumes:
+  pgdata:
