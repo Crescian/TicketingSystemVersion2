@@ -5,37 +5,31 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::create('ticket_status_histories', function (Blueprint $table) {
+        Schema::create('ticket_messages', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('ticket_id');
-            $table->string('old_status')->nullable(); // ← add nullable()
-            $table->string('new_status');
-            $table->uuid('changed_by');
-            $table->string('notes')->nullable();
-            $table->timestamp('changed_at')->nullable();
+            $table->uuid('sender_id');
+            $table->text('message');
+            $table->boolean('is_read')->default(false);
+            $table->timestamp('read_at')->nullable();
+            $table->timestamp('created_at')->nullable();
 
             $table->foreign('ticket_id')
                 ->references('id')
                 ->on('tickets')
                 ->onDelete('cascade');
 
-            $table->foreign('changed_by')
+            $table->foreign('sender_id')
                 ->references('id')
                 ->on('users')
                 ->onDelete('cascade');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('ticket_status_histories');
+        Schema::dropIfExists('ticket_messages');
     }
 };

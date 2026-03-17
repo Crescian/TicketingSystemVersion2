@@ -4,9 +4,10 @@ use App\Http\Controllers\Auth\WebAuthController;
 use App\Http\Controllers\Helpdesk\TicketController as HelpdeskTicketController;
 use App\Http\Controllers\Technician\TicketController as TechnicianTicketController;
 use App\Http\Controllers\Admin\TicketController as AdminTicketController;
+use App\Http\Controllers\TicketsController as EmployeeTicketsController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\UserManagementController;
-use App\Http\Controllers\TicketsController as EmployeeTicketsController;
+use App\Http\Controllers\MessageController;
 use App\Http\Controllers\Dashboard\ExecutiveDashboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -94,4 +95,15 @@ Route::middleware(['auth', 'role:Executive'])
     ->name('executive.')
     ->group(function () {
         Route::get('/dashboard', [ExecutiveDashboardController::class, 'index'])->name('dashboard');
+    });
+
+// ── Messaging routes (all authenticated users)
+Route::middleware('auth')
+    ->prefix('tickets')
+    ->name('messages.')
+    ->group(function () {
+        Route::get('/{ticket}/messages', [MessageController::class, 'index'])->name('index');
+        Route::post('/{ticket}/messages', [MessageController::class, 'store'])->name('store');
+        Route::get('/{ticket}/messages/unread', [MessageController::class, 'unreadCount'])->name('unread');
+        Route::get('/messages/total-unread', [MessageController::class, 'totalUnread'])->name('total-unread');
     });

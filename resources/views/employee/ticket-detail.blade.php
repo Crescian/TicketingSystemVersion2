@@ -288,4 +288,6 @@ window.confirmCancel = function (ticketId, ticketNumber) {
     new bootstrap.Modal('#cancelModal').show();
 };
 </script>
+{{-- Chat component --}}
+<x-ticket-chat :ticket="$ticket" />
 @endsection

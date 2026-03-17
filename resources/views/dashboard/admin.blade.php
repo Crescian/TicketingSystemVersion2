@@ -389,7 +389,7 @@
                 {{-- Action buttons --}}
                 <div class="d-flex gap-2 flex-wrap">
 
-                    {{-- ESCALATED: Reassign + Takeover + Resolve + History --}}
+                    {{-- ESCALATED: Reassign + Takeover + Resolve + History + Message --}}
                     @if($ticket->status === 'Escalated')
                         <button class="btn-reassign-a"
                                 onclick="openReassignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
@@ -407,9 +407,20 @@
                                 onclick="openHistoryModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-clock-history me-1"></i>View Full History
                         </button>
+                        {{-- ── Chat button ── --}}
+                        <button class="btn-chat"
+                                onclick="openAdminChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-chat-dots me-1"></i>Message
+                            @php $unread = \App\Models\TicketMessage::where('ticket_id', $ticket->id)
+                                ->where('sender_id', '!=', Auth::id())
+                                ->where('is_read', false)->count(); @endphp
+                            @if($unread > 0)
+                                <span class="chat-count-badge">{{ $unread }}</span>
+                            @endif
+                        </button>
                     @endif
 
-                    {{-- ADMIN WIP: Reassign instead + Resolve + History --}}
+                    {{-- ADMIN WIP: Reassign instead + Resolve + History + Message --}}
                     @if($isAdminWip)
                         <button class="btn-reassign-a"
                                 onclick="openReassignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
@@ -423,9 +434,20 @@
                                 onclick="openHistoryModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-clock-history me-1"></i>View Full History
                         </button>
+                        {{-- ── Chat button ── --}}
+                        <button class="btn-chat"
+                                onclick="openAdminChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-chat-dots me-1"></i>Message
+                            @php $unread = \App\Models\TicketMessage::where('ticket_id', $ticket->id)
+                                ->where('sender_id', '!=', Auth::id())
+                                ->where('is_read', false)->count(); @endphp
+                            @if($unread > 0)
+                                <span class="chat-count-badge">{{ $unread }}</span>
+                            @endif
+                        </button>
                     @endif
 
-                    {{-- REASSIGNED: Reassign again + Resolve + History --}}
+                    {{-- REASSIGNED: Reassign again + Resolve + History + Message --}}
                     @if($isReassigned)
                         <button class="btn-reassign-a"
                                 onclick="openReassignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
@@ -438,6 +460,17 @@
                         <button class="btn-view-hist"
                                 onclick="openHistoryModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-clock-history me-1"></i>View History
+                        </button>
+                        {{-- ── Chat button ── --}}
+                        <button class="btn-chat"
+                                onclick="openAdminChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-chat-dots me-1"></i>Message
+                            @php $unread = \App\Models\TicketMessage::where('ticket_id', $ticket->id)
+                                ->where('sender_id', '!=', Auth::id())
+                                ->where('is_read', false)->count(); @endphp
+                            @if($unread > 0)
+                                <span class="chat-count-badge">{{ $unread }}</span>
+                            @endif
                         </button>
                     @endif
 
@@ -685,7 +718,51 @@
             </div>
         </div>
     </div>
+    {{-- ── Admin Chat Modal ── --}}
+    <div class="modal fade" id="adminChatModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered" style="max-width:480px">
+            <div class="modal-content" style="border-radius:20px;overflow:hidden;border:none">
+                <div class="modal-hdr-dark d-flex align-items-center justify-content-between">
+                    <div>
+                        <h5 class="mb-0">
+                            <i class="bi bi-chat-dots-fill me-2" style="color:var(--yg)"></i>
+                            Messages — <em id="adminChatTicketRef">#TKT-0000</em>
+                        </h5>
+                    </div>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
 
+                {{-- Messages area --}}
+                <div id="adminChatMessages"
+                     style="height:360px;overflow-y:auto;padding:16px;background:#f8f8f4;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth">
+                    <div class="text-center py-4" style="color:var(--tm);font-size:13px">
+                        <div class="spinner-border spinner-border-sm me-2"></div>
+                        Loading messages…
+                    </div>
+                </div>
+
+                {{-- Input --}}
+                <div style="border-top:1.5px solid var(--bd);padding:12px 16px;background:#fff">
+                    <div style="font-size:10px;font-weight:800;background:var(--rdl);color:var(--rd);border-radius:4px;padding:2px 8px;display:inline-block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px">
+                        IT Admin
+                    </div>
+                    <div class="d-flex gap-2 align-items-end">
+                        <textarea id="adminChatInput"
+                                  placeholder="Type a message… (Enter to send)"
+                                  rows="1"
+                                  style="flex:1;border:1.5px solid var(--bd);border-radius:20px;padding:9px 14px;font-size:13px;resize:none;outline:none;font-family:'Nunito Sans',sans-serif;max-height:80px;overflow-y:auto;color:var(--gd);background:var(--cr);transition:border-color .2s"
+                                  onkeydown="handleAdminChatKey(event)"
+                                  onfocus="this.style.borderColor='var(--gl)';this.style.background='#fff'"
+                                  onblur="this.style.borderColor='var(--bd)';this.style.background='var(--cr)'"></textarea>
+                        <button onclick="sendAdminMessage()"
+                                style="width:38px;height:38px;background:var(--gd);color:var(--yg);border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0;transition:background .2s">
+                            <i class="bi bi-send-fill"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('scripts')
@@ -790,6 +867,266 @@ $(function () {
                 );
             });
     };
+
+});
+</script>
+@section('scripts')
+<script>
+
+/* ══ GLOBAL ADMIN CHAT FUNCTIONS ══ */
+
+let currentAdminChatTicketId = null;
+let adminChatPollInterval    = null;
+
+window.openAdminChatModal = function (ticketId, ticketNumber) {
+    currentAdminChatTicketId = ticketId;
+    $('#adminChatTicketRef').text('#' + ticketNumber);
+    $('#adminChatMessages').html(`
+        <div class="text-center py-4" style="color:var(--tm);font-size:13px">
+            <div class="spinner-border spinner-border-sm me-2"></div>
+            Loading messages…
+        </div>
+    `);
+    new bootstrap.Modal('#adminChatModal').show();
+    loadAdminChatMessages();
+
+    clearInterval(adminChatPollInterval);
+    adminChatPollInterval = setInterval(loadAdminChatMessages, 3000);
+};
+
+window.sendAdminMessage = function () {
+    const input = document.getElementById('adminChatInput');
+    const msg   = input.value.trim();
+    if (!msg || !currentAdminChatTicketId) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+
+    fetch(`/tickets/${currentAdminChatTicketId}/messages`, {
+        method:  'POST',
+        headers: {
+            'Content-Type':     'application/json',
+            'X-CSRF-TOKEN':     document.querySelector('meta[name="csrf-token"]').content,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({ message: msg }),
+    })
+    .then(r => r.json())
+    .then(() => loadAdminChatMessages())
+    .catch(err => console.error('Send error:', err));
+};
+
+window.handleAdminChatKey = function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        window.sendAdminMessage();
+    }
+    const ta = document.getElementById('adminChatInput');
+    setTimeout(() => {
+        ta.style.height = 'auto';
+        ta.style.height = Math.min(ta.scrollHeight, 80) + 'px';
+    }, 0);
+};
+
+function loadAdminChatMessages() {
+    if (!currentAdminChatTicketId) return;
+
+    fetch(`/tickets/${currentAdminChatTicketId}/messages`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept':           'application/json',
+        }
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+    })
+    .then(data => {
+        const msgs = data.messages;
+        const $box = document.getElementById('adminChatMessages');
+        if (!$box) return;
+
+        const prevCount = $box.querySelectorAll('[data-msg-id]').length;
+
+        if (!msgs || !msgs.length) {
+            $box.innerHTML = `
+                <div class="text-center py-4" style="color:var(--tm)">
+                    <i class="bi bi-chat-dots" style="font-size:32px;opacity:.3;display:block;margin-bottom:8px"></i>
+                    <p style="font-size:13px;font-weight:600;margin:0">
+                        No messages yet.<br>Start the conversation!
+                    </p>
+                </div>`;
+            return;
+        }
+
+        if (msgs.length === prevCount) return;
+
+        const avColors = {
+            'IT Admin':      '#fde8e8',
+            'IT Technician': '#fff4cc',
+            'Helpdesk':      '#d4f0d4',
+            'Executive':     '#e8e0ff',
+            'Employee':      '#e8f5b0',
+        };
+        const avTextColors = {
+            'IT Admin':      '#8b1a1a',
+            'IT Technician': '#7a5a00',
+            'Helpdesk':      '#2d5a2d',
+            'Executive':     '#4a1a8a',
+            'Employee':      '#1a3c1a',
+        };
+
+        let html = '';
+        msgs.forEach(msg => {
+            const avBg   = avColors[msg.role]    || '#e8f5b0';
+            const avText = avTextColors[msg.role] || '#1a3c1a';
+            const isMe   = msg.is_me;
+
+            html += `
+                <div data-msg-id="${msg.id}"
+                     style="display:flex;gap:8px;align-items:flex-end;${isMe ? 'flex-direction:row-reverse' : ''}">
+                    <div style="width:28px;height:28px;border-radius:50%;background:${avBg};color:${avText};display:flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;font-weight:900;font-size:10px;flex-shrink:0">
+                        ${msg.initials}
+                    </div>
+                    <div style="max-width:75%">
+                        <div style="font-size:10px;font-weight:700;color:#5a7a5a;margin-bottom:3px;${isMe ? 'text-align:right' : ''}">
+                            ${isMe ? 'You' : escAdminHtml(msg.sender)}
+                            <span style="font-size:9px;background:${avBg};color:${avText};border-radius:4px;padding:1px 5px;margin-left:4px;text-transform:uppercase;letter-spacing:.3px;font-weight:800">
+                                ${msg.role || 'User'}
+                            </span>
+                        </div>
+                        <div style="padding:9px 13px;border-radius:16px;font-size:13px;line-height:1.5;word-break:break-word;${isMe
+                            ? 'background:#1a3c1a;color:#c8e63c;border-bottom-right-radius:4px'
+                            : 'background:#fff;color:#1a3c1a;border-bottom-left-radius:4px;border:1.5px solid #e2ddd4'}">
+                            ${escAdminHtml(msg.message)}
+                        </div>
+                        <div style="font-size:10px;color:#5a7a5a;margin-top:3px;font-weight:600;${isMe ? 'text-align:right' : ''}">
+                            ${msg.time_ago}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        $box.innerHTML = html;
+        $box.scrollTop = $box.scrollHeight;
+    })
+    .catch(err => console.error('Chat load error:', err));
+}
+
+function escAdminHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+/* ══ DOM-READY FUNCTIONS ══ */
+$(function () {
+
+    /* ── Search debounce ── */
+    let searchTimer;
+    $('#searchInput').on('input', function () {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => $('#searchForm').submit(), 500);
+    });
+
+    /* ── Tech selection ── */
+    $(document).on('click', '.tech-select-option:not(.disabled)', function () {
+        $(this).closest('#techListReassign').find('.tech-select-option').removeClass('selected');
+        $(this).addClass('selected');
+        $('#selectedReassignTechId').val($(this).data('tech-id'));
+    });
+
+    /* ── Reassign modal ── */
+    window.openReassignModal = function (ticketId, ticketNumber) {
+        $('#reassignRef').text('#' + ticketNumber);
+        $('#reassignForm').attr('action', '/admin/tickets/' + ticketId + '/reassign');
+        new bootstrap.Modal('#reassignModal').show();
+    };
+
+    /* ── Takeover modal ── */
+    window.openTakeoverModal = function (ticketId, ticketNumber) {
+        $('#takeoverRef').text('#' + ticketNumber);
+        $('#takeoverForm').attr('action', '/admin/tickets/' + ticketId + '/takeover');
+        new bootstrap.Modal('#takeoverModal').show();
+    };
+
+    /* ── Resolve modal ── */
+    window.openResolveModal = function (ticketId, ticketNumber) {
+        $('#resolveRef').text('#' + ticketNumber);
+        $('#resolveForm').attr('action', '/admin/tickets/' + ticketId + '/resolve');
+        new bootstrap.Modal('#resolveModal').show();
+    };
+
+    /* ── History modal ── */
+    window.openHistoryModal = function (ticketId, ticketNumber) {
+        $('#historyRef').text('#' + ticketNumber);
+        $('#historyTimeline').html(`
+            <div class="text-center py-4" style="color:var(--tm)">
+                <div class="spinner-border spinner-border-sm me-2"></div>
+                Loading history…
+            </div>
+        `);
+        new bootstrap.Modal('#historyModal').show();
+
+        fetch('/admin/tickets/' + ticketId + '/history')
+            .then(r => r.json())
+            .then(data => {
+                const histories = data.status_histories || [];
+                if (!histories.length) {
+                    $('#historyTimeline').html(
+                        '<div style="color:var(--tm);font-size:13px">No history available.</div>'
+                    );
+                    return;
+                }
+
+                const iconMap = {
+                    'Open':        { icon: 'bi-plus-circle',          cls: 'assigned'  },
+                    'In Progress': { icon: 'bi-tools',                cls: 'working'   },
+                    'Escalated':   { icon: 'bi-exclamation-triangle', cls: 'escalated' },
+                    'Resolved':    { icon: 'bi-check-circle',         cls: 'resolved'  },
+                    'Cancelled':   { icon: 'bi-x-circle',             cls: 'cancelled' },
+                };
+
+                let html = '';
+                histories.forEach(h => {
+                    const map  = iconMap[h.new_status] || { icon: 'bi-circle', cls: 'assigned' };
+                    const date = new Date(h.changed_at).toLocaleString('en-PH', {
+                        month: 'short', day: 'numeric', year: 'numeric',
+                        hour: 'numeric', minute: '2-digit'
+                    });
+                    const by = h.changed_by?.name ?? 'System';
+                    html += `
+                        <div class="hist-item">
+                            <div class="hist-icon ${map.cls}">
+                                <i class="bi ${map.icon}"></i>
+                            </div>
+                            <div>
+                                <div class="hist-time">${date}</div>
+                                <div class="hist-title">
+                                    Status → <strong>${h.new_status}</strong> — by ${by}
+                                </div>
+                                <div class="hist-desc">${h.notes ?? ''}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                $('#historyTimeline').html(html);
+            })
+            .catch(() => {
+                $('#historyTimeline').html(
+                    '<div style="color:#e24b4a">Failed to load history.</div>'
+                );
+            });
+    };
+
+    /* ── Stop polling when chat modal closes ── */
+    $('#adminChatModal').on('hidden.bs.modal', function () {
+        clearInterval(adminChatPollInterval);
+        currentAdminChatTicketId = null;
+    });
 
 });
 </script>

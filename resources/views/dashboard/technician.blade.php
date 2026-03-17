@@ -116,6 +116,9 @@
   .status-opt .so-dot   { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
   .status-opt .so-label { font-weight:800; font-size:14px; font-family:'Nunito',sans-serif; }
   .status-opt .so-desc  { font-size:12px; color:var(--tm); }
+  .btn-chat { background:#e8eeff; color:#2a4ab0; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #b8c8ff; cursor:pointer; transition:all .2s; display:inline-flex; align-items:center; gap:5px; }
+  .btn-chat:hover { background:#d0dcff; border-color:#8898dd; }
+  .chat-count-badge { background:#e24b4a; color:#fff; font-size:10px; font-weight:900; border-radius:20px; padding:1px 6px; font-family:'Nunito',sans-serif; min-width:18px; text-align:center; }
 @endsection
 
 {{-- ══ SIDEBAR ══ --}}
@@ -481,20 +484,31 @@
                   </button>
                 @endif
 
-                {{-- In Progress: Update + Resolve + Escalate --}}
+                {{-- In Progress: Update + Resolve + Escalate + Message --}}
                 @if($isInProgress)
-                  <button class="btn-update"
-                          onclick="openUpdateModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                      <i class="bi bi-pencil me-1"></i>Add Update
-                  </button>
-                  <button class="btn-resolve-t"
-                          onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                      <i class="bi bi-check-circle me-1"></i>Mark Resolved
-                  </button>
-                  <button class="btn-escalate-t"
-                          onclick="openEscModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                      <i class="bi bi-exclamation-triangle me-1"></i>Escalate
-                  </button>
+                    <button class="btn-update"
+                            onclick="openUpdateModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                        <i class="bi bi-pencil me-1"></i>Add Update
+                    </button>
+                    <button class="btn-resolve-t"
+                            onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                        <i class="bi bi-check-circle me-1"></i>Mark Resolved
+                    </button>
+                    <button class="btn-escalate-t"
+                            onclick="openEscModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                        <i class="bi bi-exclamation-triangle me-1"></i>Escalate
+                    </button>
+                    {{-- ── Chat button ── --}}
+                    <button class="btn-chat"
+                            onclick="openTechChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                        <i class="bi bi-chat-dots me-1"></i>Message
+                        @php $unread = \App\Models\TicketMessage::where('ticket_id', $ticket->id)
+                            ->where('sender_id', '!=', Auth::id())
+                            ->where('is_read', false)->count(); @endphp
+                        @if($unread > 0)
+                            <span class="chat-count-badge">{{ $unread }}</span>
+                        @endif
+                    </button>
                 @endif
 
             </div>
@@ -769,7 +783,51 @@
           </div>
       </div>
   </div>
+    {{-- ── Chat Modal ── --}}
+    <div class="modal fade" id="techChatModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered" style="max-width:480px">
+            <div class="modal-content" style="border-radius:20px;overflow:hidden;border:none">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <div>
+                        <h5 class="mb-0">
+                            <i class="bi bi-chat-dots-fill me-2" style="color:var(--yg)"></i>
+                            Messages — <em id="techChatTicketRef">#TKT-0000</em>
+                        </h5>
+                    </div>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
 
+                {{-- Messages area --}}
+                <div id="techChatMessages"
+                    style="height:360px;overflow-y:auto;padding:16px;background:#f8f8f4;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth">
+                    <div class="text-center py-4" style="color:var(--tm);font-size:13px">
+                        <div class="spinner-border spinner-border-sm me-2"></div>
+                        Loading messages…
+                    </div>
+                </div>
+
+                {{-- Input --}}
+                <div style="border-top:1.5px solid var(--bd);padding:12px 16px;background:#fff">
+                    <div style="font-size:10px;font-weight:800;background:#fff4cc;color:#7a5a00;border-radius:4px;padding:2px 8px;display:inline-block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px">
+                        IT Technician
+                    </div>
+                    <div class="d-flex gap-2 align-items-end">
+                        <textarea id="techChatInput"
+                                    placeholder="Type a message… (Enter to send)"
+                                    rows="1"
+                                    style="flex:1;border:1.5px solid var(--bd);border-radius:20px;padding:9px 14px;font-size:13px;resize:none;outline:none;font-family:'Nunito Sans',sans-serif;max-height:80px;overflow-y:auto;color:var(--gd);background:var(--cr);transition:border-color .2s"
+                                    onkeydown="handleTechChatKey(event)"
+                                    onfocus="this.style.borderColor='var(--gl)';this.style.background='#fff'"
+                                    onblur="this.style.borderColor='var(--bd)';this.style.background='var(--cr)'"></textarea>
+                        <button onclick="sendTechMessage()"
+                                style="width:38px;height:38px;background:var(--gd);color:var(--yg);border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0;transition:background .2s">
+                            <i class="bi bi-send-fill"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('scripts')
@@ -831,4 +889,220 @@
 
   });
   </script>
+
+  @section('scripts')
+    <script>
+
+    /* ══ GLOBAL CHAT FUNCTIONS ══ */
+
+    let currentTechChatTicketId = null;
+    let techChatPollInterval    = null;
+
+    window.openTechChatModal = function (ticketId, ticketNumber) {
+        currentTechChatTicketId = ticketId;
+        $('#techChatTicketRef').text('#' + ticketNumber);
+        $('#techChatMessages').html(`
+            <div class="text-center py-4" style="color:var(--tm);font-size:13px">
+                <div class="spinner-border spinner-border-sm me-2"></div>
+                Loading messages…
+            </div>
+        `);
+        new bootstrap.Modal('#techChatModal').show();
+        loadTechChatMessages();
+
+        clearInterval(techChatPollInterval);
+        techChatPollInterval = setInterval(loadTechChatMessages, 3000);
+    };
+
+    window.sendTechMessage = function () {
+        const input = document.getElementById('techChatInput');
+        const msg   = input.value.trim();
+        if (!msg || !currentTechChatTicketId) return;
+
+        input.value = '';
+        input.style.height = 'auto';
+
+        fetch(`/tickets/${currentTechChatTicketId}/messages`, {
+            method:  'POST',
+            headers: {
+                'Content-Type':     'application/json',
+                'X-CSRF-TOKEN':     document.querySelector('meta[name="csrf-token"]').content,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ message: msg }),
+        })
+        .then(r => r.json())
+        .then(() => loadTechChatMessages())
+        .catch(err => console.error('Send error:', err));
+    };
+
+    window.handleTechChatKey = function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            window.sendTechMessage();
+        }
+        const ta = document.getElementById('techChatInput');
+        setTimeout(() => {
+            ta.style.height = 'auto';
+            ta.style.height = Math.min(ta.scrollHeight, 80) + 'px';
+        }, 0);
+    };
+
+    function loadTechChatMessages() {
+        if (!currentTechChatTicketId) return;
+
+        fetch(`/tickets/${currentTechChatTicketId}/messages`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept':           'application/json',
+            }
+        })
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(data => {
+            const msgs = data.messages;
+            const $box = document.getElementById('techChatMessages');
+            if (!$box) return;
+
+            const prevCount = $box.querySelectorAll('[data-msg-id]').length;
+
+            if (!msgs || !msgs.length) {
+                $box.innerHTML = `
+                    <div class="text-center py-4" style="color:var(--tm)">
+                        <i class="bi bi-chat-dots" style="font-size:32px;opacity:.3;display:block;margin-bottom:8px"></i>
+                        <p style="font-size:13px;font-weight:600;margin:0">
+                            No messages yet.<br>Start the conversation!
+                        </p>
+                    </div>`;
+                return;
+            }
+
+            if (msgs.length === prevCount) return;
+
+            const avColors = {
+                'IT Admin':      '#fde8e8',
+                'IT Technician': '#fff4cc',
+                'Helpdesk':      '#d4f0d4',
+                'Executive':     '#e8e0ff',
+                'Employee':      '#e8f5b0',
+            };
+            const avTextColors = {
+                'IT Admin':      '#8b1a1a',
+                'IT Technician': '#7a5a00',
+                'Helpdesk':      '#2d5a2d',
+                'Executive':     '#4a1a8a',
+                'Employee':      '#1a3c1a',
+            };
+
+            let html = '';
+            msgs.forEach(msg => {
+                const avBg   = avColors[msg.role]      || '#e8f5b0';
+                const avText = avTextColors[msg.role]   || '#1a3c1a';
+                const isMe   = msg.is_me;
+
+                html += `
+                    <div data-msg-id="${msg.id}"
+                        style="display:flex;gap:8px;align-items:flex-end;${isMe ? 'flex-direction:row-reverse' : ''}">
+                        <div style="width:28px;height:28px;border-radius:50%;background:${avBg};color:${avText};display:flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;font-weight:900;font-size:10px;flex-shrink:0">
+                            ${msg.initials}
+                        </div>
+                        <div style="max-width:75%">
+                            <div style="font-size:10px;font-weight:700;color:var(--tm);margin-bottom:3px;${isMe ? 'text-align:right' : ''}">
+                                ${isMe ? 'You' : escTechHtml(msg.sender)}
+                                <span style="font-size:9px;background:${avBg};color:${avText};border-radius:4px;padding:1px 5px;margin-left:4px;text-transform:uppercase;letter-spacing:.3px;font-weight:800">
+                                    ${msg.role || 'User'}
+                                </span>
+                            </div>
+                            <div style="padding:9px 13px;border-radius:16px;font-size:13px;line-height:1.5;word-break:break-word;${isMe
+                                ? 'background:var(--gd);color:var(--yg);border-bottom-right-radius:4px'
+                                : 'background:#fff;color:var(--gd);border-bottom-left-radius:4px;border:1.5px solid var(--bd)'}">
+                                ${escTechHtml(msg.message)}
+                            </div>
+                            <div style="font-size:10px;color:var(--tm);margin-top:3px;font-weight:600;${isMe ? 'text-align:right' : ''}">
+                                ${msg.time_ago}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            $box.innerHTML = html;
+            $box.scrollTop = $box.scrollHeight;
+        })
+        .catch(err => console.error('Chat load error:', err));
+    }
+
+    function escTechHtml(str) {
+        return String(str || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    /* ══ DOM-READY FUNCTIONS ══ */
+    $(function () {
+
+        /* ── Search debounce ── */
+        let searchTimer;
+        $('#searchInput').on('input', function () {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => $('#searchForm').submit(), 500);
+        });
+
+        /* ── Status option selection ── */
+        $(document).on('click', '.status-opt', function () {
+            $(this).siblings().removeClass('selected');
+            $(this).addClass('selected');
+            $('#workStatusVal').val($(this).data('val'));
+        });
+
+        /* ── Accept modal ── */
+        window.openAcceptModal = function (ticketId, ticketNumber) {
+            $('#acceptRef').text('#' + ticketNumber);
+            $('#acceptForm').attr('action', '/technician/tickets/' + ticketId + '/accept');
+            new bootstrap.Modal('#acceptModal').show();
+        };
+
+        /* ── Decline modal ── */
+        window.openDeclineModal = function (ticketId, ticketNumber) {
+            $('#declineRef').text('#' + ticketNumber);
+            $('#declineForm').attr('action', '/technician/tickets/' + ticketId + '/decline');
+            new bootstrap.Modal('#declineModal').show();
+        };
+
+        /* ── Update modal ── */
+        window.openUpdateModal = function (ticketId, ticketNumber) {
+            $('#updateRef').text('#' + ticketNumber);
+            $('#updateForm').attr('action', '/technician/tickets/' + ticketId + '/update');
+            $('.status-opt').removeClass('selected');
+            $('.status-opt[data-val="Actively working"]').addClass('selected');
+            $('#workStatusVal').val('Actively working');
+            new bootstrap.Modal('#updateModal').show();
+        };
+
+        /* ── Resolve modal ── */
+        window.openResolveModal = function (ticketId, ticketNumber) {
+            $('#resolveRef').text('#' + ticketNumber);
+            $('#resolveForm').attr('action', '/technician/tickets/' + ticketId + '/resolve');
+            new bootstrap.Modal('#resolveModal').show();
+        };
+
+        /* ── Escalate modal ── */
+        window.openEscModal = function (ticketId, ticketNumber) {
+            $('#escRef').text('#' + ticketNumber);
+            $('#escForm').attr('action', '/technician/tickets/' + ticketId + '/escalate');
+            new bootstrap.Modal('#escModal').show();
+        };
+
+        /* ── Stop polling when chat modal closes ── */
+        $('#techChatModal').on('hidden.bs.modal', function () {
+            clearInterval(techChatPollInterval);
+            currentTechChatTicketId = null;
+        });
+
+    });
+    </script>
 @endsection

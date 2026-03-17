@@ -63,4 +63,16 @@ class Tickets extends Model
     {
         return $this->hasMany(\App\Models\Escalations::class, 'ticket_id');
     }
+    public function messages()
+    {
+        return $this->hasMany(TicketMessage::class, 'ticket_id')
+            ->orderBy('created_at', 'asc');
+    }
+
+    public function unreadMessages()
+    {
+        return $this->hasMany(TicketMessage::class, 'ticket_id')
+            ->where('is_read', false)
+            ->where('sender_id', '!=', auth()->id());
+    }
 }
