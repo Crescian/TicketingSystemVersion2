@@ -30,7 +30,7 @@ class TicketMessage extends Model
 
     public function ticket()
     {
-        return $this->belongsTo(Ticket::class, 'ticket_id');
+        return $this->belongsTo(Tickets::class, 'ticket_id');
     }
 
     public function sender()
