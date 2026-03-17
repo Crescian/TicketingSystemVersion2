@@ -1,61 +1,40 @@
 <?php
 
 use App\Http\Controllers\Auth\WebAuthController;
-use App\Http\Controllers\Dashboard\AdminDashboardController;
-use App\Http\Controllers\Dashboard\EmployeeDashboardController;
-use App\Http\Controllers\TicketsController as EmployeeTicketsController;
 use App\Http\Controllers\Helpdesk\TicketController as HelpdeskTicketController;
 use App\Http\Controllers\Technician\TicketController as TechnicianTicketController;
 use App\Http\Controllers\Admin\TicketController as AdminTicketController;
+use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\TicketsController as EmployeeTicketsController;
 use App\Http\Controllers\Dashboard\ExecutiveDashboardController;
-use App\Http\Controllers\Dashboard\HelpdeskDashboardController;
-use App\Http\Controllers\Dashboard\TechnicianDashboardController;
 use Illuminate\Support\Facades\Route;
 
-// Redirect root to login
+// ── Redirect root to login
 Route::get('/', fn() => redirect('/login'));
 
-// Guest routes
+// ── Guest routes
 Route::middleware('guest')->group(function () {
     Route::get('/login', [WebAuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [WebAuthController::class, 'login']);
 });
 
-// Logout
-Route::middleware('auth')->post('/logout', [WebAuthController::class, 'logout'])->name('logout');
+// ── Logout
+Route::middleware('auth')
+    ->post('/logout', [WebAuthController::class, 'logout'])
+    ->name('logout');
 
-// Employee routes
+// ── Employee routes
 Route::middleware(['auth', 'role:Employee'])
     ->prefix('employee')
     ->name('employee.')
     ->group(function () {
-
-        // Dashboard
-        Route::get('/dashboard', [EmployeeTicketsController::class, 'index'])
-            ->name('tickets.index');
-
-        // Submit ticket form
-        Route::get('/tickets/create', [EmployeeTicketsController::class, 'create'])
-            ->name('tickets.create');
-
-        // Store ticket
-        Route::post('/tickets', [EmployeeTicketsController::class, 'store'])
-            ->name('tickets.store');
-
-        // View ticket detail
-        Route::get('/tickets/{ticket}', [EmployeeTicketsController::class, 'show'])
-            ->name('tickets.show');
-
-        // Cancel ticket
-        Route::patch('/tickets/{ticket}/cancel', [EmployeeTicketsController::class, 'cancel'])
-            ->name('tickets.cancel');
+        Route::get('/dashboard', [EmployeeTicketsController::class, 'index'])->name('tickets.index');
+        Route::get('/tickets/create', [EmployeeTicketsController::class, 'create'])->name('tickets.create');
+        Route::post('/tickets', [EmployeeTicketsController::class, 'store'])->name('tickets.store');
+        Route::get('/tickets/{ticket}', [EmployeeTicketsController::class, 'show'])->name('tickets.show');
+        Route::patch('/tickets/{ticket}/cancel', [EmployeeTicketsController::class, 'cancel'])->name('tickets.cancel');
     });
-
-// Helpdesk routes
-// Route::middleware(['auth', 'role:Helpdesk'])->prefix('helpdesk')->group(function () {
-//     Route::get('/dashboard', [HelpdeskDashboardController::class, 'index'])->name('helpdesk.dashboard');
-// });
 
 // ── Helpdesk routes
 Route::middleware(['auth', 'role:Helpdesk'])
@@ -70,11 +49,7 @@ Route::middleware(['auth', 'role:Helpdesk'])
         Route::post('/tickets/{ticket}/resolve', [HelpdeskTicketController::class, 'resolve'])->name('tickets.resolve');
     });
 
-// IT Technician routes
-// Route::middleware(['auth', 'role:IT Technician'])->prefix('technician')->group(function () {
-//     Route::get('/dashboard', [TechnicianDashboardController::class, 'index'])->name('technician.dashboard');
-// });
-
+// ── IT Technician routes
 Route::middleware(['auth', 'role:IT Technician'])
     ->prefix('technician')
     ->name('technician.')
@@ -92,6 +67,7 @@ Route::middleware(['auth', 'role:IT Admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
+
         // Escalation dashboard
         Route::get('/dashboard', [AdminTicketController::class, 'index'])->name('dashboard');
         Route::post('/tickets/{ticket}/reassign', [AdminTicketController::class, 'reassign'])->name('tickets.reassign');
@@ -107,27 +83,15 @@ Route::middleware(['auth', 'role:IT Admin'])
         Route::patch('/users/{user}/deactivate', [UserManagementController::class, 'deactivate'])->name('users.deactivate');
         Route::patch('/users/{user}/reactivate', [UserManagementController::class, 'reactivate'])->name('users.reactivate');
         Route::patch('/users/{user}/reset-password', [UserManagementController::class, 'resetPassword'])->name('users.reset-password');
+
+        // Audit log  ← now correctly INSIDE the admin group
+        Route::get('/audit-log', [AuditLogController::class, 'index'])->name('audit-log');
     });
 
-// Executive routes
-Route::middleware(['auth', 'role:Executive'])->prefix('executive')->group(function () {
-    Route::get('/dashboard', [ExecutiveDashboardController::class, 'index'])->name('executive.dashboard');
-});
-
-// Inside IT Admin routes group:
-Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
-Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
-Route::get('/users/{user}', [UserManagementController::class, 'show'])->name('users.show');
-Route::put('/users/{user}', [UserManagementController::class, 'update'])->name('users.update');
-Route::patch('/users/{user}/deactivate', [UserManagementController::class, 'deactivate'])->name('users.deactivate');
-Route::patch('/users/{user}/reactivate', [UserManagementController::class, 'reactivate'])->name('users.reactivate');
-Route::patch('/users/{user}/reset-password', [UserManagementController::class, 'resetPassword'])->name('users.reset-password');
-
-// Protected routes
-Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
-
-    Route::post('/logout', [WebAuthController::class, 'logout'])->name('logout');
-});
+// ── Executive routes
+Route::middleware(['auth', 'role:Executive'])
+    ->prefix('executive')
+    ->name('executive.')
+    ->group(function () {
+        Route::get('/dashboard', [ExecutiveDashboardController::class, 'index'])->name('dashboard');
+    });
