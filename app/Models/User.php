@@ -66,4 +66,12 @@ class User extends Authenticatable
     {
         return $this->role?->role_name === $role;
     }
+    public function assignedTickets()
+    {
+        return $this->hasMany(Tickets::class, 'assigned_to');
+    }
+    public function department()
+    {
+        return $this->belongsTo(\App\Models\Departments::class, 'department_id');
+    }
 }

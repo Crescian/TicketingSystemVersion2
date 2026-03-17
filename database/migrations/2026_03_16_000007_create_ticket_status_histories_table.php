@@ -13,7 +13,7 @@ return new class extends Migration {
         Schema::create('ticket_status_histories', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('ticket_id');
-            $table->string('old_status');
+            $table->string('old_status')->nullable(); // ← add nullable()
             $table->string('new_status');
             $table->uuid('changed_by');
             $table->string('notes')->nullable();

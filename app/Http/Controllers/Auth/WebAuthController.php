@@ -47,7 +47,7 @@ class WebAuthController extends Controller
         $role = Auth::user()->role?->role_name;
 
         return match ($role) {
-            'Employee' => redirect()->route('employee.dashboard'),
+            'Employee' => redirect()->route('employee.tickets.index'),
             'Helpdesk' => redirect()->route('helpdesk.dashboard'),
             'IT Technician' => redirect()->route('technician.dashboard'),
             'IT Admin' => redirect()->route('admin.dashboard'),
