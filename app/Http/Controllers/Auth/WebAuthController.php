@@ -51,7 +51,7 @@ class WebAuthController extends Controller
             'Helpdesk' => redirect()->route('helpdesk.dashboard'),
             'IT Technician' => redirect()->route('technician.dashboard'),
             'IT Admin' => redirect()->route('admin.dashboard'),
-            'Executive' => redirect()->route('executive.dashboard'),
+            'Manager' => redirect()->route('executive.dashboard'),
             default => redirect('/login'),
         };
     }

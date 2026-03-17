@@ -15,7 +15,7 @@ class RoleSeeder extends Seeder
             ['id' => Str::uuid(), 'role_name' => 'Helpdesk', 'description' => 'First level support'],
             ['id' => Str::uuid(), 'role_name' => 'IT Technician', 'description' => 'Handles and resolves tickets'],
             ['id' => Str::uuid(), 'role_name' => 'IT Admin', 'description' => 'Manages system and users'],
-            ['id' => Str::uuid(), 'role_name' => 'Executive', 'description' => 'Views reports and analytics'],
+            ['id' => Str::uuid(), 'role_name' => 'Manager', 'description' => 'Views reports and analytics'],
         ];
 
         DB::table('roles')->insert($roles);
