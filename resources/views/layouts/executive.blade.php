@@ -851,7 +851,7 @@
     {{-- Left: logo + badge --}}
     <div class="d-flex align-items-center gap-3">
       <a href="#" class="top-logo">LG<span>ICT</span></a>
-      <span class="exec-badge"><i class="bi bi-briefcase me-1"></i>Executive View</span>
+      <span class="exec-badge"><i class="bi bi-briefcase me-1"></i>Management View</span>
     </div>
 
     {{-- Right: date range + user + sign out --}}

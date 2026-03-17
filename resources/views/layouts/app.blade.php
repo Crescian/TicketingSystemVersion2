@@ -214,24 +214,36 @@
             font-weight: 600;
             font-size: 14px;
             color: var(--gd);
-            padding: 11px 18px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            padding: 0;
+            /* ← remove padding from li */
             transition: background .15s;
             border-radius: 0 !important;
             cursor: pointer;
+        }
+
+        .sidebar-menu .list-group-item a {
+            padding: 11px 18px;
+            /* ← put padding on the anchor instead */
+            color: var(--gd);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            text-decoration: none;
+            transition: background .15s;
         }
 
         .sidebar-menu .list-group-item:last-child {
             border-bottom: none;
         }
 
-        .sidebar-menu .list-group-item:hover {
+        .sidebar-menu .list-group-item:hover,
+        .sidebar-menu .list-group-item a:hover {
             background: var(--ygl);
+            color: var(--gd);
         }
 
-        .sidebar-menu .list-group-item.active {
+        .sidebar-menu .list-group-item.active a {
             background: var(--ygl);
             border-left: 4px solid var(--yg);
             font-weight: 700;
