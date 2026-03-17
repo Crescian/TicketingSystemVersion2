@@ -415,7 +415,7 @@
                                 ->where('sender_id', '!=', Auth::id())
                                 ->where('is_read', false)->count(); @endphp
                             @if($unread > 0)
-                                <span class="chat-count-badge">{{ $unread }}</span>
+                                <span class="chat-count-badge" id="badge-{{ $ticket->id }}">{{ $unread }}</span>
                             @endif
                         </button>
                     @endif
@@ -442,7 +442,7 @@
                                 ->where('sender_id', '!=', Auth::id())
                                 ->where('is_read', false)->count(); @endphp
                             @if($unread > 0)
-                                <span class="chat-count-badge">{{ $unread }}</span>
+                                <span class="chat-count-badge" id="badge-{{ $ticket->id }}">{{ $unread }}</span>
                             @endif
                         </button>
                     @endif
@@ -469,7 +469,7 @@
                                 ->where('sender_id', '!=', Auth::id())
                                 ->where('is_read', false)->count(); @endphp
                             @if($unread > 0)
-                                <span class="chat-count-badge">{{ $unread }}</span>
+                                <span class="chat-count-badge" id="badge-{{ $ticket->id }}">{{ $unread }}</span>
                             @endif
                         </button>
                     @endif
@@ -881,12 +881,11 @@ let adminChatPollInterval    = null;
 window.openAdminChatModal = function (ticketId, ticketNumber) {
     currentAdminChatTicketId = ticketId;
     $('#adminChatTicketRef').text('#' + ticketNumber);
-    $('#adminChatMessages').html(`
-        <div class="text-center py-4" style="color:var(--tm);font-size:13px">
-            <div class="spinner-border spinner-border-sm me-2"></div>
-            Loading messages…
-        </div>
-    `);
+
+    // ── Clear unread badge immediately
+    $('#badge-' + ticketId).remove();
+
+    $('#adminChatMessages').html(`...`);
     new bootstrap.Modal('#adminChatModal').show();
     loadAdminChatMessages();
 

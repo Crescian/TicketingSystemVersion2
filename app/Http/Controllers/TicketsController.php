@@ -186,6 +186,37 @@ class TicketsController extends Controller
             default => 'Good Night',
         };
     }
+
+    // Add this method to the existing TicketController
+    public function storeFeedback(Request $request, Tickets $ticket)
+    {
+        if ($ticket->users_id !== Auth::id()) {
+            abort(403);
+        }
+
+        if ($ticket->status !== 'Resolved') {
+            return back()->with('error', 'You can only rate resolved tickets.');
+        }
+
+        if ($ticket->feedback) {
+            return back()->with('error', 'You have already submitted feedback for this ticket.');
+        }
+
+        $request->validate([
+            'rating' => 'required|integer|min:1|max:5',
+            'comments' => 'nullable|string|max:500',
+        ]);
+
+        \App\Models\TicketFeedback::create([
+            'ticket_id' => $ticket->id,
+            'user_id' => Auth::id(),
+            'rating' => $request->rating,
+            'comments' => $request->comments,
+            'created_at' => now(),
+        ]);
+
+        return back()->with('success', 'Thank you for your feedback! ⭐');
+    }
     /**
      * Show the form for editing the specified resource.
      */

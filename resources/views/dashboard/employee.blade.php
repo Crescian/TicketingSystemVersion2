@@ -106,6 +106,19 @@
     /* View details button */
     .btn-view-detail { background: none; border: 1.5px solid var(--bd); color: var(--tm); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; padding: 7px 18px; border-radius: 50px; transition: all .2s; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
     .btn-view-detail:hover { border-color: var(--gl); color: var(--gd); }
+    /* ── Chat button ── */
+    .btn-chat { background:#e8eeff; color:#2a4ab0; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #b8c8ff; cursor:pointer; transition:all .2s; display:inline-flex; align-items:center; gap:5px; }
+    .btn-chat:hover { background:#d0dcff; border-color:#8898dd; }
+    .chat-count-badge { background:#e24b4a; color:#fff; font-size:10px; font-weight:900; border-radius:20px; padding:1px 6px; font-family:'Nunito',sans-serif; min-width:18px; text-align:center; }
+
+    /* ── Star rating ── */
+    .star-rating { display:flex; flex-direction:row-reverse; gap:4px; justify-content:flex-end; }
+    .star-rating input { display:none; }
+    .star-rating label { font-size:28px; color:#e2ddd4; cursor:pointer; transition:color .15s; line-height:1; }
+    .star-rating input:checked ~ label,
+    .star-rating label:hover,
+    .star-rating label:hover ~ label { color:#f5c842; }
+    .feedback-submitted { background:var(--ygl); border-radius:12px; padding:12px 16px; font-size:13px; }
 @endsection
 
 {{-- ══ SIDEBAR ══ --}}
@@ -370,16 +383,50 @@
                 @endif
 
                 {{-- Action buttons --}}
-                <div class="d-flex gap-2 flex-wrap mt-3">
+                <div class="d-flex gap-2 mt-3 flex-wrap">
                     <a href="{{ route('employee.tickets.show', $ticket) }}"
-                       class="btn-view-detail">
-                        <i class="bi bi-eye"></i> View Details
+                    class="btn-view-detail">
+                        <i class="bi bi-eye me-1"></i>View Details
                     </a>
+
                     @if(in_array($ticket->status, ['Open', 'In Progress']))
-                        <button class="btn-cancel-ticket"
+                        <button class="btn-cancel-tkt"
                                 onclick="confirmCancel('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-x-circle me-1"></i>Cancel
                         </button>
+                    @endif
+
+                    {{-- ── Chat button (all active tickets) ── --}}
+                    @if(!in_array($ticket->status, ['Cancelled']))
+                        <button class="btn-chat"
+                                onclick="openEmpChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-chat-dots me-1"></i>Message
+                            @php
+                                $unread = \App\Models\TicketMessage::where('ticket_id', $ticket->id)
+                                    ->where('sender_id', '!=', Auth::id())
+                                    ->where('is_read', false)->count();
+                            @endphp
+                            @if($unread > 0)
+                                <span class="chat-count-badge" id="badge-{{ $ticket->id }}">
+                                    {{ $unread }}
+                                </span>
+                            @endif
+                        </button>
+                    @endif
+
+                    {{-- ── Rate & Feedback (resolved only, not yet rated) ── --}}
+                    @if($ticket->status === 'Resolved' && !$ticket->feedback)
+                        <button class="btn-resolve" style="background:#fff4cc;color:#7a5a00;border:1.5px solid #f5c842"
+                                onclick="openFeedbackModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-star me-1"></i>Rate & Feedback
+                        </button>
+                    @elseif($ticket->status === 'Resolved' && $ticket->feedback)
+                        <span class="meta-item" style="color:#f5c842;font-weight:700">
+                            @for($i = 1; $i <= 5; $i++)
+                                <i class="bi bi-star{{ $i <= $ticket->feedback->rating ? '-fill' : '' }}"></i>
+                            @endfor
+                            {{ $ticket->feedback->rating }}/5 — Rated
+                        </span>
                     @endif
                 </div>
 
@@ -658,11 +705,295 @@
             </div>
         </div>
     </div>
+    {{-- ── Employee Chat Modal ── --}}
+    <div class="modal fade" id="empChatModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered" style="max-width:480px">
+            <div class="modal-content" style="border-radius:20px;overflow:hidden;border:none">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <div>
+                        <h5 class="mb-0">
+                            <i class="bi bi-chat-dots-fill me-2" style="color:var(--yg)"></i>
+                            Messages — <em id="empChatTicketRef">#TKT-0000</em>
+                        </h5>
+                    </div>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
 
+                <div id="empChatMessages"
+                     style="height:360px;overflow-y:auto;padding:16px;background:#f8f8f4;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth">
+                    <div class="text-center py-4" style="color:var(--tm);font-size:13px">
+                        <div class="spinner-border spinner-border-sm me-2"></div>
+                        Loading messages…
+                    </div>
+                </div>
+
+                <div style="border-top:1.5px solid var(--bd);padding:12px 16px;background:#fff">
+                    <div style="font-size:10px;font-weight:800;background:var(--ygl);color:var(--gd);border-radius:4px;padding:2px 8px;display:inline-block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px">
+                        Employee
+                    </div>
+                    <div class="d-flex gap-2 align-items-end">
+                        <textarea id="empChatInput"
+                                  placeholder="Type a message… (Enter to send)"
+                                  rows="1"
+                                  style="flex:1;border:1.5px solid var(--bd);border-radius:20px;padding:9px 14px;font-size:13px;resize:none;outline:none;font-family:'Nunito Sans',sans-serif;max-height:80px;overflow-y:auto;color:var(--gd);background:var(--cr);transition:border-color .2s"
+                                  onkeydown="handleEmpChatKey(event)"
+                                  onfocus="this.style.borderColor='var(--gl)';this.style.background='#fff'"
+                                  onblur="this.style.borderColor='var(--bd)';this.style.background='var(--cr)'"></textarea>
+                        <button onclick="sendEmpMessage()"
+                                style="width:38px;height:38px;background:var(--gd);color:var(--yg);border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0">
+                            <i class="bi bi-send-fill"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- ── Feedback / Rating Modal ── --}}
+    <div class="modal fade" id="feedbackModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Rate <em>Your Experience</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="feedbackForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+
+                        {{-- Ticket reference --}}
+                        <div class="p-3 rounded mb-4"
+                             style="background:var(--ygl);font-size:13px;color:var(--gd)">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Ticket <strong id="feedbackTicketRef"></strong> has been resolved.
+                            Please rate your experience.
+                        </div>
+
+                        {{-- Star rating --}}
+                        <div class="mb-4 text-center">
+                            <div class="mb-2"
+                                 style="font-size:13px;font-weight:700;color:var(--gd)">
+                                How satisfied are you with the resolution?
+                            </div>
+                            <div class="star-rating" id="starRating"
+                                 style="justify-content:center">
+                                <input type="radio" id="s5" name="rating" value="5">
+                                <label for="s5" title="5 stars">★</label>
+                                <input type="radio" id="s4" name="rating" value="4">
+                                <label for="s4" title="4 stars">★</label>
+                                <input type="radio" id="s3" name="rating" value="3">
+                                <label for="s3" title="3 stars">★</label>
+                                <input type="radio" id="s2" name="rating" value="2">
+                                <label for="s2" title="2 stars">★</label>
+                                <input type="radio" id="s1" name="rating" value="1">
+                                <label for="s1" title="1 star">★</label>
+                            </div>
+                            <div id="ratingLabel"
+                                 style="font-size:13px;font-weight:700;color:var(--tm);margin-top:8px">
+                                Click a star to rate
+                            </div>
+                        </div>
+
+                        {{-- Comments --}}
+                        <div>
+                            <label class="form-label">
+                                Additional comments (optional)
+                            </label>
+                            <textarea class="form-control" name="comments" rows="3"
+                                      placeholder="Tell us about your experience with the IT support team…"></textarea>
+                        </div>
+
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-back-modal"
+                                data-bs-dismiss="modal">Maybe Later</button>
+                        <button type="submit" class="btn-submit-ticket"
+                                id="btnSubmitFeedback" disabled>
+                            <i class="bi bi-star me-1"></i>Submit Rating
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
-
 @section('scripts')
 <script>
+
+/* ══ GLOBAL CHAT FUNCTIONS — must be outside $(function(){}) ══ */
+
+let currentEmpChatTicketId = null;
+let empChatPollInterval    = null;
+
+window.openEmpChatModal = function (ticketId, ticketNumber) {
+    currentEmpChatTicketId = ticketId;
+    $('#empChatTicketRef').text('#' + ticketNumber);
+    $('#empChatMessages').html(`
+        <div class="text-center py-4" style="color:var(--tm);font-size:13px">
+            <div class="spinner-border spinner-border-sm me-2"></div>
+            Loading messages…
+        </div>
+    `);
+
+    // ── Clear unread badge immediately on click
+    $('#badge-' + ticketId).remove();
+
+    new bootstrap.Modal('#empChatModal').show();
+    loadEmpChatMessages();
+
+    clearInterval(empChatPollInterval);
+    empChatPollInterval = setInterval(loadEmpChatMessages, 3000);
+};
+
+window.sendEmpMessage = function () {
+    const input = document.getElementById('empChatInput');
+    const msg   = input.value.trim();
+    if (!msg || !currentEmpChatTicketId) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+
+    fetch(`/tickets/${currentEmpChatTicketId}/messages`, {
+        method:  'POST',
+        headers: {
+            'Content-Type':     'application/json',
+            'X-CSRF-TOKEN':     document.querySelector('meta[name="csrf-token"]').content,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({ message: msg }),
+    })
+    .then(r => r.json())
+    .then(() => loadEmpChatMessages())
+    .catch(err => console.error('Send error:', err));
+};
+
+window.handleEmpChatKey = function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        window.sendEmpMessage();
+    }
+    const ta = document.getElementById('empChatInput');
+    setTimeout(() => {
+        ta.style.height = 'auto';
+        ta.style.height = Math.min(ta.scrollHeight, 80) + 'px';
+    }, 0);
+};
+
+function loadEmpChatMessages() {
+    if (!currentEmpChatTicketId) return;
+
+    fetch(`/tickets/${currentEmpChatTicketId}/messages`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept':           'application/json',
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        const msgs = data.messages;
+        const $box = document.getElementById('empChatMessages');
+        if (!$box) return;
+
+        const prevCount = $box.querySelectorAll('[data-msg-id]').length;
+
+        if (!msgs || !msgs.length) {
+            $box.innerHTML = `
+                <div class="text-center py-4" style="color:var(--tm)">
+                    <i class="bi bi-chat-dots" style="font-size:32px;opacity:.3;display:block;margin-bottom:8px"></i>
+                    <p style="font-size:13px;font-weight:600;margin:0">
+                        No messages yet.<br>Start the conversation!
+                    </p>
+                </div>`;
+            return;
+        }
+
+        if (msgs.length === prevCount) return;
+
+        // ── Remove badge since messages are now read
+        $('#badge-' + currentEmpChatTicketId).remove();
+
+        const avColors = {
+            'IT Admin':      '#fde8e8',
+            'IT Technician': '#fff4cc',
+            'Helpdesk':      '#d4f0d4',
+            'Manager':       '#e8e0ff',
+            'Employee':      '#e8f5b0',
+        };
+        const avTextColors = {
+            'IT Admin':      '#8b1a1a',
+            'IT Technician': '#7a5a00',
+            'Helpdesk':      '#2d5a2d',
+            'Manager':       '#4a1a8a',
+            'Employee':      '#1a3c1a',
+        };
+
+        let html = '';
+        msgs.forEach(msg => {
+            const avBg   = avColors[msg.role]    || '#e8f5b0';
+            const avText = avTextColors[msg.role] || '#1a3c1a';
+            const isMe   = msg.is_me;
+
+            html += `
+                <div data-msg-id="${msg.id}"
+                     style="display:flex;gap:8px;align-items:flex-end;${isMe ? 'flex-direction:row-reverse' : ''}">
+                    <div style="width:28px;height:28px;border-radius:50%;background:${avBg};color:${avText};display:flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;font-weight:900;font-size:10px;flex-shrink:0">
+                        ${msg.initials}
+                    </div>
+                    <div style="max-width:75%">
+                        <div style="font-size:10px;font-weight:700;color:var(--tm);margin-bottom:3px;${isMe ? 'text-align:right' : ''}">
+                            ${isMe ? 'You' : escEmpHtml(msg.sender)}
+                            <span style="font-size:9px;background:${avBg};color:${avText};border-radius:4px;padding:1px 5px;margin-left:4px;text-transform:uppercase;letter-spacing:.3px;font-weight:800">
+                                ${msg.role || 'User'}
+                            </span>
+                        </div>
+                        <div style="padding:9px 13px;border-radius:16px;font-size:13px;line-height:1.5;word-break:break-word;${isMe
+                            ? 'background:var(--gd);color:var(--yg);border-bottom-right-radius:4px'
+                            : 'background:#fff;color:var(--gd);border-bottom-left-radius:4px;border:1.5px solid var(--bd)'}">
+                            ${escEmpHtml(msg.message)}
+                        </div>
+                        <div style="font-size:10px;color:var(--tm);margin-top:3px;font-weight:600;${isMe ? 'text-align:right' : ''}">
+                            ${msg.time_ago}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        $box.innerHTML = html;
+        $box.scrollTop = $box.scrollHeight;
+    })
+    .catch(err => console.error('Chat error:', err));
+}
+
+function escEmpHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/* ══ FEEDBACK RATING LABELS ══ */
+const ratingLabels = {
+    1: '😞 Poor — Issue not fully resolved',
+    2: '😕 Fair — Partially resolved',
+    3: '😐 Okay — Resolved but could be better',
+    4: '😊 Good — Satisfied with the resolution',
+    5: '🤩 Excellent — Outstanding support!'
+};
+
+window.openFeedbackModal = function (ticketId, ticketNumber) {
+    $('#feedbackTicketRef').text('#' + ticketNumber);
+    $('#feedbackForm').attr('action', '/employee/tickets/' + ticketId + '/feedback');
+
+    // Reset stars and button
+    $('input[name="rating"]').prop('checked', false);
+    $('#ratingLabel').text('Click a star to rate').css('color', 'var(--tm)');
+    $('#btnSubmitFeedback').prop('disabled', true);
+    $('textarea[name="comments"]').val('');
+
+    new bootstrap.Modal('#feedbackModal').show();
+};
+
+/* ══ DOM-READY — everything that needs the DOM ══ */
 $(function () {
 
     /* ── Search debounce ── */
@@ -679,6 +1010,19 @@ $(function () {
         new bootstrap.Modal('#cancelModal').show();
     };
 
+    /* ── Star rating ── */
+    $(document).on('change', 'input[name="rating"]', function () {
+        const val = parseInt($(this).val());
+        $('#ratingLabel').text(ratingLabels[val] || '').css('color', 'var(--gd)');
+        $('#btnSubmitFeedback').prop('disabled', false);
+    });
+
+    /* ── Stop polling when chat modal closes ── */
+    $('#empChatModal').on('hidden.bs.modal', function () {
+        clearInterval(empChatPollInterval);
+        currentEmpChatTicketId = null;
+    });
+
     /* ── Step wizard ── */
     let step = 1;
 
@@ -694,11 +1038,10 @@ $(function () {
         $('#btnBack').css('visibility', n > 1 && n < 4 ? 'visible' : 'hidden');
 
         if (n === 3) {
-            // Populate review
             const dIcons = { Mobile: '📱', Laptop: '💻', Desktop: '🖥', Printer: '🖨' };
-            const dev = $('.device-opt.selected').data('device') || 'Laptop';
-            const cat = $('#mCategory').val() || '—';
-            const pri = $('.pri-opt.selected').data('pri') || 'Medium';
+            const dev  = $('.device-opt.selected').data('device') || 'Laptop';
+            const cat  = $('#mCategory').val() || '—';
+            const pri  = $('.pri-opt.selected').data('pri') || 'Medium';
             const asset = $('#mAsset').val() || '—';
 
             $('#rv-device').text((dIcons[dev] || '💻') + ' ' + dev);
@@ -721,14 +1064,13 @@ $(function () {
         }
     }
 
-    /* ── Validate steps before continuing ── */
+    /* ── Validate steps ── */
     $('#btnNext').on('click', function () {
         if (step === 1) {
             if (!$('#mCategory').val()) {
                 alert('Please select a request category.');
                 return;
             }
-            // Sync hidden fields
             $('#hCategory').val($('#mCategory').val());
             $('#hTicketType').val($('.pri-opt.selected').data('pri') || 'Medium');
             showStep(2);
@@ -742,13 +1084,11 @@ $(function () {
                 alert('Please describe the issue.');
                 return;
             }
-            // Sync hidden fields
             $('#hAsset').val($('#mAsset').val());
             $('#hLocation').val($('#mLocation').val());
             showStep(3);
 
         } else if (step === 3) {
-            // Submit the form via AJAX
             const form = $('#ticketForm');
             $.ajax({
                 url:  form.attr('action'),
@@ -757,7 +1097,6 @@ $(function () {
                 success: function (response) {
                     $('#newTicketRef').text(response.ticket_number);
                     showStep(4);
-                    // Reload counts after short delay
                     setTimeout(() => location.reload(), 3000);
                 },
                 error: function (xhr) {

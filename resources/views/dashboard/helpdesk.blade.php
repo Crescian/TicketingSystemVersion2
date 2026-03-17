@@ -360,7 +360,7 @@
                             <i class="bi bi-chat-dots me-1"></i>Message
                             @php $unread = $ticket->unreadMessages()->count(); @endphp
                             @if($unread > 0)
-                                <span class="chat-count-badge">{{ $unread }}</span>
+                                <span class="chat-count-badge" id="badge-{{ $ticket->id }}">{{ $unread }}</span>
                             @endif
                         </button>
                     @endif
@@ -381,7 +381,7 @@
                             <i class="bi bi-chat-dots me-1"></i>Message
                             @php $unread = $ticket->unreadMessages()->count(); @endphp
                             @if($unread > 0)
-                                <span class="chat-count-badge">{{ $unread }}</span>
+                                <span class="chat-count-badge" id="badge-{{ $ticket->id }}">{{ $unread }}</span>
                             @endif
                         </button>
                     @endif
@@ -829,6 +829,8 @@ let chatPollInterval    = null;
 
 window.openChatModal = function (ticketId, ticketNumber) {
     currentChatTicketId = ticketId;
+    // ── Clear unread badge immediately
+    $('#badge-' + ticketId).remove();
     $('#chatTicketRef').text('#' + ticketNumber);
     $('#modalChatMessages').html(`
         <div class="text-center py-4" style="color:var(--tm);font-size:13px">

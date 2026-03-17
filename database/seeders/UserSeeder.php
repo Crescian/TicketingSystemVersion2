@@ -53,7 +53,7 @@ class UserSeeder extends Seeder
             [
                 'role_name' => 'IT Admin',
                 'name' => 'Noe Cagomoc',
-                'email' => 'npcagomoc@example.com',
+                'email' => 'npcagomoc@leoniogroup.com',
                 'position' => 'Database Administrator',
             ],
             [
@@ -71,7 +71,7 @@ class UserSeeder extends Seeder
             [
                 'role_name' => 'Manager',
                 'name' => 'Bon Caldito',
-                'email' => 'bcaldito@example.com',
+                'email' => 'bcaldito@leoniogroup.com',
                 'position' => 'ICT Manager',
             ],
         ];

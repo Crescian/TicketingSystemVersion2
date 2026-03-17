@@ -35,6 +35,7 @@ Route::middleware(['auth', 'role:Employee'])
         Route::post('/tickets', [EmployeeTicketsController::class, 'store'])->name('tickets.store');
         Route::get('/tickets/{ticket}', [EmployeeTicketsController::class, 'show'])->name('tickets.show');
         Route::patch('/tickets/{ticket}/cancel', [EmployeeTicketsController::class, 'cancel'])->name('tickets.cancel');
+        Route::post('/tickets/{ticket}/feedback', [EmployeeTicketsController::class, 'storeFeedback'])->name('tickets.feedback'); // ← add this
     });
 
 // ── Helpdesk routes
@@ -90,7 +91,7 @@ Route::middleware(['auth', 'role:IT Admin'])
     });
 
 // ── Executive routes
-Route::middleware(['auth', 'role:Executive'])
+Route::middleware(['auth', 'role:Manager'])
     ->prefix('executive')
     ->name('executive.')
     ->group(function () {
@@ -107,3 +108,5 @@ Route::middleware('auth')
         Route::get('/{ticket}/messages/unread', [MessageController::class, 'unreadCount'])->name('unread');
         Route::get('/messages/total-unread', [MessageController::class, 'totalUnread'])->name('total-unread');
     });
+
+Route::post('/tickets/{ticket}/feedback', [EmployeeTicketsController::class, 'storeFeedback'])->name('tickets.feedback');
