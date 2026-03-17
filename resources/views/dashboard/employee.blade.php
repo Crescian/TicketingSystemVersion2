@@ -390,7 +390,7 @@
                     </a>
 
                     @if(in_array($ticket->status, ['Open', 'In Progress']))
-                        <button class="btn-cancel-tkt"
+                        <button class="btn-cancel-ticket"
                                 onclick="confirmCancel('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-x-circle me-1"></i>Cancel
                         </button>
