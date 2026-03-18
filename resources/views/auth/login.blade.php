@@ -69,7 +69,7 @@
         </div>
       </div>
 
-      <div class="left-footer">© 2026 LGICT Internal Support System. All rights reserved.</div>
+      <div class="left-footer">© 2026 LGICT Internal Support System. All rights reserved. Developed by CML</div>
     </div>
 
     {{-- ══ RIGHT PANEL ══ --}}
@@ -237,6 +237,6 @@
         }, 300);
       @endif
 
-                  });
+                    });
   </script>
 @endsection
