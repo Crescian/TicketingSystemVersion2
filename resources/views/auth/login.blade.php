@@ -132,7 +132,7 @@
             <label class="field-label" for="email">Company Email</label>
             <div class="input-wrap">
               <input type="email" class="form-input @error('email') is-invalid @enderror" id="email" name="email"
-                value="{{ old('email') }}" placeholder="you@company.com" autocomplete="email" autofocus required>
+                value="{{ old('email') }}" placeholder="you@leoniogroup.com" autocomplete="email" autofocus required>
               <i class="bi bi-envelope input-icon"></i>
             </div>
             @error('email')
