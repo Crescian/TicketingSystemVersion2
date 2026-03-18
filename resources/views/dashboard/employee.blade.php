@@ -673,8 +673,24 @@
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label">Location</label>
-                                    <input type="text" class="form-control" id="mLocation"
-                                        placeholder="e.g. Floor 3, Desk B12">
+                                    <select class="form-select" id="mLocation">
+                                        <option value="">— Select location —</option>
+                                        <optgroup label="HQ">
+                                            <option value="3rd Floor - HQ">3rd Floor - HQ</option>
+                                            <option value="5th Floor - HQ">5th Floor - HQ</option>
+                                            <option value="6th Floor - HQ">6th Floor - HQ</option>
+                                            <option value="7th Floor - HQ">7th Floor - HQ</option>
+                                        </optgroup>
+                                        <optgroup label="Sites">
+                                            <option value="Zambales Site">Zambales Site</option>
+                                            <option value="Porac Site">Porac Site</option>
+                                            <option value="Bauan Site">Bauan Site</option>
+                                        </optgroup>
+                                        <optgroup label="Vessels">
+                                            <option value="Petro Elise">Petro Elise</option>
+                                            <option value="Petro Cara">Petro Cara</option>
+                                        </optgroup>
+                                    </select>
                                 </div>
                             </div>
                         </div>
