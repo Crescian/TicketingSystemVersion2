@@ -119,6 +119,15 @@
   .btn-chat { background:#e8eeff; color:#2a4ab0; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #b8c8ff; cursor:pointer; transition:all .2s; display:inline-flex; align-items:center; gap:5px; }
   .btn-chat:hover { background:#d0dcff; border-color:#8898dd; }
   .chat-count-badge { background:#e24b4a; color:#fff; font-size:10px; font-weight:900; border-radius:20px; padding:1px 6px; font-family:'Nunito',sans-serif; min-width:18px; text-align:center; }
+  /* ── Silent refresh pulse ── */
+    @keyframes badgePulse {
+        0%   { transform: scale(1); }
+        50%  { transform: scale(1.3); background: var(--yg); color: var(--gd); }
+        100% { transform: scale(1); }
+    }
+    .badge-pulse {
+        animation: badgePulse .6s ease;
+    }
 @endsection
 
 {{-- ══ SIDEBAR ══ --}}
@@ -1103,5 +1112,79 @@
         });
 
     });
+    /* ── Smart silent background refresh ── */
+        let silentRefreshTimer = null;
+        let isModalOpen        = false;
+
+        function silentRefresh() {
+            // Don't refresh if modal is open or tab is hidden
+            if (isModalOpen || document.hidden) return;
+            // Don't refresh if user is typing
+            const active = document.activeElement;
+            if (active && active.matches('input, textarea, select')) return;
+
+            fetch(window.location.href, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept':           'text/html',
+                }
+            })
+            .then(r => r.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc    = parser.parseFromString(html, 'text/html');
+
+                // ── Ticket list
+                const newList = doc.getElementById('ticketList');
+                const curList = document.getElementById('ticketList');
+                if (newList && curList) {
+                    curList.innerHTML = newList.innerHTML;
+                }
+
+                // ── Badge counts — only update if changed
+                doc.querySelectorAll('.badge-count').forEach((newEl, i) => {
+                    const curEl = document.querySelectorAll('.badge-count')[i];
+                    if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) {
+                        curEl.textContent = newEl.textContent;
+                        curEl.classList.add('badge-pulse');
+                        setTimeout(() => curEl.classList.remove('badge-pulse'), 600);
+                    }
+                });
+
+                // ── Stat pill numbers
+                doc.querySelectorAll('.stat-pill .num').forEach((newEl, i) => {
+                    const curEl = document.querySelectorAll('.stat-pill .num')[i];
+                    if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) {
+                        curEl.textContent = newEl.textContent;
+                    }
+                });
+
+                // ── Tab pill counts
+                doc.querySelectorAll('.tab-pill').forEach((newEl, i) => {
+                    const curEl = document.querySelectorAll('.tab-pill')[i];
+                    if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) {
+                        curEl.textContent = newEl.textContent;
+                    }
+                });
+            })
+            .catch(() => {}); // Silent fail
+        }
+
+        // ── Run every 30 seconds
+        silentRefreshTimer = setInterval(silentRefresh, 30000);
+
+        // ── Pause when any modal opens
+        document.addEventListener('show.bs.modal', () => { isModalOpen = true; });
+        document.addEventListener('hidden.bs.modal', () => { isModalOpen = false; });
+
+        // ── Pause when tab is hidden, resume when visible
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) {
+                clearInterval(silentRefreshTimer);
+            } else {
+                silentRefresh(); // Refresh immediately when tab becomes visible
+                silentRefreshTimer = setInterval(silentRefresh, 30000);
+            }
+        });
     </script>
 @endsection

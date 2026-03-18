@@ -1107,6 +1107,27 @@
       animation-delay: .34s;
     }
 
+    /* ── Silent refresh pulse ── */
+    @keyframes badgePulse {
+      0% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.3);
+        background: var(--yg);
+        color: var(--gd);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    .badge-pulse {
+      animation: badgePulse .6s ease;
+    }
+
     /* ── Page-specific styles injected per view ── */
     @yield('styles')
   </style>

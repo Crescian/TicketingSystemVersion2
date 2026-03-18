@@ -96,6 +96,7 @@ Route::middleware(['auth', 'role:Manager'])
     ->name('executive.')
     ->group(function () {
         Route::get('/dashboard', [ExecutiveDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard/data', [ExecutiveDashboardController::class, 'data'])->name('dashboard.data'); // ← add this
     });
 
 // ── Messaging routes (all authenticated users)

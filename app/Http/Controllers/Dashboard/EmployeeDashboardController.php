@@ -11,4 +11,7 @@ class EmployeeDashboardController extends Controller
     {
         return view('dashboard.employee');
     }
+
+    // Add this method for the JSON API endpoint
+    
 }

@@ -108,7 +108,7 @@ class TicketsController extends Controller
             'request_category' => 'required|string',
             'subject' => 'required|string|max:255',
             'concern' => 'required|string',
-            'request_details' => 'required|string',
+    'request_details'  => 'nullable|string', // ← changed to nullable
             'asset' => 'nullable|string|max:255',
             'location' => 'nullable|string|max:255',
         ]);
@@ -129,23 +129,24 @@ class TicketsController extends Controller
 
         TicketStatusHistories::create([
             'ticket_id' => $ticket->id,
-            'old_status' => 'None',
+            'old_status' => null,
             'new_status' => 'Open',
             'changed_by' => Auth::id(),
             'notes' => 'Ticket submitted by employee.',
             'changed_at' => now(),
         ]);
 
-        // Return JSON for AJAX
-        if ($request->ajax()) {
+        // ── Return JSON for AJAX submission
+        if (request()->ajax()) {
             return response()->json([
                 'ticket_number' => $ticket->ticket_number,
-                'message' => 'Ticket submitted successfully!',
+                'ticket_id' => $ticket->id,
             ]);
         }
 
         return redirect()
             ->route('employee.tickets.index')
+            ->with('new_ticket_number', $ticket->ticket_number)
             ->with('success', "Ticket #{$ticket->ticket_number} submitted successfully!");
     }
 
