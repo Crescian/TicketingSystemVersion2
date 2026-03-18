@@ -194,20 +194,18 @@
 @section('scripts')
   <script>
     $(function () {
-      console.log(Notification.permission);
-      // Simple test function
-      function testNotif() {
-        if (!('Notification' in window)) return alert('Notifications not supported!');
-        if (Notification.permission !== 'granted') return alert('Notifications not allowed!');
+      // console.log(Notification.permission);
+      // function testNotif() {
+      //   if (!('Notification' in window)) return alert('Notifications not supported!');
+      //   if (Notification.permission !== 'granted') return alert('Notifications not allowed!');
 
-        new Notification('🔔 Test Notification', {
-          body: 'This is a test from your ticketing system.',
-          icon: '/favicon.ico'
-        });
-      }
+      //   new Notification('🔔 Test Notification', {
+      //     body: 'This is a test from your ticketing system.',
+      //     icon: '/favicon.ico'
+      //   });
+      // }
+      // testNotif();
 
-      // Call it
-      testNotif();
       /* ── Demo role chip autofill ── */
       const demoPw = 'demo1234';
       $('#demoChips .rp-chip').on('click', function () {
