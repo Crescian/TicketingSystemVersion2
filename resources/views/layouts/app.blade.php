@@ -12,6 +12,49 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
+    <script>
+        // ── Request browser notification permission on page load
+        if ('Notification' in window) {
+            if (Notification.permission === 'default') {
+                // Ask after a short delay so it doesn't feel intrusive
+                setTimeout(() => {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === 'granted') {
+                            showBrowserNotif(
+                                '🔔 Notifications enabled!',
+                                'You will now receive updates for your tickets.'
+                            );
+                        }
+                    });
+                }, 3000);
+            }
+        }
+
+        // ── Helper to show a browser notification
+        function showBrowserNotif(title, body, options = {}) {
+            if (!('Notification' in window)) return;
+            if (Notification.permission !== 'granted') return;
+            if (document.hasFocus()) return; // Only show when tab is NOT focused
+
+            const notif = new Notification(title, {
+                body: body,
+                icon: '/favicon.ico',  // your app icon
+                badge: '/favicon.ico',
+                tag: options.tag || 'lgict-ticket',
+                ...options
+            });
+
+            // Click notification → focus the tab
+            notif.onclick = function () {
+                window.focus();
+                if (options.url) window.location.href = options.url;
+                notif.close();
+            };
+
+            // Auto close after 6 seconds
+            setTimeout(() => notif.close(), 6000);
+        }
+    </script>
     <style>
         /* ══════════════════════════════════════════
      SHARED DESIGN TOKENS & BASE STYLES
@@ -828,7 +871,83 @@
     </script>
 
     @yield('scripts')
+    @auth
+        <script>
+            /* ══ BROWSER PUSH NOTIFICATIONS ══ */
 
+            let lastNotifTime = new Date().toISOString();
+            let notifPollTimer = null;
+
+            // ── Request permission on load
+            if ('Notification' in window && Notification.permission === 'default') {
+                setTimeout(() => {
+                    Notification.requestPermission();
+                }, 3000);
+            }
+
+            // ── Show a browser notification
+            function showBrowserNotif(title, body, url, tag) {
+                if (!('Notification' in window)) return;
+                if (Notification.permission !== 'granted') return;
+
+                const notif = new Notification(title, {
+                    body: body,
+                    icon: '/favicon.ico',
+                    badge: '/favicon.ico',
+                    tag: tag || 'lgict',
+                });
+
+                notif.onclick = function () {
+                    window.focus();
+                    if (url) window.location.href = url;
+                    notif.close();
+                };
+
+                setTimeout(() => notif.close(), 6000);
+            }
+
+            // ── Poll for new notifications every 30 seconds
+            function pollNotifications() {
+                if (document.hidden) return; // Skip if tab hidden
+
+                fetch(`/notifications/poll?since=${encodeURIComponent(lastNotifTime)}`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    }
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        // Update the server time for next poll
+                        lastNotifTime = data.server_time;
+
+                        // Show browser notification for each new event
+                        data.notifications.forEach(notif => {
+                            showBrowserNotif(
+                                notif.title,
+                                notif.body,
+                                notif.url,
+                                notif.tag
+                            );
+                        });
+                    })
+                    .catch(() => { }); // Silent fail
+            }
+
+            // ── Start polling every 30 seconds
+            notifPollTimer = setInterval(pollNotifications, 30000);
+
+            // ── Pause when tab hidden, resume + instant check when visible
+            document.addEventListener('visibilitychange', function () {
+                if (document.hidden) {
+                    clearInterval(notifPollTimer);
+                } else {
+                    pollNotifications();
+                    notifPollTimer = setInterval(pollNotifications, 30000);
+                }
+            });
+        </script>
+    @endauth
 </body>
 
 </html>

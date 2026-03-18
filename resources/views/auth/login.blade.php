@@ -173,6 +173,7 @@
             <span class="spinner"></span>
             <span class="btn-text"><i class="bi bi-arrow-right-circle me-1"></i>Sign In</span>
           </button>
+          <span class="btn-text" onclick="testNotif();"><i class="bi bi-arrow-right-circle me-1"></i>test</span>
 
         </form>
 
@@ -193,7 +194,20 @@
 @section('scripts')
   <script>
     $(function () {
+      console.log(Notification.permission);
+      // Simple test function
+      function testNotif() {
+        if (!('Notification' in window)) return alert('Notifications not supported!');
+        if (Notification.permission !== 'granted') return alert('Notifications not allowed!');
 
+        new Notification('🔔 Test Notification', {
+          body: 'This is a test from your ticketing system.',
+          icon: '/favicon.ico'
+        });
+      }
+
+      // Call it
+      testNotif();
       /* ── Demo role chip autofill ── */
       const demoPw = 'demo1234';
       $('#demoChips .rp-chip').on('click', function () {
@@ -237,6 +251,6 @@
         }, 300);
       @endif
 
-                    });
+                        });
   </script>
 @endsection

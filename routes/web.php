@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\Dashboard\ExecutiveDashboardController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
 
 // ── Redirect root to login
@@ -98,7 +99,10 @@ Route::middleware(['auth', 'role:Manager'])
         Route::get('/dashboard', [ExecutiveDashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard/data', [ExecutiveDashboardController::class, 'data'])->name('dashboard.data'); // ← add this
     });
-
+// ── Notifications (all authenticated users)
+Route::middleware('auth')
+    ->get('/notifications/poll', [NotificationController::class, 'poll'])
+    ->name('notifications.poll');
 // ── Messaging routes (all authenticated users)
 Route::middleware('auth')
     ->prefix('tickets')
