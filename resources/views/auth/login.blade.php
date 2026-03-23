@@ -173,7 +173,6 @@
             <span class="spinner"></span>
             <span class="btn-text"><i class="bi bi-arrow-right-circle me-1"></i>Sign In</span>
           </button>
-          <span class="btn-text" onclick="testNotif();"><i class="bi bi-arrow-right-circle me-1"></i>test</span>
 
         </form>
 
@@ -249,6 +248,6 @@
         }, 300);
       @endif
 
-                        });
+                            });
   </script>
 @endsection
