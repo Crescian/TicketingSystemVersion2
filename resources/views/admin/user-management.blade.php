@@ -17,7 +17,7 @@
 @section('hero-subtitle', 'Add, edit, deactivate users and manage their roles across the system.')
 
 @section('hero-stats')
-    <div class="d-flex gap-2 flex-wrap">
+    <div class="d-flex gap-2 flex-wrap text-white">
         <div class="stat-pill">
             <span class="num">{{ $counts['total'] }}</span>
             <span class="lbl">Total Users</span>
