@@ -11,6 +11,7 @@ use App\Http\Controllers\MessageController;
 use App\Http\Controllers\Dashboard\ExecutiveDashboardController;
 use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ProfileController;
 
 // ── Redirect root to login
 Route::get('/', fn() => redirect('/login'));
@@ -115,3 +116,9 @@ Route::middleware('auth')
     });
 
 Route::post('/tickets/{ticket}/feedback', [EmployeeTicketsController::class, 'storeFeedback'])->name('tickets.feedback');
+
+// ── Profile (all roles)
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+});

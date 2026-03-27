@@ -1155,11 +1155,13 @@
   {{-- ── NAVBAR ── --}}
   <nav class="navbar sticky-top px-4 py-0">
     <div class="container-fluid px-0">
-      <a class="navbar-brand" href="#">LG<span>ICT</span></a>
+      <a class="navbar-brand" href="{{ route('admin.dashboard') }}">LG<span>ICT</span></a>
       <div class="ms-auto d-flex align-items-center gap-2">
         @yield('nav-role-badge')
-        <div class="avatar-chip-admin">@yield('avatar-initials', 'MA')</div>
-        <span class="fw-bold" style="font-size:14px">@yield('nav-username', 'M. Aquino')</span>
+        <a href="{{ route('profile') }}" class="d-flex align-items-center gap-2 text-decoration-none text-reset">
+          <div class="avatar-chip-admin">@yield('avatar-initials', 'MA')</div>
+          <span class="fw-bold" style="font-size:14px">@yield('nav-username', 'M. Aquino')</span>
+        </a>
       </div>
     </div>
   </nav>
@@ -1179,7 +1181,7 @@
   </div>
 
   {{-- ── PAGE BODY ── --}}
-  <div class="container-fluid py-4 px-4" style="max-width:1160px">
+  <div class="container-fluid py-4 px-2" style="max-width:1500px">
     <div class="row g-4">
 
       {{-- Sidebar --}}

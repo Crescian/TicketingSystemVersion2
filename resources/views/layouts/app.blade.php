@@ -776,15 +776,25 @@
             <a href="{{ route('login') }}" class="btn-topbar-action">Sign In</a>
         @endauth
     </div>
-
     {{-- ── NAVBAR ── --}}
     <nav class="navbar sticky-top px-4">
         <div class="container-fluid px-0">
-            <a class="navbar-brand" href="#">LG<span>ICT</span></a>
+            <a class="navbar-brand" href="{{ 
+                match (Auth::user()->role?->role_name) {
+                    'Helpdesk' => route('helpdesk.dashboard'),
+                    'IT Technician' => route('technician.dashboard'),
+                    'IT Admin' => route('admin.dashboard'),
+                    'Manager' => route('executive.dashboard'),
+                    default => route('employee.tickets.index'),
+                }
+            }}">LG<span>ICT</span></a>
             <div class="ms-auto d-flex align-items-center gap-2">
                 @yield('nav-role-badge')
-                <div class="avatar-chip @yield('avatar-class')">@yield('avatar-initials')</div>
-                <span class="fw-bold" style="font-size:14px">@yield('nav-username')</span>
+                <a href="{{ route('profile') }}"
+                    class="d-flex align-items-center gap-2 text-decoration-none text-reset">
+                    <div class="avatar-chip @yield('avatar-class')">@yield('avatar-initials')</div>
+                    <span class="fw-bold" style="font-size:14px">@yield('nav-username')</span>
+                </a>
             </div>
         </div>
     </nav>
