@@ -3,7 +3,7 @@
 @section('title', 'My Work Queue — LGICT')
 
 @section('nav-role-badge')
-  <span class="role-badge dark"><i class="bi bi-tools me-1"></i>IT Technician</span>
+  <span class="role-badge dark"><i class="bi bi-tools me-1"></i>IT Support Specialist</span>
 @endsection
 @section(
   'avatar-initials',
@@ -818,7 +818,7 @@
                 {{-- Input --}}
                 <div style="border-top:1.5px solid var(--bd);padding:12px 16px;background:#fff">
                     <div style="font-size:10px;font-weight:800;background:#fff4cc;color:#7a5a00;border-radius:4px;padding:2px 8px;display:inline-block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px">
-                        IT Technician
+                        IT Support Specialist
                     </div>
                     <div class="d-flex gap-2 align-items-end">
                         <textarea id="techChatInput"
@@ -991,14 +991,14 @@
 
             const avColors = {
                 'IT Admin':      '#fde8e8',
-                'IT Technician': '#fff4cc',
+                'IT Support Specialist': '#fff4cc',
                 'Helpdesk':      '#d4f0d4',
                 'Executive':     '#e8e0ff',
                 'Employee':      '#e8f5b0',
             };
             const avTextColors = {
                 'IT Admin':      '#8b1a1a',
-                'IT Technician': '#7a5a00',
+                'IT Support Specialist': '#7a5a00',
                 'Helpdesk':      '#2d5a2d',
                 'Executive':     '#4a1a8a',
                 'Employee':      '#1a3c1a',

@@ -157,8 +157,8 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">
-                    <i class="bi bi-building"></i>Departments
+                <a class="nav-link" href="{{ route('admin.settings') }}">
+                    <i class="bi bi-building"></i>Organization
                 </a>
             </li>
             <li class="nav-item">
@@ -243,7 +243,7 @@
                 ''              => ['label' => 'All Users',     'count' => $counts['total']],
                 'Employee'      => ['label' => 'Employees',     'count' => $roleCounts['Employee']],
                 'Helpdesk'      => ['label' => 'Helpdesk',      'count' => $roleCounts['Helpdesk']],
-                'IT Technician' => ['label' => 'IT Tech',       'count' => $roleCounts['IT Technician']],
+                'IT Support Specialist' => ['label' => 'IT Tech',       'count' => $roleCounts['IT Support Specialist']],
                 'IT Admin'      => ['label' => 'Admin',         'count' => $roleCounts['IT Admin']],
                 'Executive'     => ['label' => 'Executive',     'count' => $roleCounts['Executive']],
             ];
@@ -284,14 +284,14 @@
 
                             $roleName  = strtolower(str_replace(' ', '-', $user->role?->role_name ?? 'employee'));
                             $roleSlug  = match($user->role?->role_name) {
-                                'IT Technician' => 'tech',
+                                'IT Support Specialist' => 'tech',
                                 'IT Admin'      => 'admin',
                                 'Helpdesk'      => 'helpdesk',
                                 'Executive'     => 'executive',
                                 default         => 'employee'
                             };
                             $roleIcon  = match($user->role?->role_name) {
-                                'IT Technician' => '🔧',
+                                'IT Support Specialist' => '🔧',
                                 'IT Admin'      => '🛡️',
                                 'Helpdesk'      => '🎧',
                                 'Executive'     => '👔',
@@ -467,7 +467,7 @@
                                 @foreach($roles as $r)
                                     @php
                                         $icon = match($r->role_name) {
-                                            'IT Technician' => '🔧',
+                                            'IT Support Specialist' => '🔧',
                                             'IT Admin'      => '🛡️',
                                             'Helpdesk'      => '🎧',
                                             'Executive'     => '👔',
@@ -654,7 +654,7 @@ $(function () {
         const role  = $('.role-opt.selected').data('role-name') || 'Employee';
         const cls   = {
             'Employee': 'av-employee', 'Helpdesk': 'av-helpdesk',
-            'IT Technician': 'av-tech', 'IT Admin': 'av-admin',
+            'IT Support Specialist': 'av-tech', 'IT Admin': 'av-admin',
             'Executive': 'av-executive'
         }[role] || 'av-employee';
         $('#avatarPreview').text(ini).attr('class', 'avatar-preview ' + cls);

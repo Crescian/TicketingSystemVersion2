@@ -11,9 +11,16 @@ class Companies extends Model
 
     protected $keyType = 'string';      // ← add this
     public $incrementing = false;       // ← add this
+
+    public $timestamps = false;
+    protected $fillable = ['company_name', 'business_units_id'];
     public function businessUnit()
     {
         return $this->belongsTo(BusinessUnits::class, 'business_units_id');
     }
 
+    public function departments()
+    {
+        return $this->hasMany(Departments::class, 'companies_id');
+    }
 }

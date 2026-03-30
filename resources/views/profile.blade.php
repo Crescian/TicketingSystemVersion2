@@ -29,7 +29,7 @@
             ->avg('rating');
     @endphp
     <div class="d-flex gap-2 flex-wrap">
-        @if($roleName === 'IT Technician')
+        @if($roleName === 'IT Support Specialist')
             <div class="stat-pill">
                 <span class="num">{{ $assignedResolved }}</span>
                 <span class="lbl">Resolved</span>
@@ -211,7 +211,7 @@
         $user     = Auth::user()->load('role', 'department.company.businessUnit');
         $roleName = $user->role?->role_name ?? 'Employee';
         $roleSlug = match($roleName) {
-            'IT Technician' => 'tech',
+            'IT Support Specialist' => 'tech',
             'Helpdesk'      => 'helpdesk',
             'IT Admin'      => 'admin',
             'Manager'       => 'manager',
@@ -228,7 +228,7 @@
             ->avg('rating');
         $recentTickets  = \App\Models\Tickets::with('assignedTo', 'user')
             ->where(function($q) use ($user, $roleName) {
-                if ($roleName === 'IT Technician') {
+                if ($roleName === 'IT Support Specialist') {
                     $q->where('assigned_to', $user->id);
                 } elseif ($roleName === 'Employee') {
                     $q->where('users_id', $user->id);
@@ -271,7 +271,7 @@
                     <div class="profile-name">{{ $user->name }}</div>
                     <span class="profile-role-badge role-{{ $roleSlug }}">
                         <i class="bi bi-{{ match($roleName) {
-                            'IT Technician' => 'tools',
+                            'IT Support Specialist' => 'tools',
                             'Helpdesk'      => 'headset',
                             'IT Admin'      => 'shield-fill',
                             'Manager'       => 'bar-chart-line',
@@ -288,20 +288,20 @@
                             <div class="pi-value">{{ $user->email }}</div>
                         </div>
                     </div>
-                    {{-- <div class="profile-info-item">
+                    <div class="profile-info-item">
                         <div class="pi-icon"><i class="bi bi-briefcase"></i></div>
                         <div>
                             <div class="pi-label">Position</div>
                             <div class="pi-value">{{ $user->position ?? '—' }}</div>
                         </div>
-                    </div> --}}
-                    {{-- <div class="profile-info-item">
+                    </div>
+                    <div class="profile-info-item">
                         <div class="pi-icon"><i class="bi bi-building"></i></div>
                         <div>
                             <div class="pi-label">Department</div>
                             <div class="pi-value">{{ $user->department?->department_name ?? '—' }}</div>
                         </div>
-                    </div> --}}
+                    </div>
                     <div class="profile-info-item">
                         <div class="pi-icon"><i class="bi bi-diagram-3"></i></div>
                         <div>
@@ -331,7 +331,7 @@
             </div>
 
             {{-- Stats card (role-specific) --}}
-            @if($roleName === 'IT Technician' || $roleName === 'Helpdesk')
+            @if($roleName === 'IT Support Specialist' || $roleName === 'Helpdesk')
                 <div class="panel-section mt-4">
                     <div class="panel-head">
                         <div class="panel-head-icon"><i class="bi bi-bar-chart"></i></div>

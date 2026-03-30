@@ -866,11 +866,18 @@
 
       <span class="top-date"><i class="bi bi-calendar3 me-1"></i>{{ now()->format('F j, Y') }}</span>
 
-      <div class="top-avatar">@yield('avatar-initials', 'CE')</div>
-      <span style="font-size:14px;font-weight:700;color:var(--ex-txt)">
-        {{ Auth::user()->name }}
-      </span>
+      <div class="top-avatar">
+        {{ strtoupper(collect(explode(' ', Auth::user()->name))
+  ->map(fn($name) => substr($name, 0, 1))
+  ->take(2)
+  ->implode('')) }}
+      </div>
+      <a href="{{ route('profile') }}" class="d-flex align-items-center gap-2 text-decoration-none text-reset">
 
+        <span style="font-size:14px;font-weight:700;color:var(--ex-txt)">
+          {{ Auth::user()->name }}
+        </span>
+      </a>
       @auth
         <a href="{{ route('logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();"
           class="btn-exec-signout">Sign Out</a>

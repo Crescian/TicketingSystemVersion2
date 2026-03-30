@@ -5,7 +5,7 @@
     $roleName = $user->role?->role_name;
     $roleSlug = match ($roleName) {
         'IT Admin' => 'admin',
-        'IT Technician' => 'tech',
+        'IT Support Specialist' => 'tech',
         'Helpdesk' => 'helpdesk',
         default => 'employee',
     };
@@ -17,7 +17,7 @@
     <div class="chat-header" onclick="toggleChat()">
         <div class="d-flex align-items-center gap-2">
             <i class="bi bi-chat-dots-fill" style="color:var(--yg)"></i>
-            <span class="font-brand fw-900" style="font-size:13px">
+            <span class="font-brand fw-900 text-white fw-bold" style="font-size:13px">
                 Messages — #{{ $ticket->ticket_number }}
             </span>
             <span class="chat-unread-badge d-none" id="chatUnreadBadge">0</span>
@@ -424,7 +424,7 @@
     // ── Avatar class from role
     function avatarClass(role) {
         const map = {
-            'IT Admin': 'av-admin', 'IT Technician': 'av-tech',
+            'IT Admin': 'av-admin', 'IT Support Specialist': 'av-tech',
             'Helpdesk': 'av-helpdesk', 'Executive': 'av-executive',
         };
         return map[role] || 'av-employee';
@@ -433,7 +433,7 @@
     // ── Role tag class
     function roleTagClass(role) {
         const map = {
-            'IT Admin': 'tag-admin', 'IT Technician': 'tag-tech',
+            'IT Admin': 'tag-admin', 'IT Support Specialist': 'tag-tech',
             'Helpdesk': 'tag-helpdesk', 'Executive': 'tag-executive',
         };
         return map[role] || 'tag-employee';

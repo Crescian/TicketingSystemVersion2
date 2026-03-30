@@ -782,7 +782,7 @@
             <a class="navbar-brand" href="{{ 
                 match (Auth::user()->role?->role_name) {
                     'Helpdesk' => route('helpdesk.dashboard'),
-                    'IT Technician' => route('technician.dashboard'),
+                    'IT Support Specialist' => route('technician.dashboard'),
                     'IT Admin' => route('admin.dashboard'),
                     'Manager' => route('executive.dashboard'),
                     default => route('employee.tickets.index'),

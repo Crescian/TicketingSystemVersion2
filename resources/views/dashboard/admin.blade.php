@@ -962,14 +962,14 @@ function loadAdminChatMessages() {
 
         const avColors = {
             'IT Admin':      '#fde8e8',
-            'IT Technician': '#fff4cc',
+            'IT Support Specialist': '#fff4cc',
             'Helpdesk':      '#d4f0d4',
             'Executive':     '#e8e0ff',
             'Employee':      '#e8f5b0',
         };
         const avTextColors = {
             'IT Admin':      '#8b1a1a',
-            'IT Technician': '#7a5a00',
+            'IT Support Specialist': '#7a5a00',
             'Helpdesk':      '#2d5a2d',
             'Executive':     '#4a1a8a',
             'Employee':      '#1a3c1a',

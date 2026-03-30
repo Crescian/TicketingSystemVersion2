@@ -147,7 +147,7 @@ class AuditLogController extends Controller
     {
         return match ($roleName) {
             'IT Admin' => 'av-admin',
-            'IT Technician' => 'av-tech',
+            'IT Support Specialist' => 'av-tech',
             'Helpdesk' => 'av-helpdesk',
             default => 'av-employee',
         };

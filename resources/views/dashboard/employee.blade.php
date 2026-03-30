@@ -728,7 +728,7 @@
                                 <div style="font-size:13px;color:var(--tm);margin-bottom:12px" id="rv-desc">—</div>
                                 <div class="review-lbl mb-1">What happens next</div>
                                 <div style="font-size:13px;color:var(--tm)">
-                                    Your ticket will be assigned to an available IT technician.
+                                    Your ticket will be assigned to an available IT Support Specialist.
                                     Average first response: <strong style="color:var(--gd)">under 2 hours</strong>.
                                 </div>
                             </div>
@@ -1095,14 +1095,14 @@
 
             const avColors = {
                 'IT Admin':      '#fde8e8',
-                'IT Technician': '#fff4cc',
+                'IT Support Specialist': '#fff4cc',
                 'Helpdesk':      '#d4f0d4',
                 'Manager':       '#e8e0ff',
                 'Employee':      '#e8f5b0',
             };
             const avTextColors = {
                 'IT Admin':      '#8b1a1a',
-                'IT Technician': '#7a5a00',
+                'IT Support Specialist': '#7a5a00',
                 'Helpdesk':      '#2d5a2d',
                 'Manager':       '#4a1a8a',
                 'Employee':      '#1a3c1a',

@@ -75,7 +75,7 @@ class TicketController extends Controller
 
         // Technicians with active ticket count
         $technicians = User::whereHas('role', fn($q) =>
-            $q->where('role_name', 'IT Technician'))
+            $q->where('role_name', 'IT Support Specialist'))
             ->withCount([
                 'assignedTickets as active_tickets' => fn($q) =>
                     $q->whereIn('status', ['In Progress', 'Open'])

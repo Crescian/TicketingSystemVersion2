@@ -52,7 +52,7 @@ class UserManagementController extends Controller
             'active' => User::where('active', true)->count(),
             'inactive' => User::where('active', false)->count(),
             'techs' => User::whereHas('role', fn($q) =>
-                $q->where('role_name', 'IT Technician'))->count(),
+                $q->where('role_name', 'IT Support Specialist'))->count(),
         ];
 
         // Role counts for tabs
@@ -61,8 +61,8 @@ class UserManagementController extends Controller
                 $q->where('role_name', 'Employee'))->count(),
             'Helpdesk' => User::whereHas('role', fn($q) =>
                 $q->where('role_name', 'Helpdesk'))->count(),
-            'IT Technician' => User::whereHas('role', fn($q) =>
-                $q->where('role_name', 'IT Technician'))->count(),
+            'IT Support Specialist' => User::whereHas('role', fn($q) =>
+                $q->where('role_name', 'IT Support Specialist'))->count(),
             'IT Admin' => User::whereHas('role', fn($q) =>
                 $q->where('role_name', 'IT Admin'))->count(),
             'Executive' => User::whereHas('role', fn($q) =>

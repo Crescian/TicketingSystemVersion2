@@ -1,16 +1,17 @@
 <?php
 
-use App\Http\Controllers\Auth\WebAuthController;
+use App\Http\Controllers\TicketsController as EmployeeTicketsController;
+use App\Http\Controllers\MessageController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Helpdesk\TicketController as HelpdeskTicketController;
 use App\Http\Controllers\Technician\TicketController as TechnicianTicketController;
+use App\Http\Controllers\Dashboard\ExecutiveDashboardController;
 use App\Http\Controllers\Admin\TicketController as AdminTicketController;
-use App\Http\Controllers\TicketsController as EmployeeTicketsController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\UserManagementController;
-use App\Http\Controllers\MessageController;
-use App\Http\Controllers\Dashboard\ExecutiveDashboardController;
-use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Admin\OrgSettingsController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\WebAuthController;
 use App\Http\Controllers\ProfileController;
 
 // ── Redirect root to login
@@ -53,8 +54,8 @@ Route::middleware(['auth', 'role:Helpdesk'])
         Route::post('/tickets/{ticket}/resolve', [HelpdeskTicketController::class, 'resolve'])->name('tickets.resolve');
     });
 
-// ── IT Technician routes
-Route::middleware(['auth', 'role:IT Technician'])
+// ── IT Support Specialist routes
+Route::middleware(['auth', 'role:IT Support Specialist'])
     ->prefix('technician')
     ->name('technician.')
     ->group(function () {
@@ -90,6 +91,24 @@ Route::middleware(['auth', 'role:IT Admin'])
 
         // Audit log  ← now correctly INSIDE the admin group
         Route::get('/audit-log', [AuditLogController::class, 'index'])->name('audit-log');
+
+        // ── Organization Settings
+        Route::get('/organization', [OrgSettingsController::class, 'index'])->name('settings');
+
+        // Business Units
+        Route::post('/settings/business-units', [OrgSettingsController::class, 'storeBU'])->name('settings.bu.store');
+        Route::put('/settings/business-units/{businessUnit}', [OrgSettingsController::class, 'updateBU'])->name('settings.bu.update');
+        Route::delete('/settings/business-units/{businessUnit}', [OrgSettingsController::class, 'destroyBU'])->name('settings.bu.destroy');
+
+        // Companies
+        Route::post('/settings/companies', [OrgSettingsController::class, 'storeCompany'])->name('settings.company.store');
+        Route::put('/settings/companies/{company}', [OrgSettingsController::class, 'updateCompany'])->name('settings.company.update');
+        Route::delete('/settings/companies/{company}', [OrgSettingsController::class, 'destroyCompany'])->name('settings.company.destroy');
+
+        // Departments
+        Route::post('/settings/departments', [OrgSettingsController::class, 'storeDept'])->name('settings.dept.store');
+        Route::put('/settings/departments/{department}', [OrgSettingsController::class, 'updateDept'])->name('settings.dept.update');
+        Route::delete('/settings/departments/{department}', [OrgSettingsController::class, 'destroyDept'])->name('settings.dept.destroy');
     });
 
 // ── Executive routes

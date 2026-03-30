@@ -49,7 +49,7 @@ class WebAuthController extends Controller
         return match ($role) {
             'Employee' => redirect()->route('employee.tickets.index'),
             'Helpdesk' => redirect()->route('helpdesk.dashboard'),
-            'IT Technician' => redirect()->route('technician.dashboard'),
+            'IT Support Specialist' => redirect()->route('technician.dashboard'),
             'IT Admin' => redirect()->route('admin.dashboard'),
             'Manager' => redirect()->route('executive.dashboard'),
             default => redirect('/login'),

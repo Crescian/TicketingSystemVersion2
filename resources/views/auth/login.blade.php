@@ -53,7 +53,7 @@
           <div class="role-card">
             <div class="role-icon tech"><i class="bi bi-tools"></i></div>
             <div>
-              <div class="role-title">IT Technician</div>
+              <div class="role-title">IT Support Specialist</div>
               <div class="role-desc">Accept, work on, and resolve tickets</div>
             </div>
             <i class="bi bi-arrow-right role-arrow"></i>

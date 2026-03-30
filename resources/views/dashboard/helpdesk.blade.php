@@ -127,9 +127,9 @@
         </ul>
     </div>
 
-    {{-- IT Technicians availability --}}
+    {{-- IT Support Specialists availability --}}
     <div class="sidebar-card">
-        <div class="sidebar-head">IT Technicians</div>
+        <div class="sidebar-head">IT Support Specialists</div>
         <div>
             @forelse($technicians as $tech)
                 @php
@@ -741,11 +741,11 @@ $(function () {
     //         let html = '';
     //         msgs.forEach(msg => {
     //             const avColors = {
-    //                 'IT Admin': '#fde8e8', 'IT Technician': '#fff4cc',
+    //                 'IT Admin': '#fde8e8', 'IT Support Specialist': '#fff4cc',
     //                 'Helpdesk': '#d4f0d4', 'Executive': '#e8e0ff'
     //             };
     //             const avTextColors = {
-    //                 'IT Admin': '#8b1a1a', 'IT Technician': '#7a5a00',
+    //                 'IT Admin': '#8b1a1a', 'IT Support Specialist': '#7a5a00',
     //                 'Helpdesk': '#2d5a2d', 'Executive': '#4a1a8a'
     //             };
     //             const avBg   = avColors[msg.role]      || '#e8f5b0';
@@ -926,13 +926,13 @@ function loadChatMessages() {
         msgs.forEach(msg => {
             const avColors = {
                 'IT Admin':      '#fde8e8',
-                'IT Technician': '#fff4cc',
+                'IT Support Specialist': '#fff4cc',
                 'Helpdesk':      '#d4f0d4',
                 'Executive':     '#e8e0ff',
             };
             const avTextColors = {
                 'IT Admin':      '#8b1a1a',
-                'IT Technician': '#7a5a00',
+                'IT Support Specialist': '#7a5a00',
                 'Helpdesk':      '#2d5a2d',
                 'Executive':     '#4a1a8a',
             };

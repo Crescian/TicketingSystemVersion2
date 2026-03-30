@@ -17,7 +17,7 @@
 @section('hero-subtitle', 'Full system activity trail — every action, who did it, and when.')
 
 @section('hero-stats')
-    <div class="d-flex gap-2 flex-wrap">
+    <div class="d-flex gap-2 flex-wrap text-white">
         <div class="stat-pill">
             <span class="num">{{ $counts['today'] }}</span>
             <span class="lbl">Today</span>
@@ -151,8 +151,8 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">
-                    <i class="bi bi-building"></i>Departments
+                <a class="nav-link" href="{{ route('admin.settings') }}">
+                    <i class="bi bi-building"></i>Organization
                 </a>
             </li>
             <li class="nav-item">

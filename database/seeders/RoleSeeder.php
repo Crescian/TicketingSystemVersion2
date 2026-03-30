@@ -13,7 +13,7 @@ class RoleSeeder extends Seeder
         $roles = [
             ['id' => Str::uuid(), 'role_name' => 'Employee', 'description' => 'Submits and tracks tickets'],
             ['id' => Str::uuid(), 'role_name' => 'Helpdesk', 'description' => 'First level support'],
-            ['id' => Str::uuid(), 'role_name' => 'IT Technician', 'description' => 'Handles and resolves tickets'],
+            ['id' => Str::uuid(), 'role_name' => 'IT Support Specialist', 'description' => 'Handles and resolves tickets'],
             ['id' => Str::uuid(), 'role_name' => 'IT Admin', 'description' => 'Manages system and users'],
             ['id' => Str::uuid(), 'role_name' => 'Manager', 'description' => 'Views reports and analytics'],
         ];
