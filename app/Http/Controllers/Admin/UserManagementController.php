@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BusinessUnits;
+use App\Models\Companies;
 use App\Models\Departments;
 use App\Models\Role;
 use App\Models\User;
@@ -19,7 +21,7 @@ class UserManagementController extends Controller
         $dept = $request->get('dept', '');
         $status = $request->get('status', '');
 
-        $query = User::with(['role', 'department'])
+        $query = User::with(['role', 'department.company.businessUnit'])
             ->orderBy('created_at', 'desc');
 
         if ($search) {
@@ -31,13 +33,11 @@ class UserManagementController extends Controller
         }
 
         if ($role) {
-            $query->whereHas('role', fn($q) =>
-                $q->where('role_name', $role));
+            $query->whereHas('role', fn($q) => $q->where('role_name', $role));
         }
 
         if ($dept) {
-            $query->whereHas('department', fn($q) =>
-                $q->where('department_name', $dept));
+            $query->whereHas('department', fn($q) => $q->where('department_name', $dept));
         }
 
         if ($status !== '') {
@@ -46,7 +46,6 @@ class UserManagementController extends Controller
 
         $users = $query->paginate(10)->withQueryString();
 
-        // Counts
         $counts = [
             'total' => User::count(),
             'active' => User::where('active', true)->count(),
@@ -55,22 +54,30 @@ class UserManagementController extends Controller
                 $q->where('role_name', 'IT Support Specialist'))->count(),
         ];
 
-        // Role counts for tabs
         $roleCounts = [
-            'Employee' => User::whereHas('role', fn($q) =>
-                $q->where('role_name', 'Employee'))->count(),
-            'Helpdesk' => User::whereHas('role', fn($q) =>
-                $q->where('role_name', 'Helpdesk'))->count(),
-            'IT Support Specialist' => User::whereHas('role', fn($q) =>
-                $q->where('role_name', 'IT Support Specialist'))->count(),
-            'IT Admin' => User::whereHas('role', fn($q) =>
-                $q->where('role_name', 'IT Admin'))->count(),
-            'Executive' => User::whereHas('role', fn($q) =>
-                $q->where('role_name', 'Executive'))->count(),
+            'Employee' => User::whereHas('role', fn($q) => $q->where('role_name', 'Employee'))->count(),
+            'Helpdesk' => User::whereHas('role', fn($q) => $q->where('role_name', 'Helpdesk'))->count(),
+            'IT Support Specialist' => User::whereHas('role', fn($q) => $q->where('role_name', 'IT Support Specialist'))->count(),
+            'IT Admin' => User::whereHas('role', fn($q) => $q->where('role_name', 'IT Admin'))->count(),
+            'Executive' => User::whereHas('role', fn($q) => $q->where('role_name', 'Executive'))->count(),
         ];
 
         $roles = Role::all();
-        $departments = Departments::all();
+        $departments = Departments::with('company.businessUnit')->orderBy('department_name')->get();
+        $businessUnits = BusinessUnits::orderBy('business_units_name')->get();
+        $companies = Companies::with('businessUnit')->orderBy('company_name')->get();
+
+        $companiesData = $companies->map(fn($c) => [
+            'id' => $c->id,
+            'name' => $c->company_name,
+            'business_unit_id' => $c->business_units_id,
+        ])->values();
+
+        $departmentsData = $departments->map(fn($d) => [
+            'id' => $d->id,
+            'name' => $d->department_name,
+            'company_id' => $d->companies_id,
+        ])->values();
 
         return view('admin.user-management', compact(
             'users',
@@ -78,6 +85,10 @@ class UserManagementController extends Controller
             'roleCounts',
             'roles',
             'departments',
+            'businessUnits',
+            'companies',
+            'companiesData',      // ← add
+            'departmentsData',    // ← add
             'search',
             'role',
             'dept',
@@ -85,14 +96,13 @@ class UserManagementController extends Controller
         ));
     }
 
-    // Store new user
     public function store(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'role_id' => 'required|uuid|exists:roles,id',
-            'department_id' => 'required|uuid|exists:departments,id',
+            'role_id' => 'required|exists:roles,id',
+            'department_id' => 'required|exists:departments,id',
             'position' => 'nullable|string|max:255',
             'active' => 'required|boolean',
         ]);
@@ -100,27 +110,23 @@ class UserManagementController extends Controller
         User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => Hash::make("lgticketing"),
+            'password' => Hash::make('password'),
             'role_id' => $request->role_id,
             'department_id' => $request->department_id,
             'position' => $request->position,
             'active' => $request->active,
         ]);
 
-        return back()->with(
-            'success',
-            "User {$request->name} added successfully."
-        );
+        return back()->with('success', "User {$request->name} added successfully.");
     }
 
-    // Update user
     public function update(Request $request, User $user)
     {
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
-            'role_id' => 'required|uuid|exists:roles,id',
-            'department_id' => 'required|uuid|exists:departments,id',
+            'role_id' => 'required|exists:roles,id',
+            'department_id' => 'required|exists:departments,id',
             'position' => 'nullable|string|max:255',
             'active' => 'required|boolean',
         ]);
@@ -134,56 +140,52 @@ class UserManagementController extends Controller
             'active' => $request->active,
         ]);
 
-        return back()->with(
-            'success',
-            "User {$user->name} updated successfully."
-        );
+        return back()->with('success', "User {$user->name} updated successfully.");
     }
 
-    // Deactivate user
     public function deactivate(Request $request, User $user)
     {
-        $request->validate([
-            'reason' => 'nullable|string',
-        ]);
-
         $user->update(['active' => false]);
-
-        return back()->with(
-            'success',
-            "{$user->name} has been deactivated."
-        );
+        return back()->with('success', "{$user->name} has been deactivated.");
     }
 
-    // Reactivate user
     public function reactivate(User $user)
     {
         $user->update(['active' => true]);
-
-        return back()->with(
-            'success',
-            "{$user->name} has been reactivated."
-        );
+        return back()->with('success', "{$user->name} has been reactivated.");
     }
 
-    // Reset password
     public function resetPassword(Request $request, User $user)
     {
         $tempPassword = Str::random(10);
-        $user->update(['password' => Hash::make("lgticketing")]);
-
-        // In production: send email with $tempPassword
-        // Mail::to($user->email)->send(new PasswordResetMail($tempPassword));
-
-        return back()->with(
-            'success',
-            "Password reset for {$user->name}. Temp password: {$tempPassword}"
-        );
+        $user->update(['password' => Hash::make('password')]);
+        return back()->with('success', "Password reset for {$user->name}. Temp: {$tempPassword}");
     }
 
-    // Get user data for edit modal (JSON)
     public function show(User $user)
     {
-        return response()->json($user->load(['role', 'department']));
+        $user->load(['role', 'department.company.businessUnit']);
+
+        return response()->json([
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'position' => $user->position,
+            'role_id' => $user->role_id,
+            'department_id' => $user->department_id,
+            'active' => $user->active,
+            'department' => [
+                'id' => $user->department?->id,
+                'name' => $user->department?->department_name,
+                'companies_id' => $user->department?->companies_id,
+                'company' => [
+                    'id' => $user->department?->company?->id,
+                    'business_unit_id' => $user->department?->company?->business_units_id,
+                    'businessUnit' => [
+                        'id' => $user->department?->company?->businessUnit?->id,
+                    ],
+                ],
+            ],
+        ]);
     }
 }

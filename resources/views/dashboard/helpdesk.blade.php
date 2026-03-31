@@ -313,7 +313,55 @@
                         <i class="bi bi-calendar3"></i>
                         {{ $ticket->created_at->diffForHumans() }}
                     </span>
+                    {{--  --}}
+                    {{-- ── SLA Status indicator (In Progress only) ── --}}
+                    @if($ticket->status === 'In Progress')
+                        @php
+                            $slaRule = \App\Models\SlaRule::where('is_active', true)
+                                ->whereHas('category', fn($q) =>
+                                    $q->where('name', explode(' — ', $ticket->request_category)[0] ?? '')
+                                )
+                                ->where('subcategory_name', explode(' — ', $ticket->request_category)[1] ?? '')
+                                ->where('priority', $ticket->ticket_type)
+                                ->first();
 
+                            $minutesOpen = $ticket->created_at->diffInMinutes(now());
+                            $isBreached  = $slaRule && $minutesOpen >= $slaRule->resolution_time_minutes;
+                            $isAtRisk    = $slaRule && !$isBreached && $minutesOpen >= ($slaRule->resolution_time_minutes * 0.75);
+                            $timeLeft    = $slaRule ? max(0, $slaRule->resolution_time_minutes - $minutesOpen) : null;
+
+                            // ── Format time left inline (no function definition)
+                            $slaTimeLeft = '';
+                            if ($timeLeft !== null) {
+                                if ($timeLeft <= 0) {
+                                    $slaTimeLeft = 'Overdue';
+                                } elseif ($timeLeft < 60) {
+                                    $slaTimeLeft = intval($timeLeft) . 'm left';
+                                } else {
+                                    $h   = floor($timeLeft / 60);
+                                    $min = intval($timeLeft % 60);
+                                    $slaTimeLeft = $h . 'h' . ($min > 0 ? ' ' . $min . 'm' : '') . ' left';
+                                }
+                            }
+
+                            $slaColor = $isBreached ? '#e24b4a' : ($isAtRisk ? '#f5c842' : '#3fb950');
+                            $slaBg    = $isBreached ? '#fde8e8' : ($isAtRisk ? '#fff4cc' : '#d4f0d4');
+                            $slaIcon  = $isBreached ? 'bi-exclamation-triangle-fill' : ($isAtRisk ? 'bi-clock-history' : 'bi-check-circle');
+                            $slaLabel = $isBreached ? 'SLA Breached' : ($isAtRisk ? 'SLA At Risk' : 'SLA OK');
+                        @endphp
+                        @if($slaRule)
+                            <span style="background:{{ $slaBg }};color:{{ $slaColor }};font-size:11px;font-weight:800;border-radius:20px;padding:3px 10px;display:inline-flex;align-items:center;gap:5px;border:1px solid {{ $slaColor }}20">
+                                <i class="bi {{ $slaIcon }}"></i>
+                                {{ $slaLabel }}
+                                @if($isBreached)
+                                    · {{ intval($minutesOpen - $slaRule->resolution_time_minutes) }}m over
+                                @else
+                                    · {{ $slaTimeLeft }}
+                                @endif
+                            </span>
+                        @endif
+                    @endif
+                    {{--  --}}
                     @if($ticket->assignedTo)
                         <span class="tech-chip ms-auto">
                             <span class="tc-av">{{ $techInitials }}</span>
@@ -635,7 +683,6 @@
 @section('scripts')
 <script>
 $(function () {
-
     /* ── Search debounce ── */
     let searchTimer;
     $('#searchInput').on('input', function () {
@@ -688,143 +735,6 @@ $(function () {
             alert('Please select a technician.');
         }
     });
-    /* ── Chat modal ── */
-    // let currentChatTicketId = null;
-    // let chatPollInterval    = null;
-
-    // window.openChatModal = function (ticketId, ticketNumber) {
-    //     currentChatTicketId = ticketId;
-    //     $('#chatTicketRef').text('#' + ticketNumber);
-    //     $('#modalChatMessages').html(`
-    //         <div class="text-center py-4" style="color:var(--tm);font-size:13px">
-    //             <div class="spinner-border spinner-border-sm me-2"></div>
-    //             Loading messages…
-    //         </div>
-    //     `);
-    //     new bootstrap.Modal('#chatModal').show();
-    //     loadChatMessages();
-
-    //     // Start polling when modal opens
-    //     clearInterval(chatPollInterval);
-    //     chatPollInterval = setInterval(loadChatMessages, 3000);
-    // };
-
-    // // Stop polling when modal closes
-    // $('#chatModal').on('hidden.bs.modal', function () {
-    //     clearInterval(chatPollInterval);
-    //     currentChatTicketId = null;
-    // });
-
-    // function loadChatMessages() {
-    //     if (!currentChatTicketId) return;
-
-    //     fetch(`/tickets/${currentChatTicketId}/messages`, {
-    //         headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    //     })
-    //     .then(r => r.json())
-    //     .then(data => {
-    //         const msgs = data.messages;
-    //         const $box = document.getElementById('modalChatMessages');
-    //         const prevCount = $box.querySelectorAll('.msg-wrap').length;
-
-    //         if (!msgs.length) {
-    //             $box.innerHTML = `
-    //                 <div class="text-center py-4" style="color:var(--tm)">
-    //                     <i class="bi bi-chat-dots" style="font-size:32px;opacity:.3;display:block;margin-bottom:8px"></i>
-    //                     <p style="font-size:13px;font-weight:600;margin:0">No messages yet.<br>Start the conversation!</p>
-    //                 </div>`;
-    //             return;
-    //         }
-
-    //         if (msgs.length === prevCount) return; // No new messages
-
-    //         let html = '';
-    //         msgs.forEach(msg => {
-    //             const avColors = {
-    //                 'IT Admin': '#fde8e8', 'IT Support Specialist': '#fff4cc',
-    //                 'Helpdesk': '#d4f0d4', 'Executive': '#e8e0ff'
-    //             };
-    //             const avTextColors = {
-    //                 'IT Admin': '#8b1a1a', 'IT Support Specialist': '#7a5a00',
-    //                 'Helpdesk': '#2d5a2d', 'Executive': '#4a1a8a'
-    //             };
-    //             const avBg   = avColors[msg.role]      || '#e8f5b0';
-    //             const avText = avTextColors[msg.role]   || '#1a3c1a';
-    //             const isMe   = msg.is_me;
-
-    //             html += `
-    //                 <div style="display:flex;gap:8px;align-items:flex-end;${isMe ? 'flex-direction:row-reverse' : ''}">
-    //                     <div style="width:28px;height:28px;border-radius:50%;background:${avBg};color:${avText};display:flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;font-weight:900;font-size:10px;flex-shrink:0">
-    //                         ${msg.initials}
-    //                     </div>
-    //                     <div style="max-width:75%">
-    //                         <div style="font-size:10px;font-weight:700;color:var(--tm);margin-bottom:3px;${isMe ? 'text-align:right' : ''}">
-    //                             ${isMe ? 'You' : msg.sender}
-    //                             <span style="font-size:9px;background:${avBg};color:${avText};border-radius:4px;padding:1px 5px;margin-left:4px;text-transform:uppercase;letter-spacing:.3px;font-weight:800">
-    //                                 ${msg.role || 'User'}
-    //                             </span>
-    //                         </div>
-    //                         <div style="padding:9px 13px;border-radius:16px;font-size:13px;line-height:1.5;word-break:break-word;${isMe
-    //                             ? 'background:var(--gd);color:var(--yg);border-bottom-right-radius:4px'
-    //                             : 'background:#fff;color:var(--gd);border-bottom-left-radius:4px;border:1.5px solid var(--bd)'}">
-    //                             ${escapeHtmlChat(msg.message)}
-    //                         </div>
-    //                         <div style="font-size:10px;color:var(--tm);margin-top:3px;font-weight:600;${isMe ? 'text-align:right' : ''}">
-    //                             ${msg.time_ago}
-    //                         </div>
-    //                     </div>
-    //                 </div>
-    //             `;
-    //         });
-
-    //         $box.innerHTML = html;
-    //         $box.scrollTop = $box.scrollHeight;
-    //     })
-    //     .catch(err => console.error('Chat load error:', err));
-    // }
-
-    // function sendModalMessage() {
-    //     const input = document.getElementById('modalChatInput');
-    //     const msg   = input.value.trim();
-    //     if (!msg || !currentChatTicketId) return;
-
-    //     input.value = '';
-    //     input.style.height = 'auto';
-
-    //     fetch(`/tickets/${currentChatTicketId}/messages`, {
-    //         method:  'POST',
-    //         headers: {
-    //             'Content-Type':     'application/json',
-    //             'X-CSRF-TOKEN':     $('meta[name="csrf-token"]').attr('content'),
-    //             'X-Requested-With': 'XMLHttpRequest',
-    //         },
-    //         body: JSON.stringify({ message: msg }),
-    //     })
-    //     .then(r => r.json())
-    //     .then(() => loadChatMessages())
-    //     .catch(err => console.error('Send error:', err));
-    // }
-
-    // function handleModalChatKey(e) {
-    //     if (e.key === 'Enter' && !e.shiftKey) {
-    //         e.preventDefault();
-    //         sendModalMessage();
-    //     }
-    //     // Auto-resize
-    //     const ta = document.getElementById('modalChatInput');
-    //     setTimeout(() => {
-    //         ta.style.height = 'auto';
-    //         ta.style.height = Math.min(ta.scrollHeight, 80) + 'px';
-    //     }, 0);
-    // }
-
-    // function escapeHtmlChat(str) {
-    //     return String(str)
-    //         .replace(/&/g, '&amp;')
-    //         .replace(/</g, '&lt;')
-    //         .replace(/>/g, '&gt;')
-    //         .replace(/"/g, '&quot;');
-    // }
 });
 </script>
 @section('scripts')

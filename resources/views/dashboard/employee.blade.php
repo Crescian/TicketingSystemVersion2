@@ -587,30 +587,29 @@
                                     Select category <span class="text-danger">*</span>
                                 </label>
                                 <div class="row g-2" id="mainCategoryGrid">
-                                    <div class="col-6">
-                                        <div class="cat-main-opt" data-cat="Hardware">
-                                            <span class="cat-icon">🖥️</span>
-                                            <span class="cat-lbl">Hardware</span>
+                                    @forelse($slaCategories as $slaCat)
+                                        <div class="{{ $slaCategories->count() <= 2 ? 'col-12' : 'col-6' }}">
+                                            <div class="cat-main-opt"
+                                                data-cat="{{ $slaCat->name }}"
+                                                data-cat-id="{{ $slaCat->id }}">
+                                                <span class="cat-icon">
+                                                    <i class="bi {{ $slaCat->icon ?? 'bi-tag' }}"
+                                                    style="font-size:28px;color:{{ $slaCat->color ?? 'var(--gd)' }}"></i>
+                                                </span>
+                                                <span class="cat-lbl">{{ $slaCat->name }}</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="cat-main-opt" data-cat="Software">
-                                            <span class="cat-icon">💿</span>
-                                            <span class="cat-lbl">Software</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="cat-main-opt" data-cat="Network">
-                                            <span class="cat-icon">🌐</span>
-                                            <span class="cat-lbl">Network</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="cat-main-opt" data-cat="Access Request">
-                                            <span class="cat-icon">🔐</span>
-                                            <span class="cat-lbl">Access Request</span>
-                                        </div>
-                                    </div>
+                                    @empty
+                                        {{-- Fallback if no SLA categories defined yet --}}
+                                        @foreach(['Hardware' => ['🖥️','bi-laptop'], 'Software' => ['💿','bi-code-square'], 'Network' => ['🌐','bi-wifi'], 'Access Request' => ['🔐','bi-shield-lock']] as $name => $icons)
+                                            <div class="col-6">
+                                                <div class="cat-main-opt" data-cat="{{ $name }}">
+                                                    <span class="cat-icon">{{ $icons[0] }}</span>
+                                                    <span class="cat-lbl">{{ $name }}</span>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    @endforelse
                                 </div>
                             </div>
 
@@ -640,8 +639,6 @@
                                     </div>
                                 </div>
                             </div>
-
-                            {{-- NO hidden inputs here anymore ← this is the fix --}}
 
                         </div>
 
@@ -909,97 +906,80 @@
     </div>
 @endsection
 @section('scripts')
-<script>
-    /* ── Sub category data ── */
-    const subCategories = {
-        'Hardware': [
-            'Laptop', 'Desktop', 'Monitors', 'Printers',
-            'Scanner', 'HDD', 'Flash drive', 'Servers',
-            'Keyboards', 'Projector', 'Speaker'
-        ],
-        'Software': [
-            'OS upgrade',
-            'Setup online meeting invite',
-            'Software installation / update',
-            'ERP Vendor Request',
-            'ERP Item Request',
-            'ERP Customer Request',
-            'ERP Item Modification',
-            'ERP Error',
-            'File Management - Transfer/Upload/Edit/Create',
-            'App Troubleshooting'
-        ],
-        'Network': [
-            'Network Device Configuration / Deployment',
-            'Project - cabling setup',
-            'Single cabling setup',
-            'Shared file cannot be accessed',
-            'Shared file not sync',
-            'Network Device Configuration'
-        ],
-        'Access Request': [
-            'BC License request',
-            'Access to shared folder',
-            'Permissions',
-            'Access of 3rd-party to Leonio WIFI network',
-            'Nonstandard or trial applications authorization / installation',
-            'Non-standard web sites access authorization / blocking',
-            'Remote access request',
-            'WiFi access',
-            'Email creation and / or setup',
-            'Email deactivation or modification',
-            'Email password reset',
-            'Email Transfer'
-        ]
-    };
+<script>/* ── Dynamic SLA categories from DB ── */
+    const slaCategories = @json($slaCategoriesJson);
+
+    // Build a quick lookup: category name → subcategories
+    const subCategoryMap = {};
+    slaCategories.forEach(cat => {
+        subCategoryMap[cat.name] = cat.subs;
+    });
+
+    /* ── Priority auto-suggest based on selected subcategory ── */
+    const priorityMap = {};
+    slaCategories.forEach(cat => {
+        cat.subs.forEach(sub => {
+            // Key = "CategoryName — SubcategoryName"
+            priorityMap[cat.name + ' — ' + sub.name] = sub.priority;
+        });
+    });
 
     /* ── Main category selection ── */
     $(document).on('click', '.cat-main-opt', function () {
         $('.cat-main-opt').removeClass('selected');
         $(this).addClass('selected');
 
-        const cat = $(this).data('cat');
+        const catName = $(this).data('cat');
+        const subs    = subCategoryMap[catName] || [];
+        const $list   = $('#subCategoryList').empty();
 
-        // Build sub category list
-        const subs = subCategories[cat] || [];
-        const $list = $('#subCategoryList').empty();
-
-        subs.forEach(sub => {
+        if (subs.length === 0) {
             $list.append(`
-                <div class="cat-sub-opt" data-sub="${sub}">
-                    <div class="sub-check"></div>
-                    <span>${sub}</span>
+                <div style="font-size:12px;color:var(--tm);font-weight:600;padding:8px 12px;background:var(--ygl);border-radius:8px">
+                    <i class="bi bi-info-circle me-1"></i>
+                    No subcategories defined yet for this category. Contact IT Admin.
                 </div>
             `);
-        });
+        } else {
+            subs.forEach(sub => {
+                const priColor = sub.priority === 'High' ? '#e24b4a' : (sub.priority === 'Medium' ? '#f5c842' : '#4a7c4a');
+                const priBg    = sub.priority === 'High' ? '#fde8e8' : (sub.priority === 'Medium' ? '#fff4cc' : '#d4f0d4');
+                $list.append(`
+                    <div class="cat-sub-opt" data-sub="${sub.name}" data-priority="${sub.priority}">
+                        <div class="sub-check"></div>
+                        <span style="flex:1">${sub.name}</span>
+                        <span style="font-size:10px;font-weight:800;background:${priBg};color:${priColor};border-radius:20px;padding:2px 8px;flex-shrink:0">
+                            ${sub.priority}
+                        </span>
+                    </div>
+                `);
+            });
+        }
 
         $('#subCategoryWrap').removeClass('d-none');
-
-        // Clear previous sub selection
         $('#hCategory').val('');
     });
 
-    /* ── Sub category selection ── */
+    /* ── Sub category selection — auto-set priority ── */
     $(document).on('click', '.cat-sub-opt', function () {
         $('.cat-sub-opt').removeClass('selected');
         $(this).addClass('selected');
         $(this).find('.sub-check').html('<i class="bi bi-check"></i>');
         $('.cat-sub-opt:not(.selected) .sub-check').html('');
 
-        const mainCat = $('.cat-main-opt.selected').data('cat') || '';
-        const subCat  = $(this).data('sub') || '';
+        const mainCat  = $('.cat-main-opt.selected').data('cat') || '';
+        const subCat   = $(this).data('sub')      || '';
+        const priority = $(this).data('priority') || '';
 
         // ── Store as "Hardware — Laptop"
         $('#hCategory').val(mainCat + ' — ' + subCat);
 
-        console.log('Category set to:', $('#hCategory').val()); // debug
-    });
-
-    /* ── Priority selection ── */
-    $(document).on('click', '.pri-opt', function () {
-        $(this).siblings().removeClass('selected');
-        $(this).addClass('selected');
-        $('#hTicketType').val($(this).data('pri'));
+        // ── Auto-select priority based on SLA rule
+        if (priority) {
+            $('.pri-opt').removeClass('selected');
+            $(`.pri-opt[data-pri="${priority}"]`).addClass('selected');
+            $('#hTicketType').val(priority);
+        }
     });
     /* ══ GLOBAL CHAT FUNCTIONS — must be outside $(function(){}) ══ */
 

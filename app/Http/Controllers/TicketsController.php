@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tickets;
+use App\Models\SlaCategory;
 use App\Models\TicketStatusHistories;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,52 +16,35 @@ class TicketsController extends Controller
         $user = Auth::user();
         $status = $request->get('status', 'all');
         $search = $request->get('search', '');
-        $category = $request->get('category', '');
-        $fromDate = $request->get('from_date', '');
         $sort = $request->get('sort', 'newest');
 
-        $query = Tickets::where('users_id', $user->id)
-            ->with(['assignedTo']);
+        $query = Tickets::with(['assignedTo', 'feedback', 'unreadMessages'])
+            ->where('users_id', $user->id);
 
-        // Filter by status
+        // Status filter
         if ($status !== 'all') {
-            $query->where('status', 'ilike', $status);
-        }
-
-        // Filter by category
-        if ($category) {
-            $query->where('request_category', $category);
-        }
-
-        // Filter by date
-        if ($fromDate) {
-            $query->whereDate('created_at', '>=', $fromDate);
+            $query->where('status', ucwords($status));
         }
 
         // Search
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('ticket_number', 'ilike', "%{$search}%")
-                    ->orWhere('subject', 'ilike', "%{$search}%")
-                    ->orWhere('request_category', 'ilike', "%{$search}%")
-                    ->orWhere('status', 'ilike', "%{$search}%");
+                $q->where('subject', 'ilike', "%{$search}%")
+                    ->orWhere('ticket_number', 'ilike', "%{$search}%")
+                    ->orWhere('concern', 'ilike', "%{$search}%")
+                    ->orWhere('request_category', 'ilike', "%{$search}%");
             });
         }
 
         // Sort
         match ($sort) {
-            'oldest' => $query->orderBy('created_at', 'asc'),
-            'priority' => $query->orderByRaw("CASE
-            WHEN ticket_type = 'High'   THEN 1
-            WHEN ticket_type = 'Medium' THEN 2
-            WHEN ticket_type = 'Low'    THEN 3
-            ELSE 4 END"),
-            default => $query->orderByDesc('created_at'),
+            'oldest' => $query->oldest(),
+            'priority' => $query->orderByRaw("CASE ticket_type WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 WHEN 'Low' THEN 3 END"),
+            default => $query->latest(),
         };
 
         $tickets = $query->paginate(10)->withQueryString();
 
-        // Status counts (unaffected by filters)
         $counts = [
             'all' => Tickets::where('users_id', $user->id)->count(),
             'open' => Tickets::where('users_id', $user->id)->where('status', 'Open')->count(),
@@ -70,16 +54,111 @@ class TicketsController extends Controller
             'cancelled' => Tickets::where('users_id', $user->id)->where('status', 'Cancelled')->count(),
         ];
 
-        $greeting = $this->getGreeting();
+        // ── Load SLA categories with their active rules for the ticket modal
+        $slaCategories = \App\Models\SlaCategory::with([
+            'rules' => function ($q) {
+                $q->where('is_active', true)
+                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority')
+                    ->orderBy('subcategory_name');
+            }
+        ])
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        // Add this RIGHT AFTER $slaCategories is built, before the return statement
+        $slaCategoriesJson = $slaCategories->map(fn($c) => [
+            'id' => $c->id,
+            'name' => $c->name,
+            'icon' => $c->icon,
+            'color' => $c->color,
+            'subs' => $c->rules->map(fn($r) => [
+                'name' => $r->subcategory_name,
+                'priority' => $r->priority,
+            ])->values()->toArray(),
+        ])->values()->toArray();
 
         return view('dashboard.employee', compact(
             'tickets',
             'counts',
             'status',
             'search',
-            'greeting'
+            'sort',
+            'slaCategories',
+            'slaCategoriesJson'   // ← add this
         ));
     }
+    // public function index(Request $request)
+    // {
+    //     $user = Auth::user();
+    //     $status = $request->get('status', 'all');
+    //     $search = $request->get('search', '');
+    //     $category = $request->get('category', '');
+    //     $fromDate = $request->get('from_date', '');
+    //     $sort = $request->get('sort', 'newest');
+
+    //     $query = Tickets::where('users_id', $user->id)
+    //         ->with(['assignedTo']);
+
+    //     // Filter by status
+    //     if ($status !== 'all') {
+    //         $query->where('status', 'ilike', $status);
+    //     }
+
+    //     // Filter by category
+    //     if ($category) {
+    //         $query->where('request_category', $category);
+    //     }
+
+    //     // Filter by date
+    //     if ($fromDate) {
+    //         $query->whereDate('created_at', '>=', $fromDate);
+    //     }
+
+    //     // Search
+    //     if ($search) {
+    //         $query->where(function ($q) use ($search) {
+    //             $q->where('ticket_number', 'ilike', "%{$search}%")
+    //                 ->orWhere('subject', 'ilike', "%{$search}%")
+    //                 ->orWhere('request_category', 'ilike', "%{$search}%")
+    //                 ->orWhere('status', 'ilike', "%{$search}%");
+    //         });
+    //     }
+
+    //     // Sort
+    //     match ($sort) {
+    //         'oldest' => $query->orderBy('created_at', 'asc'),
+    //         'priority' => $query->orderByRaw("CASE
+    //         WHEN ticket_type = 'High'   THEN 1
+    //         WHEN ticket_type = 'Medium' THEN 2
+    //         WHEN ticket_type = 'Low'    THEN 3
+    //         ELSE 4 END"),
+    //         default => $query->orderByDesc('created_at'),
+    //     };
+
+    //     $tickets = $query->paginate(10)->withQueryString();
+
+    //     // Status counts (unaffected by filters)
+    //     $counts = [
+    //         'all' => Tickets::where('users_id', $user->id)->count(),
+    //         'open' => Tickets::where('users_id', $user->id)->where('status', 'Open')->count(),
+    //         'in_progress' => Tickets::where('users_id', $user->id)->where('status', 'In Progress')->count(),
+    //         'escalated' => Tickets::where('users_id', $user->id)->where('status', 'Escalated')->count(),
+    //         'resolved' => Tickets::where('users_id', $user->id)->where('status', 'Resolved')->count(),
+    //         'cancelled' => Tickets::where('users_id', $user->id)->where('status', 'Cancelled')->count(),
+    //     ];
+
+    //     $greeting = $this->getGreeting();
+
+    //     return view('dashboard.employee', compact(
+    //         'tickets',
+    //         'counts',
+    //         'status',
+    //         'search',
+    //         'greeting'
+    //     ));
+    // }
 
     // Show single ticket details
     public function show(Tickets $ticket)
@@ -108,7 +187,7 @@ class TicketsController extends Controller
             'request_category' => 'required|string',
             'subject' => 'required|string|max:255',
             'concern' => 'required|string',
-    'request_details'  => 'nullable|string', // ← changed to nullable
+            'request_details' => 'nullable|string', // ← changed to nullable
             'asset' => 'nullable|string|max:255',
             'location' => 'nullable|string|max:255',
         ]);

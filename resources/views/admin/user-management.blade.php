@@ -152,22 +152,12 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">
-                    <i class="bi bi-shield-check"></i>Roles
-                </a>
-            </li>
-            <li class="nav-item">
                 <a class="nav-link" href="{{ route('admin.settings') }}">
                     <i class="bi bi-building"></i>Organization
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">
-                    <i class="bi bi-tags"></i>Categories
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">
+                <a class="nav-link" href="{{ route('admin.sla-rules.index') }}">
                     <i class="bi bi-clock-history"></i>SLA Rules
                 </a>
             </li>
@@ -412,52 +402,77 @@
                         {{-- Avatar preview --}}
                         <div class="avatar-preview av-employee" id="avatarPreview">JD</div>
 
+                        {{-- Name --}}
                         <div class="row g-3 mb-3">
                             <div class="col-12">
                                 <label class="form-label">
                                     Full name <span class="text-danger">*</span>
                                 </label>
                                 <input type="text" class="form-control" name="name"
-                                       id="mName" placeholder="Juan Dela Cruz">
+                                    id="mName" placeholder="Juan Dela Cruz">
                             </div>
                         </div>
 
+                        {{-- Email --}}
                         <div class="mb-3">
                             <label class="form-label">
                                 Company email <span class="text-danger">*</span>
                             </label>
-                            <div class="input-icon-wrap position-relative">
+                            <div class="position-relative">
                                 <i class="bi bi-envelope"
-                                   style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--tm)"></i>
+                                style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--tm)"></i>
                                 <input type="email" class="form-control"
-                                       name="email" id="mEmail"
-                                       placeholder="juan@lgict.gov.ph"
-                                       style="padding-left:38px">
+                                    name="email" id="mEmail"
+                                    placeholder="juan@lgict.gov.ph"
+                                    style="padding-left:38px">
                             </div>
                         </div>
 
+                        {{-- Business Unit → Company → Department cascade --}}
                         <div class="row g-3 mb-3">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label class="form-label">
-                                    Department <span class="text-danger">*</span>
+                                    Business Unit <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-select" name="department_id" id="mDept">
-                                    <option value="">Select department…</option>
-                                    @foreach($departments as $d)
-                                        <option value="{{ $d->id }}">
-                                            {{ $d->department_name }}
+                                <select class="form-select" id="mBusinessUnit"
+                                        onchange="filterCompanies()">
+                                    <option value="">Select business unit…</option>
+                                    @foreach($businessUnits as $bu)
+                                        <option value="{{ $bu->id }}">
+                                            {{ $bu->business_units_name }}
                                         </option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Job position</label>
-                                <input type="text" class="form-control"
-                                       name="position" id="mPosition"
-                                       placeholder="e.g. Financial Analyst">
+                            <div class="col-md-4">
+                                <label class="form-label">
+                                    Company <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="mCompany"
+                                        onchange="filterDepartments()" disabled>
+                                    <option value="">Select company…</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">
+                                    Department <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" name="department_id"
+                                        id="mDept" disabled>
+                                    <option value="">Select department…</option>
+                                </select>
                             </div>
                         </div>
 
+                        {{-- Position --}}
+                        <div class="mb-3">
+                            <label class="form-label">Job position</label>
+                            <input type="text" class="form-control"
+                                name="position" id="mPosition"
+                                placeholder="e.g. Financial Analyst">
+                        </div>
+
+                        {{-- Role --}}
                         <div class="mb-3">
                             <label class="form-label d-block">
                                 Assign role <span class="text-danger">*</span>
@@ -468,15 +483,15 @@
                                     @php
                                         $icon = match($r->role_name) {
                                             'IT Support Specialist' => '🔧',
-                                            'IT Admin'      => '🛡️',
-                                            'Helpdesk'      => '🎧',
-                                            'Executive'     => '👔',
-                                            default         => '🧑‍💼'
+                                            'IT Admin'             => '🛡️',
+                                            'Helpdesk'             => '🎧',
+                                            'Executive'            => '👔',
+                                            default                => '🧑‍💼'
                                         };
                                     @endphp
                                     <div class="role-opt"
-                                         data-role-id="{{ $r->id }}"
-                                         data-role-name="{{ $r->role_name }}">
+                                        data-role-id="{{ $r->id }}"
+                                        data-role-name="{{ $r->role_name }}">
                                         <span class="ro-icon">{{ $icon }}</span>
                                         <span class="ro-lbl">{{ $r->role_name }}</span>
                                     </div>
@@ -484,6 +499,7 @@
                             </div>
                         </div>
 
+                        {{-- Status --}}
                         <div class="mb-3">
                             <label class="form-label d-block">Account status</label>
                             <input type="hidden" name="active" id="mActive" value="1">
@@ -498,10 +514,10 @@
                         </div>
 
                         <div class="p-3 rounded" id="addPasswordNote"
-                             style="background:var(--ygl);font-size:13px;color:var(--gd)">
+                            style="background:var(--ygl);font-size:13px;color:var(--gd)">
                             <i class="bi bi-info-circle me-1"></i>
-                            A temporary password will be auto-generated and sent to
-                            the user's email. They will be prompted to change it on first login.
+                            Default password is <strong>"password"</strong>.
+                            User should change it on first login.
                         </div>
 
                     </div>
@@ -612,6 +628,73 @@
 
 @section('scripts')
 <script>
+
+/* ── All companies and departments passed from PHP ── */
+const allCompanies   = @json($companiesData);
+const allDepartments = @json($departmentsData);
+
+/* ── Filter companies by selected business unit ── */
+function filterCompanies() {
+    const buId     = document.getElementById('mBusinessUnit').value;
+    const compSel  = document.getElementById('mCompany');
+    const deptSel  = document.getElementById('mDept');
+
+    // Reset downstream
+    compSel.innerHTML = '<option value="">Select company…</option>';
+    deptSel.innerHTML = '<option value="">Select department…</option>';
+    compSel.disabled  = !buId;
+    deptSel.disabled  = true;
+
+    if (!buId) return;
+
+    allCompanies
+        .filter(c => c.business_unit_id === buId)
+        .forEach(c => {
+            const opt  = document.createElement('option');
+            opt.value  = c.id;
+            opt.text   = c.name;
+            compSel.appendChild(opt);
+        });
+}
+
+/* ── Filter departments by selected company ── */
+function filterDepartments() {
+    const compId  = document.getElementById('mCompany').value;
+    const deptSel = document.getElementById('mDept');
+
+    deptSel.innerHTML = '<option value="">Select department…</option>';
+    deptSel.disabled  = !compId;
+
+    if (!compId) return;
+
+    allDepartments
+        .filter(d => d.company_id === compId)
+        .forEach(d => {
+            const opt  = document.createElement('option');
+            opt.value  = d.id;
+            opt.text   = d.name;
+            deptSel.appendChild(opt);
+        });
+}
+
+/* ── Pre-select BU → Company → Dept when editing ── */
+function preselectOrgHierarchy(buId, companyId, deptId) {
+    // Set BU
+    document.getElementById('mBusinessUnit').value = buId || '';
+    filterCompanies();
+
+    // Set Company after populating
+    if (companyId) {
+        document.getElementById('mCompany').value = companyId;
+        filterDepartments();
+    }
+
+    // Set Department
+    if (deptId) {
+        document.getElementById('mDept').value = deptId;
+    }
+}
+
 $(function () {
 
     /* ── Search debounce ── */
@@ -653,11 +736,32 @@ $(function () {
             : (parts[0][0] || 'J').toUpperCase();
         const role  = $('.role-opt.selected').data('role-name') || 'Employee';
         const cls   = {
-            'Employee': 'av-employee', 'Helpdesk': 'av-helpdesk',
-            'IT Support Specialist': 'av-tech', 'IT Admin': 'av-admin',
-            'Executive': 'av-executive'
+            'Employee':             'av-employee',
+            'Helpdesk':             'av-helpdesk',
+            'IT Support Specialist':'av-tech',
+            'IT Admin':             'av-admin',
+            'Executive':            'av-executive'
         }[role] || 'av-employee';
         $('#avatarPreview').text(ini).attr('class', 'avatar-preview ' + cls);
+    }
+
+    /* ── Reset modal fields ── */
+    function resetModalFields() {
+        $('#mName, #mEmail, #mPosition').val('');
+        $('#mRoleId').val('');
+        $('#mActive').val('1');
+        $('.role-opt').removeClass('selected');
+        $('.st-opt').removeClass('active-sel inactive-sel')
+                    .filter('[data-status="1"]').addClass('active-sel');
+
+        // Reset cascades
+        document.getElementById('mBusinessUnit').value = '';
+        document.getElementById('mCompany').innerHTML  = '<option value="">Select company…</option>';
+        document.getElementById('mDept').innerHTML     = '<option value="">Select department…</option>';
+        document.getElementById('mCompany').disabled   = true;
+        document.getElementById('mDept').disabled      = true;
+
+        updateAvatarPreview();
     }
 
     /* ── Open Add Modal ── */
@@ -665,15 +769,8 @@ $(function () {
         $('#userModalTitle').html('Add <em>New User</em>');
         $('#userForm').attr('action', '{{ route('admin.users.store') }}');
         $('#formMethod').val('POST');
-        $('#mName, #mEmail, #mPosition').val('');
-        $('#mDept').val('');
-        $('#mRoleId').val('');
-        $('#mActive').val('1');
-        $('.role-opt').removeClass('selected');
-        $('.st-opt').removeClass('active-sel inactive-sel')
-                    .filter('[data-status="1"]').addClass('active-sel');
         $('#addPasswordNote').show();
-        updateAvatarPreview();
+        resetModalFields();
         new bootstrap.Modal('#userModal').show();
     };
 
@@ -688,7 +785,6 @@ $(function () {
                 $('#mName').val(u.name);
                 $('#mEmail').val(u.email);
                 $('#mPosition').val(u.position ?? '');
-                $('#mDept').val(u.department_id);
                 $('#mRoleId').val(u.role_id);
                 $('#mActive').val(u.active ? '1' : '0');
 
@@ -701,10 +797,22 @@ $(function () {
                 $(`.st-opt[data-status="${u.active ? '1' : '0'}"]`)
                     .addClass(u.active ? 'active-sel' : 'inactive-sel');
 
+                // ── Pre-select BU → Company → Department
+                const buId     = u.department?.company?.business_unit_id
+                               ?? u.department?.company?.businessUnit?.id
+                               ?? null;
+                const compId   = u.department?.companies_id
+                               ?? u.department?.company_id
+                               ?? null;
+                const deptId   = u.department_id;
+
+                preselectOrgHierarchy(buId, compId, deptId);
+
                 $('#addPasswordNote').hide();
                 updateAvatarPreview();
                 new bootstrap.Modal('#userModal').show();
-            });
+            })
+            .catch(err => console.error('Load user error:', err));
     };
 
     /* ── Open Reset Modal ── */

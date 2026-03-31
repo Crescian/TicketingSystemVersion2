@@ -51,6 +51,11 @@
                 </a>
             </li>
             <li class="list-group-item">
+                <a class="nav-link" href="{{ route('admin.sla-rules.index') }}">
+                    <i class="bi bi-clock-history"></i>SLA Rules
+                </a>
+            </li>
+            <li class="list-group-item">
                 <a href="{{ route('admin.audit-log') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
                     <i class="bi bi-journal-text me-1"></i>Audit Log
                 </a>

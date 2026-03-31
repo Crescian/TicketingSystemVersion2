@@ -146,22 +146,12 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">
-                    <i class="bi bi-shield-check"></i>Roles
-                </a>
-            </li>
-            <li class="nav-item">
                 <a class="nav-link" href="{{ route('admin.settings') }}">
                     <i class="bi bi-building"></i>Organization
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">
-                    <i class="bi bi-tags"></i>Categories
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">
+                <a class="nav-link" href="{{ route('admin.sla-rules.index') }}">
                     <i class="bi bi-clock-history"></i>SLA Rules
                 </a>
             </li>

@@ -90,6 +90,13 @@ class TicketController extends Controller
                 return $tech;
             });
 
+
+        // ── SLA Categories for filters ← ADD THIS
+        $slaCategories = \App\Models\SlaCategory::where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->pluck('name');
+
         return view('dashboard.helpdesk', compact(
             'tickets',
             'counts',
@@ -256,5 +263,16 @@ class TicketController extends Controller
             'success',
             "Ticket #{$ticket->ticket_number} marked as resolved."
         );
+    }
+    // Add this static helper at the bottom of the class
+    public static function formatMinsLeft(float $m): string
+    {
+        if ($m <= 0)
+            return 'Overdue';
+        if ($m < 60)
+            return intval($m) . 'm left';
+        $h = floor($m / 60);
+        $min = intval($m % 60);
+        return $h . 'h' . ($min > 0 ? ' ' . $min . 'm' : '') . ' left';
     }
 }

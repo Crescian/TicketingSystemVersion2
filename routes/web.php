@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\TicketController as AdminTicketController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Admin\OrgSettingsController;
+use App\Http\Controllers\Admin\SlaRuleController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\WebAuthController;
 use App\Http\Controllers\ProfileController;
@@ -109,6 +110,25 @@ Route::middleware(['auth', 'role:IT Admin'])
         Route::post('/settings/departments', [OrgSettingsController::class, 'storeDept'])->name('settings.dept.store');
         Route::put('/settings/departments/{department}', [OrgSettingsController::class, 'updateDept'])->name('settings.dept.update');
         Route::delete('/settings/departments/{department}', [OrgSettingsController::class, 'destroyDept'])->name('settings.dept.destroy');
+
+        // SLA
+        Route::get('/sla-rules', [SlaRuleController::class, 'index'])->name('sla-rules.index');
+        Route::post('/sla-rules', [SlaRuleController::class, 'store'])->name('sla-rules.store');
+        Route::put('/sla-rules/{slaRule}', [SlaRuleController::class, 'update'])->name('sla-rules.update');
+        Route::delete('/sla-rules/{slaRule}', [SlaRuleController::class, 'destroy'])->name('sla-rules.destroy');
+        Route::patch('/sla-rules/{slaRule}/toggle', [SlaRuleController::class, 'toggle'])->name('sla-rules.toggle');
+        
+        // ── Categories
+        Route::post('/sla-rules/categories', [SlaRuleController::class, 'storeCategory'])->name('sla-rules.category.store');
+        Route::put('/sla-rules/categories/{slaCategory}', [SlaRuleController::class, 'updateCategory'])->name('sla-rules.category.update');
+        Route::delete('/sla-rules/categories/{slaCategory}', [SlaRuleController::class, 'destroyCategory'])->name('sla-rules.category.destroy');
+
+        // ── Subcategory SLA rules
+        Route::post('/sla-rules/rules', [SlaRuleController::class, 'storeRule'])->name('sla-rules.rule.store');
+        Route::get('/sla-rules/rules/{slaRule}', [SlaRuleController::class, 'showRule'])->name('sla-rules.rule.show');
+        Route::put('/sla-rules/rules/{slaRule}', [SlaRuleController::class, 'updateRule'])->name('sla-rules.rule.update');
+        Route::delete('/sla-rules/rules/{slaRule}', [SlaRuleController::class, 'destroyRule'])->name('sla-rules.rule.destroy');
+        Route::patch('/sla-rules/rules/{slaRule}/toggle', [SlaRuleController::class, 'toggleRule'])->name('sla-rules.rule.toggle');
     });
 
 // ── Executive routes

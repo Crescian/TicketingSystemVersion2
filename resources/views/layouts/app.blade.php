@@ -11,7 +11,7 @@
         rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-
+    <link rel="icon" type="image/png" href="{{ asset('img/LGICT.png') }}">
     <script>
         // ── Request browser notification permission on page load
         if ('Notification' in window) {
@@ -781,13 +781,13 @@
         <div class="container-fluid px-0">
             <a class="navbar-brand" href="{{ 
                 match (Auth::user()->role?->role_name) {
-                    'Helpdesk' => route('helpdesk.dashboard'),
-                    'IT Support Specialist' => route('technician.dashboard'),
-                    'IT Admin' => route('admin.dashboard'),
-                    'Manager' => route('executive.dashboard'),
-                    default => route('employee.tickets.index'),
-                }
-            }}">LG<span>ICT</span></a>
+        'Helpdesk' => route('helpdesk.dashboard'),
+        'IT Support Specialist' => route('technician.dashboard'),
+        'IT Admin' => route('admin.dashboard'),
+        'Manager' => route('executive.dashboard'),
+        default => route('employee.tickets.index'),
+    }
+            }}">LG<span>ICTicketingSystem</span></a>
             <div class="ms-auto d-flex align-items-center gap-2">
                 @yield('nav-role-badge')
                 <a href="{{ route('profile') }}"

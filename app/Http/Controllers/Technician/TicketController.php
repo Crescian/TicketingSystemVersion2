@@ -93,6 +93,11 @@ class TicketController extends Controller
                 ->avg('ticket_feed_backs.rating'),
         ];
 
+        // ── SLA Categories for filters ← ADD THIS
+        $slaCategories = \App\Models\SlaCategory::where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->pluck('name');
         return view('dashboard.technician', compact(
             'tickets',
             'counts',
