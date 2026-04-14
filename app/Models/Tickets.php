@@ -57,7 +57,7 @@ class Tickets extends Model
     {
         $year = now()->year;
         $count = static::whereYear('created_at', $year)->count() + 1;
-        return 'TKT-' . $year . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
+        return 'LGICT-' . $year . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
     }
     public function escalations()
     {
