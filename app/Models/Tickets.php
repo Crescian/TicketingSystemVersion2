@@ -13,17 +13,30 @@ class Tickets extends Model
         'ticket_number',
         'users_id',
         'assigned_to',
+    
         'ticket_type',
         'request_category',
         'request_details',
         'asset',
         'subject',
         'concern',
+        'location',
+    
         'status',
         'escalation_level',
-        'location',
-        'started_at',
-        'resolved_at',
+    
+        // ── NEW HELP DESK FIELDS
+        'position',
+        'business_unit',
+        'company',
+        'department',
+    
+        'date_received',
+        'time_received',
+        'date_acknowledged',
+        'time_acknowledged',
+    
+        'method',
     ];
 
     protected $casts = [
@@ -55,7 +68,7 @@ class Tickets extends Model
     // Helper: generate ticket number
     public static function generateTicketNumber(): string
     {
-        $year = now()->year;
+        $year = now()->format('y'); // 2026 → 26
         $count = static::whereYear('created_at', $year)->count() + 1;
         return 'LGICT-' . $year . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
     }

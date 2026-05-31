@@ -53,6 +53,7 @@ Route::middleware(['auth', 'role:Helpdesk'])
         Route::post('/tickets/{ticket}/reassign', [HelpdeskTicketController::class, 'reassign'])->name('tickets.reassign');
         Route::post('/tickets/{ticket}/escalate', [HelpdeskTicketController::class, 'escalate'])->name('tickets.escalate');
         Route::post('/tickets/{ticket}/resolve', [HelpdeskTicketController::class, 'resolve'])->name('tickets.resolve');
+        Route::post('/tickets', [EmployeeTicketsController::class, 'store'])->name('tickets.store'); // ← reuse employee store
     });
 
 // ── IT Support Specialist routes

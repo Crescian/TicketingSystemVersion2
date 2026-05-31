@@ -37,7 +37,136 @@
     </div>
 @endsection
 
+@section('hero-cta')
+    <button class="btn-new" data-bs-toggle="modal" data-bs-target="#ticketModal">
+        <i class="bi bi-plus-lg me-1"></i> New Ticket
+    </button>
+@endsection
+
 @section('styles')
+
+    /* ── Employee: New Ticket button ── */
+    .btn-new {
+        background: var(--yg); color: var(--gd);
+        font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 15px;
+        padding: 13px 28px; border-radius: 50px; border: none;
+        transition: background .2s, transform .15s; white-space: nowrap;
+    }
+    .btn-new:hover { background: var(--ygd); transform: translateY(-2px); }
+
+    /* ── Modal: step wizard ── */
+    .step-ind { display: flex; align-items: center; }
+    .step-item { display: flex; align-items: center; gap: 8px; flex: 1; }
+    .step-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 13px; background: var(--bd); color: var(--tm); flex-shrink: 0; transition: all .3s; }
+    .step-item.active .step-num { background: var(--gd); color: var(--yg); }
+    .step-item.done   .step-num { background: var(--yg); color: var(--gd); }
+    .step-lbl { font-size: 12px; font-weight: 700; color: var(--tm); white-space: nowrap; }
+    .step-item.active .step-lbl { color: var(--gd); }
+    .step-line { flex: 1; height: 2px; background: var(--bd); margin: 0 8px; transition: background .3s; }
+    .step-line.done { background: var(--yg); }
+    
+    /* Device grid */
+    .device-opt { border: 1.5px solid var(--bd); border-radius: 12px; padding: 14px 8px; text-align: center; cursor: pointer; transition: all .2s; background: var(--cr); user-select: none; }
+    .device-opt:hover { border-color: var(--gl); background: var(--ygl); }
+    .device-opt.selected { border-color: var(--gd); background: var(--ygl); box-shadow: 0 0 0 2px var(--yg); }
+    .device-opt .d-icon { font-size: 26px; display: block; margin-bottom: 6px; }
+    .device-opt .d-lbl  { font-size: 12px; font-weight: 700; }
+    
+
+    /* Priority */
+    .pri-opt { flex: 1; padding: 10px; border: 1.5px solid var(--bd); border-radius: 10px; text-align: center; cursor: pointer; transition: all .2s; background: var(--cr); }
+    .pri-dot { width: 10px; height: 10px; border-radius: 50%; margin: 0 auto 6px; }
+    .pri-lbl { font-size: 12px; font-weight: 700; color: var(--tm); }
+    .pri-opt.low    .pri-dot { background: #4a7c4a; }
+    .pri-opt.medium .pri-dot { background: #f5c842; }
+    .pri-opt.high   .pri-dot { background: #e24b4a; }
+    .pri-opt.selected { border-color: var(--gd); background: var(--ygl); }
+    .pri-opt.selected .pri-lbl { color: var(--gd); }
+    
+    /* Review */
+    .review-box    { background: var(--ygl); border-radius: 12px; }
+    .review-detail { border: 1.5px solid var(--bd); border-radius: 12px; }
+    .review-lbl    { font-size: 11px; font-weight: 700; color: var(--tm); text-transform: uppercase; letter-spacing: .4px; }
+
+
+    .btn-back-modal  { background: none; border: 1.5px solid var(--bd); color: var(--tm); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 14px; padding: 10px 22px; border-radius: 50px; transition: all .2s; }
+    .btn-back-modal:hover { border-color: var(--gl); color: var(--gd); }
+    .btn-continue    { background: var(--gd); color: var(--yg); font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 14px; padding: 11px 28px; border-radius: 50px; border: none; transition: all .2s; }
+    .btn-continue:hover { background: var(--gm); transform: translateY(-1px); }
+    .btn-submit-ticket { background: var(--yg); color: var(--gd); font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 14px; padding: 11px 28px; border-radius: 50px; border: none; transition: all .2s; }
+    .btn-submit-ticket:hover { background: var(--ygd); }
+
+    
+    /* ── Main category grid ── */
+    .cat-main-opt {
+        border: 1.5px solid var(--bd);
+        border-radius: 14px;
+        padding: 16px 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: all .2s;
+        background: var(--cr);
+        user-select: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+    .cat-main-opt:hover {
+        border-color: var(--gl);
+        background: var(--ygl);
+    }
+    .cat-main-opt.selected {
+        border-color: var(--gd);
+        background: var(--ygl);
+        box-shadow: 0 0 0 2px var(--yg);
+    }
+    .cat-icon { font-size: 28px; display: block; }
+    .cat-lbl  { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; color: var(--gd); }
+
+    /* ── Sub category options ── */
+    .cat-sub-opt {
+        border: 1.5px solid var(--bd);
+        border-radius: 10px;
+        padding: 10px 14px;
+        cursor: pointer;
+        transition: all .2s;
+        background: var(--cr);
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--gd);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .cat-sub-opt:hover {
+        border-color: var(--gl);
+        background: var(--ygl);
+    }
+    .cat-sub-opt.selected {
+        border-color: var(--gd);
+        background: var(--ygl);
+        box-shadow: 0 0 0 2px var(--yg);
+        font-weight: 700;
+    }
+    .cat-sub-opt .sub-check {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid var(--bd);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        transition: all .2s;
+    }
+    .cat-sub-opt.selected .sub-check {
+        background: var(--gd);
+        border-color: var(--gd);
+        color: var(--yg);
+    }
+
     .tech-row { padding:10px 16px; border-bottom:1px solid var(--bd); display:flex; align-items:center; gap:10px; font-size:13px; }
     .tech-row:last-child { border-bottom:none; }
     .tech-av-lg { width:30px; height:30px; background:var(--gd); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; color:var(--yg); font-family:'Nunito',sans-serif; flex-shrink:0; }
@@ -79,6 +208,43 @@
     }
     .badge-pulse {
         animation: badgePulse .6s ease;
+    }
+    /* ── Method selector ── */
+    .method-opt {
+        border: 1.5px solid var(--bd);
+        border-radius: 12px;
+        padding: 10px 16px;
+        cursor: pointer;
+        transition: all .2s;
+        background: var(--cr);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        user-select: none;
+        min-width: 90px;
+    }
+    .method-opt:hover {
+        border-color: var(--gl);
+        background: var(--ygl);
+    }
+    .method-opt.selected {
+        border-color: var(--mc);
+        background: var(--mb);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--mc) 30%, transparent);
+    }
+    .method-opt .method-icon {
+        font-size: 15px;
+        color: var(--mc);
+        flex-shrink: 0;
+    }
+    .method-opt .method-lbl {
+        font-family: 'Nunito', sans-serif;
+        font-weight: 800;
+        font-size: 13px;
+        color: var(--gd);
+    }
+    .method-opt.selected .method-lbl {
+        color: var(--mc);
     }
 @endsection
 
@@ -466,6 +632,331 @@
 {{-- ══ MODALS ══ --}}
 @section('modals')
 
+    {{-- Submit Ticket Modal --}}
+    <div class="modal fade" id="ticketModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">New <em>Support</em> Ticket</h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" action="{{ route('helpdesk.tickets.store') }}" id="ticketForm">
+                    @csrf
+                    <input type="hidden" name="ticket_type"      id="hTicketType"   value="Medium">
+                    <input type="hidden" name="request_category" id="hCategory"     value="">
+                    <input type="hidden" name="asset"            id="hAsset"        value="">
+                    <input type="hidden" name="location"         id="hLocation"     value="">
+
+                    <div class="modal-body px-4 pt-4 pb-2">
+
+                        {{-- Step indicator --}}
+                        <div class="step-ind mb-4">
+                            <div class="step-item active" id="si1">
+                                <div class="step-num">1</div>
+                                <span class="step-lbl">Issue type</span>
+                            </div>
+                            <div class="step-line" id="sl1"></div>
+                            <div class="step-item" id="si2">
+                                <div class="step-num">2</div>
+                                <span class="step-lbl">Details</span>
+                            </div>
+                            <div class="step-line" id="sl2"></div>
+                            <div class="step-item" id="si3">
+                                <div class="step-num">3</div>
+                                <span class="step-lbl">Review</span>
+                            </div>
+                        </div>
+
+                        {{-- Step 1: Issue type --}}
+                        <div class="form-step" id="fs1">
+
+                            {{-- Main Category Selection --}}
+                            <div class="mb-4">
+                                <label class="form-label">
+                                    Select category <span class="text-danger">*</span>
+                                </label>
+                                <div class="row g-2" id="mainCategoryGrid">
+                                    @forelse($slaCategories as $slaCat)
+                                        <div class="{{ $slaCategories->count() <= 2 ? 'col-12' : 'col-6' }}">
+                                            <div class="cat-main-opt"
+                                                data-cat="{{ $slaCat->name }}"
+                                                data-cat-id="{{ $slaCat->id }}">
+                                                <span class="cat-icon">
+                                                    <i class="bi {{ $slaCat->icon ?? 'bi-tag' }}"
+                                                    style="font-size:28px;color:{{ $slaCat->color ?? 'var(--gd)' }}"></i>
+                                                </span>
+                                                <span class="cat-lbl">{{ $slaCat->name }}</span>
+                                            </div>
+                                        </div>
+                                    @empty
+                                        {{-- Fallback if no SLA categories defined yet --}}
+                                        @foreach(['Hardware' => ['🖥️','bi-laptop'], 'Software' => ['💿','bi-code-square'], 'Network' => ['🌐','bi-wifi'], 'Access Request' => ['🔐','bi-shield-lock']] as $name => $icons)
+                                            <div class="col-6">
+                                                <div class="cat-main-opt" data-cat="{{ $name }}">
+                                                    <span class="cat-icon">{{ $icons[0] }}</span>
+                                                    <span class="cat-lbl">{{ $name }}</span>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    @endforelse
+                                </div>
+                            </div>
+
+                            {{-- Sub Category --}}
+                            <div class="mb-4 d-none" id="subCategoryWrap">
+                                <label class="form-label">
+                                    Specific issue <span class="text-danger">*</span>
+                                </label>
+                                <div id="subCategoryList" class="d-flex flex-column gap-2"></div>
+                            </div>
+
+                            {{-- Priority --}}
+                            <div class="mb-1">
+                                <label class="form-label">Priority</label>
+                                <div class="d-flex gap-2">
+                                    <div class="pri-opt low" data-pri="Low">
+                                        <div class="pri-dot"></div>
+                                        <div class="pri-lbl">Low</div>
+                                    </div>
+                                    <div class="pri-opt medium selected" data-pri="Medium">
+                                        <div class="pri-dot"></div>
+                                        <div class="pri-lbl">Medium</div>
+                                    </div>
+                                    <div class="pri-opt high" data-pri="High">
+                                        <div class="pri-dot"></div>
+                                        <div class="pri-lbl">High</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        {{-- Step 2: Details --}}
+                        {{-- Step 1 (Details) — fs2 --}}
+                        <div class="form-step" id="fs2">
+
+                            {{-- Ticket Number (read-only, auto-generated) --}}
+                            <div class="mb-3 p-3 rounded d-flex align-items-center gap-3"
+                                style="background:var(--ygl);border:1.5px solid var(--bd)">
+                                <div>
+                                    <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">
+                                        Ticket Number
+                                    </div>
+                                    <div class="font-brand fw-900" style="font-size:18px;color:var(--gd);letter-spacing:1px">
+                                        Auto-generated on submit
+                                    </div>
+                                </div>
+                                <i class="bi bi-ticket-perforated ms-auto" style="font-size:28px;opacity:.2;color:var(--gd)"></i>
+                            </div>
+
+                            {{-- Date & Time Received / Acknowledged --}}
+                            <div class="row g-3 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label">Date Received <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" id="mDateReceived" name="date_received">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Time Received <span class="text-danger">*</span></label>
+                                    <input type="time" class="form-control" id="mTimeReceived" name="time_received">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Date Acknowledged</label>
+                                    <input type="date" class="form-control" id="mDateAck" name="date_acknowledged">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Time Acknowledged</label>
+                                    <input type="time" class="form-control" id="mTimeAck" name="time_acknowledged">
+                                </div>
+                            </div>
+
+                            {{-- Requestor --}}
+                            <div class="mb-3">
+                                <label class="form-label">Requestor <span class="text-danger">*</span></label>
+                                <select class="form-select" id="mRequestor" name="users_id">
+                                    <option value="">— Select employee —</option>
+                                    @foreach($users as $user)
+                                        <option value="{{ $user->id }}"
+                                                data-position="{{ $user->position ?? '' }}"
+                                                data-bu="{{ $user->business_units_name ?? '' }}"
+                                                data-company="{{ $user->company_name ?? '' }}"
+                                                data-department="{{ $user->department_name ?? '' }}">
+                                            {{ $user->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- Auto-filled fields --}}
+                            <div class="row g-3 mb-3">
+                                <div class="col-12">
+                                    <label class="form-label">Position</label>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <input type="text" class="form-control" id="mPosition" name="position"
+                                            placeholder="Auto-filled from requestor" readonly
+                                            style="background:var(--ygl);color:var(--gd);font-weight:700">
+                                        <i class="bi bi-magic" style="color:var(--tm);opacity:.5;flex-shrink:0"></i>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Business Unit</label>
+                                    <input type="text" class="form-control" id="mBU" name="business_unit"
+                                        placeholder="Auto-filled from requestor" readonly
+                                        style="background:var(--ygl);color:var(--gd);font-weight:700">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Company</label>
+                                    <input type="text" class="form-control" id="mCompany" name="company"
+                                        placeholder="Auto-filled" readonly
+                                        style="background:var(--ygl);color:var(--gd);font-weight:700">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Department</label>
+                                    <input type="text" class="form-control" id="mDepartment" name="department"
+                                        placeholder="Auto-filled" readonly
+                                        style="background:var(--ygl);color:var(--gd);font-weight:700">
+                                </div>
+                            </div>
+
+                            {{-- Method --}}
+                            <div class="mb-1">
+                                <label class="form-label">Method <span class="text-danger">*</span></label>
+                                <div class="d-flex gap-2 flex-wrap" id="methodOptions">
+                                    @foreach([
+                                        ['value' => 'Verbal', 'icon' => 'bi-person-fill',   'color' => '#4a7c4a', 'bg' => '#d4f0d4'],
+                                        ['value' => 'Email',  'icon' => 'bi-envelope-fill', 'color' => '#2a4ab0', 'bg' => '#e8eeff'],
+                                        ['value' => 'Text',   'icon' => 'bi-chat-fill',     'color' => '#7a5a00', 'bg' => '#fff4cc'],
+                                        ['value' => 'Viber',  'icon' => 'bi-phone-fill',    'color' => '#5a1a7a', 'bg' => '#f0e8ff'],
+                                    ] as $method)
+                                        <div class="method-opt" data-method="{{ $method['value'] }}"
+                                            style="--mc:{{ $method['color'] }};--mb:{{ $method['bg'] }}">
+                                            <i class="bi {{ $method['icon'] }} method-icon"></i>
+                                            <span class="method-lbl">{{ $method['value'] }}</span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                                <input type="hidden" name="method" id="hMethod" value="">
+                            </div>
+                            {{-- Divider --}}
+                            <hr style="border-color:var(--bd);margin:20px 0">
+
+                            {{-- Subject & Description --}}
+                            <div class="mb-3">
+                                <label class="form-label">Subject <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="mSubject"
+                                    name="subject"
+                                    placeholder="Brief description of the issue…">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Describe the issue <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="mDesc"
+                                        name="concern" rows="3"
+                                        placeholder="What happened, when it started…"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Additional details <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="mDetails"
+                                        name="request_details" rows="2"
+                                        placeholder="Error messages, steps to reproduce…"></textarea>
+                            </div>
+                            <div class="row g-3 mb-1">
+                                <div class="col-6">
+                                    <label class="form-label">Asset tag / serial no.</label>
+                                    <input type="text" class="form-control" id="mAsset"
+                                        placeholder="e.g. LT-00432">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Location</label>
+                                    <select class="form-select" id="mLocation">
+                                        <option value="">— Select location —</option>
+                                        <optgroup label="HQ">
+                                            <option value="3rd Floor - HQ">3rd Floor - HQ</option>
+                                            <option value="5th Floor - HQ">5th Floor - HQ</option>
+                                            <option value="6th Floor - HQ">6th Floor - HQ</option>
+                                            <option value="7th Floor - HQ">7th Floor - HQ</option>
+                                        </optgroup>
+                                        <optgroup label="Sites">
+                                            <option value="Zambales Site">Zambales Site</option>
+                                            <option value="Porac Site">Porac Site</option>
+                                            <option value="Bauan Site">Bauan Site</option>
+                                        </optgroup>
+                                        <optgroup label="Vessels">
+                                            <option value="Petro Elise">Petro Elise</option>
+                                            <option value="Petro Cara">Petro Cara</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Step 3: Review --}}
+                        <div class="form-step d-none" id="fs3">
+                            <div class="review-box p-3 mb-3">
+                                <div class="font-brand fw-900 mb-3"
+                                    style="font-size:14px;color:var(--gd);text-transform:uppercase;letter-spacing:.5px">
+                                    Ticket Summary
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-6">
+                                        <div class="review-lbl">Category</div>
+                                        <div class="fw-700" id="rv-device">—</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="review-lbl">Specific Issue</div>
+                                        <div class="fw-700" id="rv-cat">—</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="review-lbl">Priority</div>
+                                        <div class="fw-700" id="rv-pri">⚡ Medium</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="review-lbl">Asset / Location</div>
+                                        <div class="fw-700" id="rv-asset">—</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="review-detail p-3">
+                                <div class="review-lbl mb-1">Subject</div>
+                                <div class="font-brand fw-800 mb-3" style="font-size:15px" id="rv-subject">—</div>
+                                <div class="review-lbl mb-1">Concern</div>
+                                <div style="font-size:13px;color:var(--tm);margin-bottom:12px" id="rv-desc">—</div>
+                                <div class="review-lbl mb-1">What happens next</div>
+                                <div style="font-size:13px;color:var(--tm)">
+                                    Your ticket will be assigned to an available IT Support Specialist.
+                                    Average first response: <strong style="color:var(--gd)">under 2 hours</strong>.
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Success screen --}}
+                        <div class="form-step d-none text-center py-3" id="fsSuccess">
+                            <div class="success-icon d-flex align-items-center justify-content-center mx-auto mb-3">
+                                ✅
+                            </div>
+                            <h5 class="font-brand fw-900 mb-1" style="font-size:22px">
+                                Ticket submitted!
+                            </h5>
+                            <p class="mb-2" style="color:var(--tm)">
+                                Your request has been received.<br>
+                                Helpdesk will assign a technician shortly.
+                            </p>
+                            <div class="ticket-ref my-3" id="newTicketRef">—</div>
+                            <p style="color:var(--tm);font-size:13px">
+                                Track progress from your dashboard.<br>
+                                You'll be notified when the status changes.
+                            </p>
+                        </div>
+
+                    </div>
+
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between"
+                         id="mFooter">
+                        <button type="button" class="btn-back-modal" id="btnBack">← Back</button>
+                        <button type="button" class="btn-continue" id="btnNext">Continue →</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
     {{-- Assign / Reassign modal --}}
     <div class="modal fade" id="assignModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -682,64 +1173,21 @@
 
 @section('scripts')
 <script>
-$(function () {
-    /* ── Search debounce ── */
-    let searchTimer;
-    $('#searchInput').on('input', function () {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => $('#searchForm').submit(), 500);
-    });
-
-    /* ── Tech selection in modal ── */
-    $(document).on('click', '.tech-select-option:not(.disabled)', function () {
-        $(this).siblings().removeClass('selected');
-        $(this).addClass('selected');
-        $('#selectedTechId').val($(this).data('tech-id'));
-    });
-
-    /* ── Assign / Reassign modal ── */
-    window.openAssignModal = function (ticketId, ticketNumber, isReassign) {
-        $('#assignTicketRef').text('#' + ticketNumber);
-        $('#assignModalTitle').html(
-            isReassign ? 'Reassign <em>Technician</em>' : 'Assign <em>Technician</em>'
-        );
-        const action = isReassign
-            ? '/helpdesk/tickets/' + ticketId + '/reassign'
-            : '/helpdesk/tickets/' + ticketId + '/assign';
-        $('#assignForm').attr('action', action);
-        $('#selectedTechId').val('');
-        $('.tech-select-option').removeClass('selected');
-        // Auto-select first available tech
-        $('.tech-select-option:not(.disabled)').first().trigger('click');
-        new bootstrap.Modal('#assignModal').show();
-    };
-
-    /* ── Escalate modal ── */
-    window.openEscalateModal = function (ticketId, ticketNumber) {
-        $('#escalateRef').text('#' + ticketNumber);
-        $('#escalateForm').attr('action', '/helpdesk/tickets/' + ticketId + '/escalate');
-        new bootstrap.Modal('#escalateModal').show();
-    };
-
-    /* ── Resolve modal ── */
-    window.openResolveModal = function (ticketId, ticketNumber) {
-        $('#resolveRef').text('#' + ticketNumber);
-        $('#resolveForm').attr('action', '/helpdesk/tickets/' + ticketId + '/resolve');
-        new bootstrap.Modal('#resolveModal').show();
-    };
-
-    /* ── Validate assign: tech must be selected ── */
-    $('#assignForm').on('submit', function (e) {
-        if (!$('#selectedTechId').val()) {
-            e.preventDefault();
-            alert('Please select a technician.');
-        }
-    });
+/* ── Auto-fill requestor details ── */
+$(document).on('change', '#mRequestor', function () {
+    const opt = $(this).find('option:selected');
+    $('#mPosition').val(opt.data('position')   || '');
+    $('#mBU').val(opt.data('bu')               || '');
+    $('#mCompany').val(opt.data('company')     || '');
+    $('#mDepartment').val(opt.data('department') || '');
 });
-</script>
-@section('scripts')
-<script>
 
+/* ── Method selection ── */
+$(document).on('click', '.method-opt', function () {
+    $('.method-opt').removeClass('selected');
+    $(this).addClass('selected');
+    $('#hMethod').val($(this).data('method'));
+});
 /* ══ GLOBAL FUNCTIONS — must be outside $(function(){}) ══ */
 
 /* ── Chat modal ── */
@@ -748,7 +1196,6 @@ let chatPollInterval    = null;
 
 window.openChatModal = function (ticketId, ticketNumber) {
     currentChatTicketId = ticketId;
-    // ── Clear unread badge immediately
     $('#badge-' + ticketId).remove();
     $('#chatTicketRef').text('#' + ticketNumber);
     $('#modalChatMessages').html(`
@@ -759,7 +1206,6 @@ window.openChatModal = function (ticketId, ticketNumber) {
     `);
     new bootstrap.Modal('#chatModal').show();
     loadChatMessages();
-
     clearInterval(chatPollInterval);
     chatPollInterval = setInterval(loadChatMessages, 3000);
 };
@@ -768,10 +1214,8 @@ window.sendModalMessage = function () {
     const input = document.getElementById('modalChatInput');
     const msg   = input.value.trim();
     if (!msg || !currentChatTicketId) return;
-
     input.value = '';
     input.style.height = 'auto';
-
     fetch(`/tickets/${currentChatTicketId}/messages`, {
         method:  'POST',
         headers: {
@@ -791,7 +1235,6 @@ window.handleModalChatKey = function (e) {
         e.preventDefault();
         window.sendModalMessage();
     }
-    // Auto-resize textarea
     const ta = document.getElementById('modalChatInput');
     setTimeout(() => {
         ta.style.height = 'auto';
@@ -801,81 +1244,46 @@ window.handleModalChatKey = function (e) {
 
 function loadChatMessages() {
     if (!currentChatTicketId) return;
-
     fetch(`/tickets/${currentChatTicketId}/messages`, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept':           'application/json',
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
     })
-    .then(r => {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-    })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(data => {
         const msgs = data.messages;
         const $box = document.getElementById('modalChatMessages');
         if (!$box) return;
-
         const prevCount = $box.querySelectorAll('[data-msg-id]').length;
-
         if (!msgs || !msgs.length) {
             $box.innerHTML = `
                 <div class="text-center py-4" style="color:var(--tm)">
                     <i class="bi bi-chat-dots" style="font-size:32px;opacity:.3;display:block;margin-bottom:8px"></i>
-                    <p style="font-size:13px;font-weight:600;margin:0">
-                        No messages yet.<br>Start the conversation!
-                    </p>
+                    <p style="font-size:13px;font-weight:600;margin:0">No messages yet.<br>Start the conversation!</p>
                 </div>`;
             return;
         }
-
-        if (msgs.length === prevCount) return; // No new messages
-
+        if (msgs.length === prevCount) return;
+        const avColors     = { 'IT Admin':'#fde8e8','IT Support Specialist':'#fff4cc','Helpdesk':'#d4f0d4','Executive':'#e8e0ff' };
+        const avTextColors = { 'IT Admin':'#8b1a1a','IT Support Specialist':'#7a5a00','Helpdesk':'#2d5a2d','Executive':'#4a1a8a' };
         let html = '';
         msgs.forEach(msg => {
-            const avColors = {
-                'IT Admin':      '#fde8e8',
-                'IT Support Specialist': '#fff4cc',
-                'Helpdesk':      '#d4f0d4',
-                'Executive':     '#e8e0ff',
-            };
-            const avTextColors = {
-                'IT Admin':      '#8b1a1a',
-                'IT Support Specialist': '#7a5a00',
-                'Helpdesk':      '#2d5a2d',
-                'Executive':     '#4a1a8a',
-            };
             const avBg   = avColors[msg.role]      || '#e8f5b0';
             const avText = avTextColors[msg.role]   || '#1a3c1a';
             const isMe   = msg.is_me;
-
             html += `
-                <div data-msg-id="${msg.id}"
-                     style="display:flex;gap:8px;align-items:flex-end;${isMe ? 'flex-direction:row-reverse' : ''}">
-                    <div style="width:28px;height:28px;border-radius:50%;background:${avBg};color:${avText};display:flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;font-weight:900;font-size:10px;flex-shrink:0">
-                        ${msg.initials}
-                    </div>
+                <div data-msg-id="${msg.id}" style="display:flex;gap:8px;align-items:flex-end;${isMe ? 'flex-direction:row-reverse' : ''}">
+                    <div style="width:28px;height:28px;border-radius:50%;background:${avBg};color:${avText};display:flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;font-weight:900;font-size:10px;flex-shrink:0">${msg.initials}</div>
                     <div style="max-width:75%">
                         <div style="font-size:10px;font-weight:700;color:var(--tm);margin-bottom:3px;${isMe ? 'text-align:right' : ''}">
                             ${isMe ? 'You' : escapeHtmlChat(msg.sender)}
-                            <span style="font-size:9px;background:${avBg};color:${avText};border-radius:4px;padding:1px 5px;margin-left:4px;text-transform:uppercase;letter-spacing:.3px;font-weight:800">
-                                ${msg.role || 'User'}
-                            </span>
+                            <span style="font-size:9px;background:${avBg};color:${avText};border-radius:4px;padding:1px 5px;margin-left:4px;text-transform:uppercase;letter-spacing:.3px;font-weight:800">${msg.role || 'User'}</span>
                         </div>
-                        <div style="padding:9px 13px;border-radius:16px;font-size:13px;line-height:1.5;word-break:break-word;${isMe
-                            ? 'background:var(--gd);color:var(--yg);border-bottom-right-radius:4px'
-                            : 'background:#fff;color:var(--gd);border-bottom-left-radius:4px;border:1.5px solid var(--bd)'}">
+                        <div style="padding:9px 13px;border-radius:16px;font-size:13px;line-height:1.5;word-break:break-word;${isMe ? 'background:var(--gd);color:var(--yg);border-bottom-right-radius:4px' : 'background:#fff;color:var(--gd);border-bottom-left-radius:4px;border:1.5px solid var(--bd)'}">
                             ${escapeHtmlChat(msg.message)}
                         </div>
-                        <div style="font-size:10px;color:var(--tm);margin-top:3px;font-weight:600;${isMe ? 'text-align:right' : ''}">
-                            ${msg.time_ago}
-                        </div>
+                        <div style="font-size:10px;color:var(--tm);margin-top:3px;font-weight:600;${isMe ? 'text-align:right' : ''}">${msg.time_ago}</div>
                     </div>
-                </div>
-            `;
+                </div>`;
         });
-
         $box.innerHTML = html;
         $box.scrollTop = $box.scrollHeight;
     })
@@ -883,15 +1291,80 @@ function loadChatMessages() {
 }
 
 function escapeHtmlChat(str) {
-    return String(str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-/* ══ DOM-READY FUNCTIONS ══ */
+/* ══ DOM-READY ══ */
 $(function () {
+    $(document).on('click', '.method-opt', function () {
+    $('.method-opt').removeClass('selected');
+    $(this).addClass('selected');
+
+    $('#hMethod').val($(this).data('method'));
+});
+
+    /* ── Dynamic SLA categories ── */
+    const slaCategories = @json($slaCategoriesJson);
+    const subCategoryMap = {};
+    slaCategories.forEach(cat => { subCategoryMap[cat.name] = cat.subs; });
+
+    /* ── Main category selection ── */
+    $(document).on('click', '.cat-main-opt', function () {
+        $('.cat-main-opt').removeClass('selected');
+        $(this).addClass('selected');
+
+        const catName = $(this).data('cat');
+        const subs    = subCategoryMap[catName] || [];
+        const $list   = $('#subCategoryList').empty();
+
+        if (subs.length === 0) {
+            $list.append(`
+                <div style="font-size:12px;color:var(--tm);font-weight:600;padding:8px 12px;background:var(--ygl);border-radius:8px">
+                    <i class="bi bi-info-circle me-1"></i>
+                    No subcategories defined yet for this category. Contact IT Admin.
+                </div>`);
+        } else {
+            subs.forEach(sub => {
+                const priColor = sub.priority === 'High' ? '#e24b4a' : (sub.priority === 'Medium' ? '#f5c842' : '#4a7c4a');
+                const priBg    = sub.priority === 'High' ? '#fde8e8' : (sub.priority === 'Medium' ? '#fff4cc' : '#d4f0d4');
+                $list.append(`
+                    <div class="cat-sub-opt" data-sub="${sub.name}" data-priority="${sub.priority}">
+                        <div class="sub-check"></div>
+                        <span style="flex:1">${sub.name}</span>
+                        <span style="font-size:10px;font-weight:800;background:${priBg};color:${priColor};border-radius:20px;padding:2px 8px;flex-shrink:0">${sub.priority}</span>
+                    </div>`);
+            });
+        }
+        $('#subCategoryWrap').removeClass('d-none');
+        $('#hCategory').val('');
+    });
+
+    /* ── Sub category selection ── */
+    $(document).on('click', '.cat-sub-opt', function () {
+        $('.cat-sub-opt').removeClass('selected');
+        $(this).addClass('selected');
+        $(this).find('.sub-check').html('<i class="bi bi-check"></i>');
+        $('.cat-sub-opt:not(.selected) .sub-check').html('');
+
+        const mainCat  = $('.cat-main-opt.selected').data('cat') || '';
+        const subCat   = $(this).data('sub')      || '';
+        const priority = $(this).data('priority') || '';
+
+        $('#hCategory').val(mainCat + ' — ' + subCat);
+
+        if (priority) {
+            $('.pri-opt').removeClass('selected');
+            $(`.pri-opt[data-pri="${priority}"]`).addClass('selected');
+            $('#hTicketType').val(priority);
+        }
+    });
+
+    /* ── Priority selection ── */
+    $(document).on('click', '.pri-opt', function () {
+        $(this).siblings().removeClass('selected');
+        $(this).addClass('selected');
+        $('#hTicketType').val($(this).data('pri'));
+    });
 
     /* ── Search debounce ── */
     let searchTimer;
@@ -910,13 +1383,10 @@ $(function () {
     /* ── Assign / Reassign modal ── */
     window.openAssignModal = function (ticketId, ticketNumber, isReassign) {
         $('#assignTicketRef').text('#' + ticketNumber);
-        $('#assignModalTitle').html(
-            isReassign ? 'Reassign <em>Technician</em>' : 'Assign <em>Technician</em>'
-        );
-        const action = isReassign
+        $('#assignModalTitle').html(isReassign ? 'Reassign <em>Technician</em>' : 'Assign <em>Technician</em>');
+        $('#assignForm').attr('action', isReassign
             ? '/helpdesk/tickets/' + ticketId + '/reassign'
-            : '/helpdesk/tickets/' + ticketId + '/assign';
-        $('#assignForm').attr('action', action);
+            : '/helpdesk/tickets/' + ticketId + '/assign');
         $('#selectedTechId').val('');
         $('.tech-select-option').removeClass('selected');
         $('.tech-select-option:not(.disabled)').first().trigger('click');
@@ -951,6 +1421,166 @@ $(function () {
         currentChatTicketId = null;
     });
 
+    /* ════════════════════════════════════════
+       STEP WIZARD  —  Order: Details → Issue type → Review
+       Step 1 = fs2 (Details)
+       Step 2 = fs1 (Issue type / category)
+       Step 3 = fs3 (Review)
+       Step 4 = fsSuccess
+    ════════════════════════════════════════ */
+
+    // Map wizard step numbers to the actual panel IDs
+    // Step 1 → Details (fs2), Step 2 → Issue type (fs1), Step 3 → Review (fs3)
+    const stepPanels = ['fs2', 'fs1', 'fs3', 'fsSuccess'];
+
+    let step = 1;
+
+    function showStep(n) {
+        step = n;
+
+        // Show only the matching panel
+        stepPanels.forEach((id, i) => {
+            $('#' + id).toggleClass('d-none', i !== n - 1);
+        });
+
+        // Update step indicator bubbles (indicators 1-3 map to wizard steps 1-3)
+        for (let i = 1; i <= 3; i++) {
+            $('#si' + i).toggleClass('active', i === n).toggleClass('done', i < n);
+            if (i < 3) $('#sl' + i).toggleClass('done', i < n);
+        }
+
+        // Back button: hide on step 1 and success screen
+        $('#btnBack').css('visibility', n > 1 && n < 4 ? 'visible' : 'hidden');
+
+        if (n === 3) {
+            // Populate review panel
+            const mainCat = $('.cat-main-opt.selected').data('cat') || '—';
+            const subCat  = $('.cat-sub-opt.selected').data('sub')  || '—';
+            const pri     = $('.pri-opt.selected').data('pri')      || 'Medium';
+            const asset   = $('#mAsset').val() || '—';
+            const loc     = $('#mLocation').val() || '';
+
+            $('#rv-device').text(mainCat);
+            $('#rv-cat').text(subCat);
+            $('#rv-pri').text('⚡ ' + pri);
+            $('#rv-asset').text(asset + (loc ? ' · ' + loc : ''));
+            $('#rv-subject').text($('#mSubject').val() || '—');
+            $('#rv-desc').text($('#mDesc').val() || '—');
+
+            // Sync hidden fields
+            $('#hCategory').val(mainCat + ' — ' + subCat);
+            $('#hTicketType').val(pri);
+
+            $('#btnNext')
+                .removeClass('btn-continue')
+                .addClass('btn-submit-ticket')
+                .text('Submit ticket');
+
+        } else if (n === 4) {
+            $('#mFooter').hide();
+        } else {
+            $('#btnNext')
+                .removeClass('btn-submit-ticket')
+                .addClass('btn-continue')
+                .text('Continue →');
+        }
+    }
+
+    /* ── Next / Submit ── */
+    $('#btnNext').on('click', function () {
+
+        if (step === 1) {
+            // Validate Details panel (fs2)
+            if (!$('#mSubject').val().trim()) { alert('Please enter a subject.'); return; }
+            if (!$('#mDesc').val().trim())    { alert('Please describe the issue.'); return; }
+            $('#hAsset').val($('#mAsset').val());
+            $('#hLocation').val($('#mLocation').val());
+            if (!$('#mDateReceived').val())  { alert('Please enter the date received.'); return; }
+            if (!$('#mTimeReceived').val())  { alert('Please enter the time received.'); return; }
+            if (!$('#mRequestor').val())     { alert('Please select a requestor.'); return; }
+            if (!$('#hMethod').val())        { alert('Please select a contact method.'); return; }
+            showStep(2);
+
+        } else if (step === 2) {
+            // Validate Issue type panel (fs1)
+            if (!$('.cat-main-opt.selected').length) { alert('Please select a category.'); return; }
+            if (!$('.cat-sub-opt.selected').length)  { alert('Please select a specific issue.'); return; }
+
+            const mainCat = $('.cat-main-opt.selected').data('cat') || '';
+            const subCat  = $('.cat-sub-opt.selected').data('sub')  || '';
+            $('#hCategory').val(mainCat + ' — ' + subCat);
+            $('#hTicketType').val($('.pri-opt.selected').data('pri') || 'Medium');
+            showStep(3);
+
+        } else if (step === 3) {
+            // Final sync before submit
+            const mainCat = $('.cat-main-opt.selected').data('cat') || '';
+            const subCat  = $('.cat-sub-opt.selected').data('sub')  || '';
+            const pri     = $('.pri-opt.selected').data('pri')      || 'Medium';
+
+            $('#hCategory').val(mainCat + ' — ' + subCat);
+            $('#hTicketType').val(pri);
+            $('#hAsset').val($('#mAsset').val());
+            $('#hLocation').val($('#mLocation').val());
+
+            if (!$('#hCategory').val().trim()) {
+                alert('Please go back and select a specific issue.');
+                return;
+            }
+
+            $.ajax({
+                url:  $('#ticketForm').attr('action'),
+                type: 'POST',
+                data: $('#ticketForm').serialize(),
+                success: function (response) {
+                    $('#newTicketRef').text(response.ticket_number);
+                    showStep(4);
+                    setTimeout(() => { window.location.href = '{{ route("helpdesk.dashboard") }}'; }, 3000);
+                },
+                error: function (xhr) {
+                    const errors = xhr.responseJSON?.errors;
+                    alert(errors ? Object.values(errors).flat().join('\n') : 'Something went wrong. Please try again.');
+                }
+            });
+        }
+    });
+
+    /* ── Back ── */
+    $('#btnBack').on('click', function () {
+        if (step > 1 && step < 4) showStep(step - 1);
+    });
+
+    /* ── Reset modal on open ── */
+    $('#ticketModal').on('show.bs.modal', function () {
+        $('#mFooter').show();
+        showStep(1);
+
+        $('#hCategory').val('');
+        $('#hTicketType').val('Medium');
+        $('#hAsset').val('');
+        $('#hLocation').val('');
+
+        $('.cat-main-opt').removeClass('selected');
+        $('.cat-sub-opt').removeClass('selected');
+        $('#subCategoryWrap').addClass('d-none');
+        $('#subCategoryList').empty();
+
+        $('#mSubject, #mDesc, #mDetails').val('');
+        $('#mAsset').val('');
+        $('#mLocation').val('');
+
+        $('.pri-opt').removeClass('selected').filter('.medium').addClass('selected');
+        $('#hTicketType').val('Medium');
+        // Reset details fields
+        $('#mDateReceived').val(new Date().toISOString().split('T')[0]);
+        $('#mTimeReceived').val(new Date().toTimeString().slice(0,5));
+        $('#mDateAck, #mTimeAck').val('');
+        $('#mRequestor').val('').trigger('change');
+        $('#mPosition, #mBU, #mCompany, #mDepartment').val('');
+        $('.method-opt').removeClass('selected');
+        $('#hMethod').val('');
+    });
+
 });
 
 /* ── Smart silent background refresh ── */
@@ -958,31 +1588,20 @@ let silentRefreshTimer = null;
 let isModalOpen        = false;
 
 function silentRefresh() {
-    // Don't refresh if modal is open or tab is hidden
     if (isModalOpen || document.hidden) return;
-    // Don't refresh if user is typing
     const active = document.activeElement;
     if (active && active.matches('input, textarea, select')) return;
 
-    fetch(window.location.href, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept':           'text/html',
-        }
-    })
+    fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' } })
     .then(r => r.text())
     .then(html => {
         const parser = new DOMParser();
         const doc    = parser.parseFromString(html, 'text/html');
 
-        // ── Ticket list
         const newList = doc.getElementById('ticketList');
         const curList = document.getElementById('ticketList');
-        if (newList && curList) {
-            curList.innerHTML = newList.innerHTML;
-        }
+        if (newList && curList) curList.innerHTML = newList.innerHTML;
 
-        // ── Badge counts — only update if changed
         doc.querySelectorAll('.badge-count').forEach((newEl, i) => {
             const curEl = document.querySelectorAll('.badge-count')[i];
             if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) {
@@ -992,41 +1611,30 @@ function silentRefresh() {
             }
         });
 
-        // ── Stat pill numbers
         doc.querySelectorAll('.stat-pill .num').forEach((newEl, i) => {
             const curEl = document.querySelectorAll('.stat-pill .num')[i];
-            if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) {
-                curEl.textContent = newEl.textContent;
-            }
+            if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) curEl.textContent = newEl.textContent;
         });
 
-        // ── Tab pill counts
         doc.querySelectorAll('.tab-pill').forEach((newEl, i) => {
             const curEl = document.querySelectorAll('.tab-pill')[i];
-            if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) {
-                curEl.textContent = newEl.textContent;
-            }
+            if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) curEl.textContent = newEl.textContent;
         });
     })
-    .catch(() => {}); // Silent fail
+    .catch(() => {});
 }
 
-// ── Run every 30 seconds
 silentRefreshTimer = setInterval(silentRefresh, 30000);
-
-// ── Pause when any modal opens
-document.addEventListener('show.bs.modal', () => { isModalOpen = true; });
+document.addEventListener('show.bs.modal',   () => { isModalOpen = true; });
 document.addEventListener('hidden.bs.modal', () => { isModalOpen = false; });
-
-// ── Pause when tab is hidden, resume when visible
 document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
         clearInterval(silentRefreshTimer);
     } else {
-        silentRefresh(); // Refresh immediately when tab becomes visible
+        silentRefresh();
         silentRefreshTimer = setInterval(silentRefresh, 30000);
     }
 });
+
 </script>
-@endsection
 @endsection

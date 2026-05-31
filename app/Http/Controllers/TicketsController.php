@@ -89,76 +89,6 @@ class TicketsController extends Controller
             'slaCategoriesJson'   // ← add this
         ));
     }
-    // public function index(Request $request)
-    // {
-    //     $user = Auth::user();
-    //     $status = $request->get('status', 'all');
-    //     $search = $request->get('search', '');
-    //     $category = $request->get('category', '');
-    //     $fromDate = $request->get('from_date', '');
-    //     $sort = $request->get('sort', 'newest');
-
-    //     $query = Tickets::where('users_id', $user->id)
-    //         ->with(['assignedTo']);
-
-    //     // Filter by status
-    //     if ($status !== 'all') {
-    //         $query->where('status', 'ilike', $status);
-    //     }
-
-    //     // Filter by category
-    //     if ($category) {
-    //         $query->where('request_category', $category);
-    //     }
-
-    //     // Filter by date
-    //     if ($fromDate) {
-    //         $query->whereDate('created_at', '>=', $fromDate);
-    //     }
-
-    //     // Search
-    //     if ($search) {
-    //         $query->where(function ($q) use ($search) {
-    //             $q->where('ticket_number', 'ilike', "%{$search}%")
-    //                 ->orWhere('subject', 'ilike', "%{$search}%")
-    //                 ->orWhere('request_category', 'ilike', "%{$search}%")
-    //                 ->orWhere('status', 'ilike', "%{$search}%");
-    //         });
-    //     }
-
-    //     // Sort
-    //     match ($sort) {
-    //         'oldest' => $query->orderBy('created_at', 'asc'),
-    //         'priority' => $query->orderByRaw("CASE
-    //         WHEN ticket_type = 'High'   THEN 1
-    //         WHEN ticket_type = 'Medium' THEN 2
-    //         WHEN ticket_type = 'Low'    THEN 3
-    //         ELSE 4 END"),
-    //         default => $query->orderByDesc('created_at'),
-    //     };
-
-    //     $tickets = $query->paginate(10)->withQueryString();
-
-    //     // Status counts (unaffected by filters)
-    //     $counts = [
-    //         'all' => Tickets::where('users_id', $user->id)->count(),
-    //         'open' => Tickets::where('users_id', $user->id)->where('status', 'Open')->count(),
-    //         'in_progress' => Tickets::where('users_id', $user->id)->where('status', 'In Progress')->count(),
-    //         'escalated' => Tickets::where('users_id', $user->id)->where('status', 'Escalated')->count(),
-    //         'resolved' => Tickets::where('users_id', $user->id)->where('status', 'Resolved')->count(),
-    //         'cancelled' => Tickets::where('users_id', $user->id)->where('status', 'Cancelled')->count(),
-    //     ];
-
-    //     $greeting = $this->getGreeting();
-
-    //     return view('dashboard.employee', compact(
-    //         'tickets',
-    //         'counts',
-    //         'status',
-    //         'search',
-    //         'greeting'
-    //     ));
-    // }
 
     // Show single ticket details
     public function show(Tickets $ticket)
@@ -180,46 +110,75 @@ class TicketsController extends Controller
     }
 
     // Store new ticket
+    // Store new ticket
     public function store(Request $request)
     {
         $request->validate([
-            'ticket_type' => 'required|string',
-            'request_category' => 'required|string',
-            'subject' => 'required|string|max:255',
-            'concern' => 'required|string',
-            'request_details' => 'nullable|string', // ← changed to nullable
-            'asset' => 'nullable|string|max:255',
-            'location' => 'nullable|string|max:255',
+            'ticket_type'       => 'required|string',
+            'request_category'  => 'required|string',
+            'subject'           => 'required|string|max:255',
+            'concern'           => 'required|string',
+            'request_details'   => 'nullable|string',
+            'asset'             => 'nullable|string|max:255',
+            'location'          => 'nullable|string|max:255',
+            // ── new helpdesk fields
+            'users_id'          => 'nullable|uuid|exists:users,id',
+            'position'          => 'nullable|string|max:255',
+            'business_unit'     => 'nullable|string|max:255',
+            'company'           => 'nullable|string|max:255',
+            'department'        => 'nullable|string|max:255',
+            'date_received'     => 'nullable|date',
+            'time_received'     => 'nullable|date_format:H:i',
+            'date_acknowledged' => 'nullable|date',
+            'time_acknowledged' => 'nullable|date_format:H:i',
+            'method'            => 'nullable|string|in:Verbal,Email,Text,Viber',
         ]);
 
+        // ── Helpdesk selects an employee → use that employee's ID
+        // ── Employee files themselves    → use Auth::id()
+        $usersId = $request->filled('users_id')
+            ? $request->users_id
+            : Auth::id();
+
         $ticket = Tickets::create([
-            'ticket_number' => Tickets::generateTicketNumber(),
-            'users_id' => Auth::id(),
-            'ticket_type' => $request->ticket_type,
-            'request_category' => $request->request_category,
-            'subject' => $request->subject,
-            'concern' => $request->concern,
-            'request_details' => $request->request_details,
-            'asset' => $request->asset,
-            'location' => $request->location,
-            'status' => 'Open',
-            'escalation_level' => 0,
+            'ticket_number'     => Tickets::generateTicketNumber(),
+            'users_id'          => $usersId,
+            'ticket_type'       => $request->ticket_type,
+            'request_category'  => $request->request_category,
+            'subject'           => $request->subject,
+            'concern'           => $request->concern,
+            'request_details'   => $request->request_details,
+            'asset'             => $request->asset,
+            'location'          => $request->location,
+            'status'            => 'Open',
+            'escalation_level'  => 0,
+            // ── new helpdesk fields
+            'position'          => $request->position,
+            'business_unit'     => $request->business_unit,
+            'company'           => $request->company,
+            'department'        => $request->department,
+            'date_received'     => $request->date_received,
+            'time_received'     => $request->time_received,
+            'date_acknowledged' => $request->date_acknowledged,
+            'time_acknowledged' => $request->time_acknowledged,
+            'method'            => $request->method,
         ]);
 
         TicketStatusHistories::create([
-            'ticket_id' => $ticket->id,
+            'ticket_id'  => $ticket->id,
             'old_status' => null,
             'new_status' => 'Open',
             'changed_by' => Auth::id(),
-            'notes' => 'Ticket submitted by employee.',
+            'notes'      => $request->filled('users_id')
+                ? 'Ticket filed by Helpdesk on behalf of employee.'
+                : 'Ticket submitted by employee.',
             'changed_at' => now(),
         ]);
 
-        // ── Return JSON for AJAX submission
-        if (request()->ajax()) {
+        if ($request->ajax()) {
             return response()->json([
                 'ticket_number' => $ticket->ticket_number,
-                'ticket_id' => $ticket->id,
+                'ticket_id'     => $ticket->id,
             ]);
         }
 

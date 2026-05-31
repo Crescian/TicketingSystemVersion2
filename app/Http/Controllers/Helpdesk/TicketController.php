@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Helpdesk;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tickets;
+use App\Models\SlaCategory;
 use App\Models\TicketStatusHistories;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -92,10 +93,50 @@ class TicketController extends Controller
 
 
         // ── SLA Categories for filters ← ADD THIS
-        $slaCategories = \App\Models\SlaCategory::where('is_active', true)
+        // $slaCategories = \App\Models\SlaCategory::where('is_active', true)
+        //     ->orderBy('sort_order')
+        //     ->orderBy('name')
+        //     ->pluck('name');
+
+            
+        // ── Load SLA categories with their active rules for the ticket modal
+        $slaCategories = \App\Models\SlaCategory::with([
+            'rules' => function ($q) {
+                $q->where('is_active', true)
+                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority')
+                    ->orderBy('subcategory_name');
+            }
+        ])
+            ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->pluck('name');
+            ->get();
+
+        // Add this RIGHT AFTER $slaCategories is built, before the return statement
+        $slaCategoriesJson = $slaCategories->map(fn($c) => [
+            'id' => $c->id,
+            'name' => $c->name,
+            'icon' => $c->icon,
+            'color' => $c->color,
+            'subs' => $c->rules->map(fn($r) => [
+                'name' => $r->subcategory_name,
+                'priority' => $r->priority,
+            ])->values()->toArray(),
+        ])->values()->toArray();
+
+        $users = \App\Models\User::select(
+        'users.id',
+        'users.name',
+        'users.position',
+        'departments.department_name',
+        'companies.company_name',
+        'business_units.business_units_name'
+        )
+        ->leftJoin('departments',    'departments.id',    '=', 'users.department_id')
+        ->leftJoin('companies',      'companies.id',      '=', 'departments.companies_id')
+        ->leftJoin('business_units', 'business_units.id', '=', 'companies.business_units_id')
+        ->orderBy('users.name')
+        ->get();
 
         return view('dashboard.helpdesk', compact(
             'tickets',
@@ -103,7 +144,10 @@ class TicketController extends Controller
             'status',
             'search',
             'sort',
-            'technicians'
+            'technicians',
+            'slaCategories',
+            'slaCategoriesJson',
+            'users' 
         ));
     }
 

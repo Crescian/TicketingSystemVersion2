@@ -39,7 +39,7 @@
 @endsection
 
 @section('hero-cta')
-    <button class="btn-new" data-bs-toggle="modal" data-bs-target="#ticketModal">
+    <button class="btn-news" data-bs-toggle="modal" data-bs-target="#ticketModal">
         <i class="bi bi-plus-lg me-1"></i> New Ticket
     </button>
 @endsection
@@ -47,13 +47,13 @@
 {{-- ── Page-specific styles ── --}}
 @section('styles')
     /* ── Employee: New Ticket button ── */
-    .btn-new {
+    .btn-news {
         background: var(--yg); color: var(--gd);
         font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 15px;
         padding: 13px 28px; border-radius: 50px; border: none;
         transition: background .2s, transform .15s; white-space: nowrap;
     }
-    .btn-new:hover { background: var(--ygd); transform: translateY(-2px); }
+    .btn-news:hover { background: var(--ygd); transform: translateY(-2px); }
 
     /* ── Modal: step wizard ── */
     .step-ind { display: flex; align-items: center; }
@@ -523,7 +523,7 @@
                         You haven't submitted any tickets yet.
                     @endif
                 </div>
-                <button class="btn-new mt-3"
+                <button class="btn-news mt-3"
                         data-bs-toggle="modal"
                         data-bs-target="#ticketModal">
                     <i class="bi bi-plus-lg me-1"></i> Submit Your First Ticket
@@ -906,7 +906,8 @@
     </div>
 @endsection
 @section('scripts')
-<script>/* ── Dynamic SLA categories from DB ── */
+<script>
+    /* ── Dynamic SLA categories from DB ── */
     const slaCategories = @json($slaCategoriesJson);
 
     // Build a quick lookup: category name → subcategories
@@ -981,6 +982,7 @@
             $('#hTicketType').val(priority);
         }
     });
+
     /* ══ GLOBAL CHAT FUNCTIONS — must be outside $(function(){}) ══ */
 
     let currentEmpChatTicketId = null;
