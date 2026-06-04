@@ -17,6 +17,9 @@ return new class extends Migration
             $table->string('company')->nullable();
             $table->string('department')->nullable();
         
+            $table->string('level_request')->nullable();
+            $table->string('employee_name')->nullable();
+
             $table->date('date_received')->nullable();
             $table->time('time_received')->nullable();
             $table->date('date_acknowledged')->nullable();

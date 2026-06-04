@@ -16,7 +16,7 @@ class UserSeeder extends Seeder
         $users = [
             // Dummy =================================================
             [
-                'role_name' => 'Employee',
+                'role_name' => 'Helpdesk',
                 'name' => 'Helpdesk',
                 'email' => 'helpdesk@gmail.com',
                 'position' => 'Leonio Group Employee',
