@@ -14,6 +14,8 @@ use App\Http\Controllers\Admin\SlaRuleController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\WebAuthController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SSOController;
+
 
 // ── Redirect root to login
 Route::get('/', fn() => redirect('/login'));
@@ -24,6 +26,9 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [WebAuthController::class, 'login']);
 });
 
+Route::get('/sso-login', [SSOController::class, 'handleSSO'])
+    ->name('sso.login');
+    
 // ── Logout
 Route::middleware('auth')
     ->post('/logout', [WebAuthController::class, 'logout'])
