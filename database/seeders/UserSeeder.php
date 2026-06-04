@@ -14,6 +14,38 @@ class UserSeeder extends Seeder
         $department = DB::table('departments')->first();
 
         $users = [
+            // Dummy =================================================
+            [
+                'role_name' => 'Employee',
+                'name' => 'Helpdesk',
+                'email' => 'helpdesk@gmail.com',
+                'position' => 'Leonio Group Employee',
+            ],
+            [
+                'role_name' => 'IT Support Specialist',
+                'name' => 'IT Support Specialist',
+                'email' => 'support@gmail.com',
+                'position' => 'IT Support Specialist',
+            ],
+            [
+                'role_name' => 'Employee',
+                'name' => 'Employee',
+                'email' => 'employee@gmail.com',
+                'position' => 'Employee',
+            ],
+            [
+                'role_name' => 'IT Admin',
+                'name' => 'IT Admin',
+                'email' => 'admin@gmail.com',
+                'position' => 'IT Admin',
+            ],
+            [
+                'role_name' => 'Manager',
+                'name' => 'Manager',
+                'email' => 'manager@gmail.com',
+                'position' => 'Manager',
+            ],
+            // Dummy =================================================
             // ICT =================================================
             [
                 'role_name' => 'Employee',
