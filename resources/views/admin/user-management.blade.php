@@ -501,7 +501,7 @@
 
                         {{-- Status --}}
                         <div class="mb-3">
-                            <label class="form-label d-block">Account status</label>
+                              <label class="form-label d-block">Account status</label>
                             <input type="hidden" name="active" id="mActive" value="1">
                             <div class="status-toggle">
                                 <div class="st-opt active-sel" data-status="1">
