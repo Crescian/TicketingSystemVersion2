@@ -10,13 +10,15 @@ class RoleSeeder extends Seeder
 {
     public function run(): void
     {
-        $roles = [
-            ['id' => Str::uuid(), 'role_name' => 'Employee', 'description' => 'Submits and tracks tickets'],
-            ['id' => Str::uuid(), 'role_name' => 'Helpdesk', 'description' => 'First level support'],
-            ['id' => Str::uuid(), 'role_name' => 'IT Support Specialist', 'description' => 'Handles and resolves tickets'],
-            ['id' => Str::uuid(), 'role_name' => 'IT Admin', 'description' => 'Manages system and users'],
-            ['id' => Str::uuid(), 'role_name' => 'Manager', 'description' => 'Views reports and analytics'],
-        ];
+    $roles = [
+        ['id' => Str::uuid(), 'role_name' => 'Employee', 'description' => 'Submits and tracks tickets'],
+        ['id' => Str::uuid(), 'role_name' => 'Helpdesk', 'description' => 'First level support'],
+        ['id' => Str::uuid(), 'role_name' => 'IT Support Specialist', 'description' => 'Handles and resolves tickets'],
+        ['id' => Str::uuid(), 'role_name' => 'Supervisor - Support Specialist', 'description' => 'Supervises IT Support Specialists'],
+        ['id' => Str::uuid(), 'role_name' => 'IT Admin', 'description' => 'Manages system and users'],
+        ['id' => Str::uuid(), 'role_name' => 'Supervisor - IT Admin', 'description' => 'Supervises IT Administrators'],
+        ['id' => Str::uuid(), 'role_name' => 'Manager', 'description' => 'Views reports and analytics'],
+    ];
 
         DB::table('roles')->insert($roles);
     }

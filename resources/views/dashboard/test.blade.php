@@ -32,12 +32,8 @@
             <span class="lbl">Escalated</span>
         </div>
         <div class="stat-pill">
-            <span class="num" id="cnt-await">{{ $counts['awaiting_requestor'] }}</span>
-            <span class="lbl">Awaiting You</span>
-        </div>
-        <div class="stat-pill">
-            <span class="num" id="cnt-done">{{ $counts['closed'] }}</span>
-            <span class="lbl">Closed</span>
+            <span class="num" id="cnt-done">{{ $counts['resolved'] }}</span>
+            <span class="lbl">Resolved</span>
         </div>
     </div>
 @endsection
@@ -59,72 +55,16 @@
     }
     .btn-news:hover { background: var(--ygd); transform: translateY(-2px); }
 
-     /* ── Modal: step wizard ── */
-/* ── Compact Step Wizard ── */
-.step-ind{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    max-width:420px;
-    margin:0 auto 1.25rem;
-}
-
-.step-item{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    flex:0 0 auto;
-}
-
-.step-num{
-    width:28px;
-    height:28px;
-    border-radius:50%;
-
-    display:flex;
-    align-items:center;
-    justify-content:center;
-
-    font-size:14px;
-    font-weight:800;
-
-    background:var(--bd);
-    color:var(--tm);
-
-    transition:.25s;
-}
-
-.step-item.active .step-num{
-    background:var(--gd);
-    color:var(--yg);
-}
-
-.step-item.done .step-num{
-    background:var(--yg);
-    color:var(--gd);
-}
-
-.step-lbl{
-    font-size:12px;
-    font-weight:700;
-    color:var(--tm);
-}
-
-.step-item.active .step-lbl{
-    color:var(--gd);
-}
-
-.step-line{
-    width:110px;
-    height:2px;
-    background:var(--bd);
-    border-radius:999px;
-    margin:0 14px;
-}
-
-.step-line.done{
-    background:var(--yg);
-}
+    /* ── Modal: step wizard ── */
+    .step-ind { display: flex; align-items: center; }
+    .step-item { display: flex; align-items: center; gap: 8px; flex: 1; }
+    .step-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 13px; background: var(--bd); color: var(--tm); flex-shrink: 0; transition: all .3s; }
+    .step-item.active .step-num { background: var(--gd); color: var(--yg); }
+    .step-item.done   .step-num { background: var(--yg); color: var(--gd); }
+    .step-lbl { font-size: 12px; font-weight: 700; color: var(--tm); white-space: nowrap; }
+    .step-item.active .step-lbl { color: var(--gd); }
+    .step-line { flex: 1; height: 2px; background: var(--bd); margin: 0 8px; transition: background .3s; }
+    .step-line.done { background: var(--yg); }
 
     /* Device grid */
     .device-opt { border: 1.5px solid var(--bd); border-radius: 12px; padding: 14px 8px; text-align: center; cursor: pointer; transition: all .2s; background: var(--cr); user-select: none; }
@@ -170,12 +110,6 @@
     .btn-chat { background:#e8eeff; color:#2a4ab0; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #b8c8ff; cursor:pointer; transition:all .2s; display:inline-flex; align-items:center; gap:5px; }
     .btn-chat:hover { background:#d0dcff; border-color:#8898dd; }
     .chat-count-badge { background:#e24b4a; color:#fff; font-size:10px; font-weight:900; border-radius:20px; padding:1px 6px; font-family:'Nunito',sans-serif; min-width:18px; text-align:center; }
-    .btn-acknowledge { background:#e0f5e0; color:#1e6b1e; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #a8dba8; cursor:pointer; transition:all .2s; display:inline-flex; align-items:center; gap:5px; }
-    .btn-acknowledge:hover { background:#c8ecc8; border-color:#7fc97f; }
-    .btn-rate { background:#fff4cc; color:#7a5a00; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #f5c842; cursor:pointer; transition:all .2s; display:inline-flex; align-items:center; gap:5px; }
-    .btn-rate:hover { background:#ffe999; border-color:#e0b020; }
-
-    .rated-chip { background:#fff9e6; color:#7a5a00; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #f5c842; display:inline-flex; align-items:center; gap:4px; }
 
     /* ── Star rating ── */
     .star-rating { display:flex; flex-direction:row-reverse; gap:4px; justify-content:flex-end; }
@@ -295,16 +229,10 @@
                     <span class="badge-count">{{ $counts['escalated'] }}</span>
                 </a>
             </li>
-            <li class="list-group-item {{ $status === 'awaiting requestor' ? 'active' : '' }}">
-                <a href="{{ route('employee.tickets.index', ['status' => 'awaiting requestor']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
-                    <span><i class="bi bi-hourglass-split me-2"></i>Awaiting you</span>
-                    <span class="badge-count">{{ $counts['awaiting_requestor'] }}</span>
-                </a>
-            </li>
-            <li class="list-group-item {{ $status === 'closed' ? 'active' : '' }}">
-                <a href="{{ route('employee.tickets.index', ['status' => 'closed']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
-                    <span><i class="bi bi-check-circle me-2"></i>Closed</span>
-                    <span class="badge-count">{{ $counts['closed'] }}</span>
+            <li class="list-group-item {{ $status === 'resolved' ? 'active' : '' }}">
+                <a href="{{ route('employee.tickets.index', ['status' => 'resolved']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
+                    <span><i class="bi bi-check-circle me-2"></i>Resolved</span>
+                    <span class="badge-count">{{ $counts['resolved'] }}</span>
                 </a>
             </li>
         </ul>
@@ -366,13 +294,12 @@
         <span class="font-brand fw-900" style="font-size:22px" id="listTitle">
             @php
                 $labels = [
-                    'all'                 => 'All Tickets',
-                    'open'                => 'Open Tickets',
-                    'in progress'         => 'In Progress',
-                    'escalated'           => 'Escalated',
-                    'awaiting requestor'  => 'Awaiting Your Acknowledgment',
-                    'closed'              => 'Closed',
-                    'cancelled'           => 'Cancelled',
+                    'all'         => 'All Tickets',
+                    'open'        => 'Open Tickets',
+                    'in progress' => 'In Progress',
+                    'escalated'   => 'Escalated',
+                    'resolved'    => 'Resolved',
+                    'cancelled'   => 'Cancelled',
                 ];
             @endphp
             {{ $labels[$status] ?? 'All Tickets' }}
@@ -398,13 +325,12 @@
     <div class="d-flex flex-wrap gap-2 mb-3" id="tabRow">
         @php
             $tabs = [
-                'all'                => ['label' => 'All',                'count' => $counts['all']],
-                'open'               => ['label' => 'Open',               'count' => $counts['open']],
-                'in progress'        => ['label' => 'In Progress',        'count' => $counts['in_progress']],
-                'escalated'          => ['label' => 'Escalated',          'count' => $counts['escalated']],
-                'awaiting requestor' => ['label' => 'Awaiting You',       'count' => $counts['awaiting_requestor']],
-                'closed'             => ['label' => 'Closed',             'count' => $counts['closed']],
-                'cancelled'          => ['label' => 'Cancelled',          'count' => $counts['cancelled']],
+                'all'         => ['label' => 'All',         'count' => $counts['all']],
+                'open'        => ['label' => 'Open',        'count' => $counts['open']],
+                'in progress' => ['label' => 'In Progress', 'count' => $counts['in_progress']],
+                'escalated'   => ['label' => 'Escalated',   'count' => $counts['escalated']],
+                'resolved'    => ['label' => 'Resolved',    'count' => $counts['resolved']],
+                'cancelled'   => ['label' => 'Cancelled',   'count' => $counts['cancelled']],
             ];
         @endphp
         @foreach($tabs as $key => $tab)
@@ -421,31 +347,28 @@
         @forelse($tickets as $ticket)
             @php
                 $statusClass = match($ticket->status) {
-                    'Open'                => 'open',
-                    'In Progress'         => 'in-progress',
-                    'Escalated'           => 'escalated',
-                    'Awaiting Requestor'  => 'awaiting-requestor',
-                    'Closed'              => 'closed',
-                    'Cancelled'           => 'cancelled',
-                    default               => ''
+                    'Open'        => 'open',
+                    'In Progress' => 'in-progress',
+                    'Escalated'   => 'escalated',
+                    'Resolved'    => 'resolved',
+                    'Cancelled'   => 'cancelled',
+                    default       => ''
                 };
                 $badgeClass = match($ticket->status) {
-                    'Open'                => 'badge-open',
-                    'In Progress'         => 'badge-in-progress',
-                    'Escalated'           => 'badge-escalated',
-                    'Awaiting Requestor'  => 'badge-awaiting',
-                    'Closed'              => 'badge-closed',
-                    'Cancelled'           => 'badge-cancelled',
-                    default               => ''
+                    'Open'        => 'badge-open',
+                    'In Progress' => 'badge-in-progress',
+                    'Escalated'   => 'badge-escalated',
+                    'Resolved'    => 'badge-resolved',
+                    'Cancelled'   => 'badge-cancelled',
+                    default       => ''
                 };
                 $badgeIcon = match($ticket->status) {
-                    'Open'                => '●',
-                    'In Progress'         => '⟳',
-                    'Escalated'           => '⚠',
-                    'Awaiting Requestor'  => '⏳',
-                    'Closed'              => '✓',
-                    'Cancelled'           => '✕',
-                    default               => ''
+                    'Open'        => '●',
+                    'In Progress' => '⟳',
+                    'Escalated'   => '⚠',
+                    'Resolved'    => '✓',
+                    'Cancelled'   => '✕',
+                    default       => ''
                 };
                 $initials = $ticket->assignedTo
                     ? strtoupper(substr($ticket->assignedTo->name, 0, 1)) . strtoupper(substr($ticket->assignedTo->name, strpos($ticket->assignedTo->name, ' ') + 1, 1))
@@ -498,6 +421,17 @@
                     @if($ticket->location)
                         <span class="meta-item">
                             <i class="bi bi-geo-alt"></i> {{ $ticket->location }}
+                        </span>
+                    @endif
+                    @if($ticket->status === 'Resolved' && $ticket->resolved_at)
+                        <span class="meta-item" style="color:var(--gm)">
+                            <i class="bi bi-clock-history"></i>
+                            Resolved {{ $ticket->resolved_at->diffForHumans() }}
+                        </span>
+                    @else
+                        <span class="meta-item">
+                            <i class="bi bi-clock"></i>
+                            {{ $ticket->created_at->diffForHumans() }}
                         </span>
                     @endif
 
@@ -558,23 +492,14 @@
                         </button>
                     @endif
 
-                    @if($ticket->status === 'Awaiting Requestor')
-                        <form method="POST" action="{{ route('employee.tickets.acknowledge', $ticket) }}" class="d-inline">
-                            @csrf
-                            @method('PATCH')
-                            <button type="submit" class="btn-acknowledge">
-                                <i class="bi bi-check2-circle me-1"></i>Acknowledge & Close
-                            </button>
-                        </form>
-                    @endif
                     {{-- ── Rate & Feedback (resolved only, not yet rated) ── --}}
-                    @if($ticket->status === 'Closed' && !$ticket->feedback)
-                        <button class="btn-rate"
+                    @if($ticket->status === 'Resolved' && !$ticket->feedback)
+                        <button class="btn-resolve" style="background:#fff4cc;color:#7a5a00;border:1.5px solid #f5c842"
                                 onclick="openFeedbackModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-star me-1"></i>Rate & Feedback
                         </button>
-                    @elseif($ticket->status === 'Closed' && $ticket->feedback)
-                        <span class="rated-chip">
+                    @elseif($ticket->status === 'Resolved' && $ticket->feedback)
+                        <span class="meta-item" style="color:#f5c842;font-weight:700">
                             @for($i = 1; $i <= 5; $i++)
                                 <i class="bi bi-star{{ $i <= $ticket->feedback->rating ? '-fill' : '' }}"></i>
                             @endfor
@@ -639,105 +564,86 @@
                         <div class="step-ind mb-4">
                             <div class="step-item active" id="si1">
                                 <div class="step-num">1</div>
-                                <span class="step-lbl">Issue Type</span>
+                                <span class="step-lbl">Issue type</span>
                             </div>
-
                             <div class="step-line" id="sl1"></div>
-
                             <div class="step-item" id="si2">
                                 <div class="step-num">2</div>
+                                <span class="step-lbl">Details</span>
+                            </div>
+                            <div class="step-line" id="sl2"></div>
+                            <div class="step-item" id="si3">
+                                <div class="step-num">3</div>
                                 <span class="step-lbl">Review</span>
                             </div>
                         </div>
 
-                        {{-- Step 1 (Details) — fs2 --}}
-                        <div class="form-step" id="fs2">
+                        {{-- Step 1: Issue type --}}
+                        <div class="form-step" id="fs1">
 
-                            {{-- Ticket Number (read-only, auto-generated) --}}
-                            <div class="mb-3 p-3 rounded d-flex align-items-center gap-3"
-                                style="background:var(--ygl);border:1.5px solid var(--bd)">
-                                <div>
-                                    <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">
-                                        Ticket Number
-                                    </div>
-                                    <div class="font-brand fw-900" style="font-size:18px;color:var(--gd);letter-spacing:1px">
-                                        Auto-generated on submit
-                                    </div>
-                                </div>
-                                <i class="bi bi-ticket-perforated ms-auto" style="font-size:28px;opacity:.2;color:var(--gd)"></i>
-                            </div>
-
-                            {{-- Date & Time Received / Acknowledged --}}
-                            <div class="row g-3 mb-3">
-                                <div class="col-6">
-                                    <label class="form-label">Date Received <span class="text-danger">*</span></label>
-                                    <input type="date" class="form-control" id="mDateReceived" name="date_received">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label">Time Received <span class="text-danger">*</span></label>
-                                    <input type="time" class="form-control" id="mTimeReceived" name="time_received">
-                                </div>
-                            </div>
-
-                            {{-- Requestor (auto-filled, read-only) --}}
-                            <div class="mb-3">
-                                <label class="form-label">Requestor</label>
-                                <input type="text" class="form-control" value="{{ $requestor->name }}" readonly
-                                    style="background:var(--ygl);color:var(--gd);font-weight:700">
-                                <input type="hidden" id="users_id" name="users_id" value="{{ $requestor->id }}">
-                            </div>
-
-                            {{-- Auto-filled fields --}}
-                            <div class="row g-3 mb-3">
-                                <div class="col-12">
-                                    <label class="form-label">Position</label>
-                                    <input type="text" class="form-control" id="mPosition" name="position"
-                                        value="{{ $requestor->position }}" readonly
-                                        style="background:var(--ygl);color:var(--gd);font-weight:700">
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Business Unit</label>
-                                    <input type="text" class="form-control" id="mBU" name="business_unit"
-                                        value="{{ $requestor->business_units_name }}" readonly
-                                        style="background:var(--ygl);color:var(--gd);font-weight:700">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label">Company</label>
-                                    <input type="text" class="form-control" id="mCompany" name="company"
-                                        value="{{ $requestor->company_name }}" readonly
-                                        style="background:var(--ygl);color:var(--gd);font-weight:700">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label">Department</label>
-                                    <input type="text" class="form-control" id="mDepartment" name="department"
-                                        value="{{ $requestor->department_name }}" readonly
-                                        style="background:var(--ygl);color:var(--gd);font-weight:700">
-                                </div>
-                            </div>
-
-                            {{-- Method --}}
-                            <div class="mb-1">
-                                <label class="form-label">Method <span class="text-danger">*</span></label>
-                                <div class="d-flex gap-2 flex-wrap" id="methodOptions">
-                                    @foreach([
-                                        ['value' => 'Verbal', 'icon' => 'bi-person-fill',   'color' => '#4a7c4a', 'bg' => '#d4f0d4'],
-                                        ['value' => 'Email',  'icon' => 'bi-envelope-fill', 'color' => '#2a4ab0', 'bg' => '#e8eeff'],
-                                        ['value' => 'Text',   'icon' => 'bi-chat-fill',     'color' => '#7a5a00', 'bg' => '#fff4cc'],
-                                        ['value' => 'Viber',  'icon' => 'bi-phone-fill',    'color' => '#5a1a7a', 'bg' => '#f0e8ff'],
-                                    ] as $method)
-                                        <div class="method-opt" data-method="{{ $method['value'] }}"
-                                            style="--mc:{{ $method['color'] }};--mb:{{ $method['bg'] }}">
-                                            <i class="bi {{ $method['icon'] }} method-icon"></i>
-                                            <span class="method-lbl">{{ $method['value'] }}</span>
+                            {{-- Main Category Selection --}}
+                            <div class="mb-4">
+                                <label class="form-label">
+                                    Select category <span class="text-danger">*</span>
+                                </label>
+                                <div class="row g-2" id="mainCategoryGrid">
+                                    @forelse($slaCategories as $slaCat)
+                                        <div class="{{ $slaCategories->count() <= 2 ? 'col-12' : 'col-6' }}">
+                                            <div class="cat-main-opt"
+                                                data-cat="{{ $slaCat->name }}"
+                                                data-cat-id="{{ $slaCat->id }}">
+                                                <span class="cat-icon">
+                                                    <i class="bi {{ $slaCat->icon ?? 'bi-tag' }}"
+                                                    style="font-size:28px;color:{{ $slaCat->color ?? 'var(--gd)' }}"></i>
+                                                </span>
+                                                <span class="cat-lbl">{{ $slaCat->name }}</span>
+                                            </div>
                                         </div>
-                                    @endforeach
+                                    @empty
+                                        {{-- Fallback if no SLA categories defined yet --}}
+                                        @foreach(['Hardware' => ['🖥️','bi-laptop'], 'Software' => ['💿','bi-code-square'], 'Network' => ['🌐','bi-wifi'], 'Access Request' => ['🔐','bi-shield-lock']] as $name => $icons)
+                                            <div class="col-6">
+                                                <div class="cat-main-opt" data-cat="{{ $name }}">
+                                                    <span class="cat-icon">{{ $icons[0] }}</span>
+                                                    <span class="cat-lbl">{{ $name }}</span>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    @endforelse
                                 </div>
-                                <input type="hidden" name="method" id="hMethod" value="">
                             </div>
-                            {{-- Divider --}}
-                            <hr style="border-color:var(--bd);margin:20px 0">
 
-                            {{-- Subject & Description --}}
+                            {{-- Sub Category --}}
+                            <div class="mb-4 d-none" id="subCategoryWrap">
+                                <label class="form-label">
+                                    Specific issue <span class="text-danger">*</span>
+                                </label>
+                                <div id="subCategoryList" class="d-flex flex-column gap-2"></div>
+                            </div>
+
+                            {{-- Priority --}}
+                            <div class="mb-1">
+                                <label class="form-label">Priority</label>
+                                <div class="d-flex gap-2">
+                                    <div class="pri-opt low" data-pri="Low">
+                                        <div class="pri-dot"></div>
+                                        <div class="pri-lbl">Low</div>
+                                    </div>
+                                    <div class="pri-opt medium selected" data-pri="Medium">
+                                        <div class="pri-dot"></div>
+                                        <div class="pri-lbl">Medium</div>
+                                    </div>
+                                    <div class="pri-opt high" data-pri="High">
+                                        <div class="pri-dot"></div>
+                                        <div class="pri-lbl">High</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        {{-- Step 2: Details --}}
+                        <div class="form-step d-none" id="fs2">
                             <div class="mb-3">
                                 <label class="form-label">Subject <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="mSubject"
@@ -757,6 +663,12 @@
                                         placeholder="Error messages, steps to reproduce…"></textarea>
                             </div>
                             <div class="row g-3 mb-1">
+                                <div class="col-6">
+                                    <label class="form-label">Asset tag / serial no.</label>
+                                    <input type="text" class="form-control" id="mAsset"
+                                        placeholder="e.g. LT-00432">
+                                </div>
+                                <div class="col-6">
                                     <label class="form-label">Location</label>
                                     <select class="form-select" id="mLocation">
                                         <option value="">— Select location —</option>
@@ -776,49 +688,41 @@
                                             <option value="Petro Cara">Petro Cara</option>
                                         </optgroup>
                                     </select>
+                                </div>
                             </div>
                         </div>
 
                         {{-- Step 3: Review --}}
                         <div class="form-step d-none" id="fs3">
                             <div class="review-box p-3 mb-3">
-
                                 <div class="font-brand fw-900 mb-3"
                                     style="font-size:14px;color:var(--gd);text-transform:uppercase;letter-spacing:.5px">
                                     Ticket Summary
                                 </div>
-
-                                <div class="mb-2"><b>Subject:</b> <span id="rv-subject">—</span></div>
-                                <div class="mb-2"><b>Describe Issue:</b> <span id="rv-desc">—</span></div>
-                                <div class="mb-2"><b>Additional Details:</b> <span id="rv-details">—</span></div>
-
-                                <hr>
-
-                                <div class="mb-2"><b>Requestor:</b> <span id="rv-requestor">—</span></div>
-                                <div class="mb-2"><b>Position:</b> <span id="rv-position">—</span></div>
-                                <div class="mb-2"><b>Business Unit:</b> <span id="rv-bu">—</span></div>
-                                <div class="mb-2"><b>Company:</b> <span id="rv-company">—</span></div>
-                                <div class="mb-2"><b>Department:</b> <span id="rv-department">—</span></div>
-
-                                <hr>
-
-                                <div class="mb-2"><b>Date Received:</b> <span id="rv-date">—</span></div>
-                                <div class="mb-2"><b>Time Received:</b> <span id="rv-time">—</span></div>
-
-                                <div class="mb-2"><b>Date Acknowledged:</b> <span id="rv-ack-date">—</span></div>
-                                <div class="mb-2"><b>Time Acknowledged:</b> <span id="rv-ack-time">—</span></div>
-
-                                <hr>
-
-                                <div class="mb-2"><b>Method:</b> <span id="rv-method">—</span></div>
-                                <div class="mb-2"><b>Location:</b> <span id="rv-location">—</span></div>
-
+                                <div class="row g-3">
+                                    <div class="col-6">
+                                        <div class="review-lbl">Category</div>
+                                        <div class="fw-700" id="rv-device">—</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="review-lbl">Specific Issue</div>
+                                        <div class="fw-700" id="rv-cat">—</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="review-lbl">Priority</div>
+                                        <div class="fw-700" id="rv-pri">⚡ Medium</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="review-lbl">Asset / Location</div>
+                                        <div class="fw-700" id="rv-asset">—</div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="review-detail p-3">
                                 <div class="review-lbl mb-1">Subject</div>
-                                <div class="font-brand fw-800 mb-3" style="font-size:15px" id="rv-subject-preview">—</div>
+                                <div class="font-brand fw-800 mb-3" style="font-size:15px" id="rv-subject">—</div>
                                 <div class="review-lbl mb-1">Concern</div>
-                                <div style="font-size:13px;color:var(--tm);margin-bottom:12px" id="rv-desc-preview">—</div>
+                                <div style="font-size:13px;color:var(--tm);margin-bottom:12px" id="rv-desc">—</div>
                                 <div class="review-lbl mb-1">What happens next</div>
                                 <div style="font-size:13px;color:var(--tm)">
                                     Your ticket will be assigned to an available IT Support Specialist.
@@ -845,6 +749,7 @@
                                 You'll be notified when the status changes.
                             </p>
                         </div>
+
                     </div>
 
                     <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between"
@@ -1283,42 +1188,40 @@
 
         /* ── Step wizard ── */
         let step = 1;
-        const stepIds = ['fs2', 'fs3', 'fsSuccess']; // Details, Review, Success
 
         function showStep(n) {
             step = n;
-            stepIds.forEach((id, i) => {
+            ['fs1','fs2','fs3','fsSuccess'].forEach((id, i) => {
                 $('#' + id).toggleClass('d-none', i !== n - 1);
             });
+            for (let i = 1; i <= 3; i++) {
+                $('#si' + i).toggleClass('active', i === n).toggleClass('done', i < n);
+                if (i < 3) $('#sl' + i).toggleClass('done', i < n);
+            }
+            $('#btnBack').css('visibility', n > 1 && n < 4 ? 'visible' : 'hidden');
 
-            $('#si1').toggleClass('active', n === 1).toggleClass('done', n > 1);
-            $('#si2').toggleClass('active', n === 2).toggleClass('done', n > 2);
-            $('#sl1').toggleClass('done', n > 1);
+            if (n === 3) {
+                const mainCat = $('.cat-main-opt.selected').data('cat') || '—';
+                const subCat  = $('.cat-sub-opt.selected').data('sub')  || '—';
+                const pri     = $('.pri-opt.selected').data('pri')       || 'Medium';
+                const asset   = $('#mAsset').val() || '—';
 
-            $('#btnBack').css('visibility', n > 1 && n < 3 ? 'visible' : 'hidden');
-
-            if (n === 2) {
-                // Populate review screen from step 1 inputs
+                $('#rv-device').text(mainCat);       // ← reuse rv-device for main category
+                $('#rv-cat').text(subCat);           // ← sub category
+                $('#rv-pri').text('⚡ ' + pri);
+                $('#rv-asset').text(asset);
                 $('#rv-subject').text($('#mSubject').val() || '—');
                 $('#rv-desc').text($('#mDesc').val() || '—');
-                $('#rv-details').text($('#mDetails').val() || '—');
-                $('#rv-requestor').text($('input[name="users_id"]').prevAll('input.form-control').val() || $('.mb-3 input.form-control[readonly]').first().val() || '—');
-                $('#rv-position').text($('#mPosition').val() || '—');
-                $('#rv-bu').text($('#mBU').val() || '—');
-                $('#rv-company').text($('#mCompany').val() || '—');
-                $('#rv-department').text($('#mDepartment').val() || '—');
-                $('#rv-date').text($('#mDateReceived').val() || '—');
-                $('#rv-time').text($('#mTimeReceived').val() || '—');
-                $('#rv-method').text($('#hMethod').val() || '—');
-                $('#rv-location').text($('#mLocation').val() || '—');
-                $('#rv-subject-preview').text($('#mSubject').val() || '—');
-                $('#rv-desc-preview').text($('#mDesc').val() || '—');
+
+                // Sync hidden fields
+                $('#hCategory').val(mainCat + ' — ' + subCat);
+                $('#hTicketType').val(pri);
 
                 $('#btnNext')
                     .removeClass('btn-continue')
                     .addClass('btn-submit-ticket')
                     .text('Submit ticket');
-            } else if (n === 3) {
+            } else if (n === 4) {
                 $('#mFooter').hide();
             } else {
                 $('#btnNext')
@@ -1328,47 +1231,82 @@
             }
         }
 
-        /* ── Next / Submit ── */
+        /* ── Validate steps ── */
         $('#btnNext').on('click', function () {
+           if (step === 1) {
+                    if (!$('.cat-main-opt.selected').length) {
+                        alert('Please select a category.');
+                        return;
+                    }
+                    if (!$('.cat-sub-opt.selected').length) {
+                        alert('Please select a specific issue.');
+                        return;
+                    }
 
-            if (step === 1) {
-                // Validate Details panel
-                if (!$('#mSubject').val().trim()) { alert('Please enter a subject.'); return; }
-                if (!$('#mDesc').val().trim())    { alert('Please describe the issue.'); return; }
-                if (!$('#mDateReceived').val())   { alert('Please enter the date received.'); return; }
-                if (!$('#mTimeReceived').val())   { alert('Please enter the time received.'); return; }
-                if (!$('#users_id').val())      { alert('Please select a requestor.'); return; }
-                // if (!$('#hMethod').val())         { alert('Please select a contact method.'); return; }
+                    // ── Sync hidden fields
+                    const mainCat = $('.cat-main-opt.selected').data('cat') || '';
+                    const subCat  = $('.cat-sub-opt.selected').data('sub')  || '';
+                    $('#hCategory').val(mainCat + ' — ' + subCat);
+                    $('#hTicketType').val($('.pri-opt.selected').data('pri') || 'Medium');
 
+                    showStep(2);
+                } else if (step === 2) {
+                if (!$('#mSubject').val().trim()) {
+                    alert('Please enter a subject.');
+                    return;
+                }
+                if (!$('#mDesc').val().trim()) {
+                    alert('Please describe the issue.');
+                    return;
+                }
                 $('#hAsset').val($('#mAsset').val());
                 $('#hLocation').val($('#mLocation').val());
+                showStep(3);
 
-                showStep(2); // now review
+            } else if (step === 3) {
 
-            } else if (step === 2) {
-
+                // ── Re-sync ALL hidden fields right before submit
                 const mainCat = $('.cat-main-opt.selected').data('cat') || '';
                 const subCat  = $('.cat-sub-opt.selected').data('sub')  || '';
                 const pri     = $('.pri-opt.selected').data('pri')      || 'Medium';
 
                 $('#hCategory').val(mainCat + ' — ' + subCat);
                 $('#hTicketType').val(pri);
+                $('#hAsset').val($('#mAsset').val());
+                $('#hLocation').val($('#mLocation').val());
 
+                // ── Final check
+                if (!$('#hCategory').val().trim()) {
+                    alert('Please go back and select a specific issue.');
+                    return;
+                }
+
+                console.log('Submitting with:', {
+                    request_category: $('#hCategory').val(),
+                    ticket_type:      $('#hTicketType').val(),
+                });
+
+                const form = $('#ticketForm');
                 $.ajax({
-                    url: $('#ticketForm').attr('action'),
+                    url:  form.attr('action'),
                     type: 'POST',
-                    data: $('#ticketForm').serialize(),
+                    data: form.serialize(),
                     success: function (response) {
                         $('#newTicketRef').text(response.ticket_number);
-                        showStep(3);
+                        showStep(4);
 
+                        // ── Redirect to dashboard after 3 seconds, NOT location.reload()
                         setTimeout(() => {
                             window.location.href = '{{ route("employee.tickets.index") }}';
                         }, 3000);
                     },
                     error: function (xhr) {
                         const errors = xhr.responseJSON?.errors;
-                        alert(errors ? Object.values(errors).flat().join('\n') : 'Something went wrong. Please try again.');
+                        if (errors) {
+                            alert(Object.values(errors).flat().join('\n'));
+                        } else {
+                            alert('Something went wrong. Please try again.');
+                        }
                     }
                 });
             }

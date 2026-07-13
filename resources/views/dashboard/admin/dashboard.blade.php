@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', 'Helpdesk Dashboard — LGICT')
+@section('title', 'Supervisor Dashboard — LGICT')
 
 @section('nav-role-badge')
-    <span class="role-badge"><i class="bi bi-headset me-1"></i>Helpdesk</span>
+    <span class="role-badge"><i class="bi bi-headset me-1"></i>Supervisor</span>
     <a href="{{ route('portal.users.index') }}" style="text-decoration:none">
       <span class="role-badge-admin">
           <i class="bi bi-shield-fill me-1"></i>Settings
@@ -17,35 +17,43 @@
 @section('nav-username', Auth::user()->name)
 
 @section('hero-title')
-    <h1>HELPDESK <em>DASHBOARD</em></h1>
+    <h1>Supervisor <em>DASHBOARD</em></h1>
 @endsection
 @section('hero-subtitle', 'Acknowledge, assign, and track all incoming support tickets.')
 
 @section('hero-stats')
     <div class="d-flex gap-2 flex-wrap">
         <div class="stat-pill danger">
-            <span class="num">{{ $counts['new_request'] }}</span>
-            <span class="lbl">New Request</span>
+            <span class="num">{{ $counts['awaiting_admin_supervisor'] }}</span>
+            <span class="lbl">Awaiting Admin Supervisor</span>
         </div>
         <div class="stat-pill warn">
-            <span class="num">{{ $counts['awaiting_supervisor'] }}</span>
-            <span class="lbl">Awaiting Supervisor</span>
+            <span class="num">{{ $counts['awaiting_admin_classification'] }}</span>
+            <span class="lbl">Awaiting Classification</span>
         </div>
         <div class="stat-pill warn">
-            <span class="num">{{ $counts['in_progress'] }}</span>
-            <span class="lbl">In Progress</span>
+            <span class="num">{{ $counts['awaiting_administrator_ack'] }}</span>
+            <span class="lbl">Awaiting Admin Ack.</span>
         </div>
         <div class="stat-pill">
-            <span class="num">{{ $counts['escalated'] }}</span>
-            <span class="lbl">Escalated</span>
+            <span class="num">{{ $counts['awaiting_administrator_sla_start'] }}</span>
+            <span class="lbl">Awaiting SLA Start</span>
         </div>
         <div class="stat-pill">
-            <span class="num">{{ $counts['pending_closure'] }}</span>
-            <span class="lbl">Pending Closure</span>
+            <span class="num">{{ $counts['admin_in_progress'] }}</span>
+            <span class="lbl">Admin In Progress</span>
+        </div>
+        <div class="stat-pill">
+            <span class="num">{{ $counts['pending_admin_supervisor_approval'] }}</span>
+            <span class="lbl">Pending Admin Supervisor Approval</span>
         </div>
         <div class="stat-pill">
             <span class="num">{{ $counts['closed'] }}</span>
             <span class="lbl">Closed</span>
+        </div>
+        <div class="stat-pill">
+            <span class="num">{{ $counts['cancelled'] }}</span>
+            <span class="lbl">Cancelled</span>
         </div>
     </div>
 @endsection
@@ -58,183 +66,6 @@
 
 @section('styles')
 
-    /* ── Employee: New Ticket button ── */
-    .btn-new {
-        background: var(--yg); color: var(--gd);
-        font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 15px;
-        padding: 13px 28px; border-radius: 50px; border: none;
-        transition: background .2s, transform .15s; white-space: nowrap;
-    }
-    .btn-new:hover { background: var(--ygd); transform: translateY(-2px); }
-
-   /* ── Modal: step wizard ── */
-/* ── Compact Step Wizard ── */
-.step-ind{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    max-width:420px;
-    margin:0 auto 1.25rem;
-}
-
-.step-item{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    flex:0 0 auto;
-}
-
-.step-num{
-    width:28px;
-    height:28px;
-    border-radius:50%;
-
-    display:flex;
-    align-items:center;
-    justify-content:center;
-
-    font-size:14px;
-    font-weight:800;
-
-    background:var(--bd);
-    color:var(--tm);
-
-    transition:.25s;
-}
-
-.step-item.active .step-num{
-    background:var(--gd);
-    color:var(--yg);
-}
-
-.step-item.done .step-num{
-    background:var(--yg);
-    color:var(--gd);
-}
-
-.step-lbl{
-    font-size:12px;
-    font-weight:700;
-    color:var(--tm);
-}
-
-.step-item.active .step-lbl{
-    color:var(--gd);
-}
-
-.step-line{
-    width:110px;
-    height:2px;
-    background:var(--bd);
-    border-radius:999px;
-    margin:0 14px;
-}
-
-.step-line.done{
-    background:var(--yg);
-}
-    
-    /* Device grid */
-    .device-opt { border: 1.5px solid var(--bd); border-radius: 12px; padding: 14px 8px; text-align: center; cursor: pointer; transition: all .2s; background: var(--cr); user-select: none; }
-    .device-opt:hover { border-color: var(--gl); background: var(--ygl); }
-    .device-opt.selected { border-color: var(--gd); background: var(--ygl); box-shadow: 0 0 0 2px var(--yg); }
-    .device-opt .d-icon { font-size: 26px; display: block; margin-bottom: 6px; }
-    .device-opt .d-lbl  { font-size: 12px; font-weight: 700; }
-    
-
-    /* Priority */
-    .pri-opt { flex: 1; padding: 10px; border: 1.5px solid var(--bd); border-radius: 10px; text-align: center; cursor: pointer; transition: all .2s; background: var(--cr); }
-    .pri-dot { width: 10px; height: 10px; border-radius: 50%; margin: 0 auto 6px; }
-    .pri-lbl { font-size: 12px; font-weight: 700; color: var(--tm); }
-    .pri-opt.low    .pri-dot { background: #4a7c4a; }
-    .pri-opt.medium .pri-dot { background: #f5c842; }
-    .pri-opt.high   .pri-dot { background: #e24b4a; }
-    .pri-opt.selected { border-color: var(--gd); background: var(--ygl); }
-    .pri-opt.selected .pri-lbl { color: var(--gd); }
-    
-    /* Review */
-    .review-box    { background: var(--ygl); border-radius: 12px; }
-    .review-detail { border: 1.5px solid var(--bd); border-radius: 12px; }
-    .review-lbl    { font-size: 11px; font-weight: 700; color: var(--tm); text-transform: uppercase; letter-spacing: .4px; }
-
-
-    .btn-back-modal  { background: none; border: 1.5px solid var(--bd); color: var(--tm); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 14px; padding: 10px 22px; border-radius: 50px; transition: all .2s; }
-    .btn-back-modal:hover { border-color: var(--gl); color: var(--gd); }
-    .btn-continue    { background: var(--gd); color: var(--yg); font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 14px; padding: 11px 28px; border-radius: 50px; border: none; transition: all .2s; }
-    .btn-continue:hover { background: var(--gm); transform: translateY(-1px); }
-    .btn-submit-ticket { background: var(--yg); color: var(--gd); font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 14px; padding: 11px 28px; border-radius: 50px; border: none; transition: all .2s; }
-    .btn-submit-ticket:hover { background: var(--ygd); }
-
-    
-    /* ── Main category grid ── */
-    .cat-main-opt {
-        border: 1.5px solid var(--bd);
-        border-radius: 14px;
-        padding: 16px 12px;
-        text-align: center;
-        cursor: pointer;
-        transition: all .2s;
-        background: var(--cr);
-        user-select: none;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-    }
-    .cat-main-opt:hover {
-        border-color: var(--gl);
-        background: var(--ygl);
-    }
-    .cat-main-opt.selected {
-        border-color: var(--gd);
-        background: var(--ygl);
-        box-shadow: 0 0 0 2px var(--yg);
-    }
-    .cat-icon { font-size: 28px; display: block; }
-    .cat-lbl  { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; color: var(--gd); }
-
-    /* ── Sub category options ── */
-    .cat-sub-opt {
-        border: 1.5px solid var(--bd);
-        border-radius: 10px;
-        padding: 10px 14px;
-        cursor: pointer;
-        transition: all .2s;
-        background: var(--cr);
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--gd);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .cat-sub-opt:hover {
-        border-color: var(--gl);
-        background: var(--ygl);
-    }
-    .cat-sub-opt.selected {
-        border-color: var(--gd);
-        background: var(--ygl);
-        box-shadow: 0 0 0 2px var(--yg);
-        font-weight: 700;
-    }
-    .cat-sub-opt .sub-check {
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        border: 2px solid var(--bd);
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        transition: all .2s;
-    }
-    .cat-sub-opt.selected .sub-check {
-        background: var(--gd);
-        border-color: var(--gd);
-        color: var(--yg);
-    }
 
     .tech-row { padding:10px 16px; border-bottom:1px solid var(--bd); display:flex; align-items:center; gap:10px; font-size:13px; }
     .tech-row:last-child { border-bottom:none; }
@@ -245,16 +76,18 @@
     .avail-dot.free { background:#4a7c4a; }
     .avail-dot.busy { background:#f5c842; }
     .avail-dot.full { background:#e24b4a; }
+
     .btn-assign   { background:var(--gd); color:var(--yg); font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:6px 14px; border-radius:20px; border:none; cursor:pointer; transition:background .2s; }
     .btn-assign:hover { background:var(--gm); }
     .btn-acknowledge { background:var(--ygl); color:var(--gd); font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:6px 14px; border-radius:20px; border:1.5px solid var(--bd); cursor:pointer; transition:all .2s; }
     .btn-acknowledge:hover { border-color:var(--gl); }
     .btn-reassign { background:var(--ygl); color:var(--gd); font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:6px 14px; border-radius:20px; border:1.5px solid var(--bd); cursor:pointer; transition:all .2s; }
     .btn-reassign:hover { border-color:var(--gl); background:#d8eda0; }
-    .btn-escalate { background:#fde8e8; color:#8b1a1a; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:6px 14px; border-radius:20px; border:1.5px solid #f0c0c0; cursor:pointer; transition:all .2s; }
-    .btn-escalate:hover { background:#f8c8c8; }
+    .btn-takeover { background:#fde8e8; color:#8b1a1a; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:6px 14px; border-radius:20px; border:1.5px solid #f0c0c0; cursor:pointer; transition:all .2s; }
+    .btn-takeover:hover { background:#f8c8c8; }
     .btn-resolve  { background:#e8f5ee; color:#1a5a3a; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:6px 14px; border-radius:20px; border:1.5px solid #a8ddc0; cursor:pointer; transition:all .2s; }
     .btn-resolve:hover  { background:#c8ead8; }
+
     .tech-select-option { border:1.5px solid var(--bd); border-radius:12px; padding:12px 14px; cursor:pointer; transition:all .2s; background:var(--cr); }
     .tech-select-option:hover { border-color:var(--gl); background:var(--ygl); }
     .tech-select-option.selected { border-color:var(--gd); background:var(--ygl); box-shadow:0 0 0 2px var(--yg); }
@@ -265,81 +98,64 @@
     .load-bar { height:6px; border-radius:4px; background:var(--gl); }
     .load-bar.busy { background:#f5c842; }
     .load-bar.full { background:#e24b4a; }
+
+    .cat-main-opt {
+        border: 1.5px solid var(--bd); border-radius: 12px; padding: 10px 16px;
+        cursor: pointer; transition: all .2s; background: var(--cr); user-select: none;
+        font-family:'Nunito',sans-serif; font-weight:800; font-size:13px; color:var(--gd);
+    }
+    .cat-main-opt:hover { border-color: var(--gl); background: var(--ygl); }
+    .cat-main-opt.selected { border-color: var(--gd); background: var(--ygl); box-shadow: 0 0 0 2px var(--yg); }
+
+    .cat-sub-opt {
+        border: 1.5px solid var(--bd); border-radius: 10px; padding: 10px 14px;
+        cursor: pointer; transition: all .2s; background: var(--cr);
+        font-size: 13px; font-weight: 600; color: var(--gd);
+        display: flex; align-items: center; gap: 8px;
+    }
+    .cat-sub-opt:hover { border-color: var(--gl); background: var(--ygl); }
+    .cat-sub-opt.selected { border-color: var(--gd); background: var(--ygl); box-shadow: 0 0 0 2px var(--yg); font-weight: 700; }
+    .cat-sub-opt .sub-check {
+        width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--bd);
+        flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+        font-size: 10px; transition: all .2s;
+    }
+    .cat-sub-opt.selected .sub-check { background: var(--gd); border-color: var(--gd); color: var(--yg); }
+
+    .btn-back-modal  { background: none; border: 1.5px solid var(--bd); color: var(--tm); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 14px; padding: 10px 22px; border-radius: 50px; transition: all .2s; }
+    .btn-back-modal:hover { border-color: var(--gl); color: var(--gd); }
+    .btn-confirm { background: var(--gd); color: var(--yg); font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 14px; padding: 11px 28px; border-radius: 50px; border: none; transition: all .2s; }
+    .btn-confirm:hover { background: var(--gm); transform: translateY(-1px); }
+    .btn-cancel-modal { background: none; border: 1.5px solid var(--bd); color: var(--tm); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 14px; padding: 10px 22px; border-radius: 50px; transition: all .2s; }
+
+    .esc-banner { background:#fde8e8; color:#8b1a1a; border-radius:10px; font-size:13px; font-weight:600; }
     .resolve-info { background:var(--ygl); border-radius:10px; font-size:13px; color:var(--gd); }
+
     .btn-chat { background:#e8eeff; color:#2a4ab0; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:6px 14px; border-radius:20px; border:1.5px solid #b8c8ff; cursor:pointer; transition:all .2s; position:relative; display:inline-flex; align-items:center; gap:5px; }
     .btn-chat:hover { background:#d0dcff; border-color:#8898dd; }
     .chat-count-badge { background:#e24b4a; color:#fff; font-size:10px; font-weight:900; border-radius:20px; padding:1px 6px; font-family:'Nunito',sans-serif; min-width:18px; text-align:center; }
-    /* ── Silent refresh pulse ── */
+
     @keyframes badgePulse {
         0%   { transform: scale(1); }
         50%  { transform: scale(1.3); background: var(--yg); color: var(--gd); }
         100% { transform: scale(1); }
     }
-    .badge-pulse {
-        animation: badgePulse .6s ease;
-    }
-    /* ── Method selector ── */
-    .method-opt {
-        border: 1.5px solid var(--bd);
-        border-radius: 12px;
-        padding: 10px 16px;
-        cursor: pointer;
-        transition: all .2s;
-        background: var(--cr);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        user-select: none;
-        min-width: 90px;
-    }
-    .method-opt:hover {
-        border-color: var(--gl);
-        background: var(--ygl);
-    }
-    .method-opt.selected {
-        border-color: var(--mc);
-        background: var(--mb);
-        box-shadow: 0 0 0 2px color-mix(in srgb, var(--mc) 30%, transparent);
-    }
-    .method-opt .method-icon {
-        font-size: 15px;
-        color: var(--mc);
-        flex-shrink: 0;
-    }
-    .method-opt .method-lbl {
-        font-family: 'Nunito', sans-serif;
-        font-weight: 800;
-        font-size: 13px;
-        color: var(--gd);
-    }
-    .method-opt.selected .method-lbl {
-        color: var(--mc);
-    }
+    .badge-pulse { animation: badgePulse .6s ease; }
 
-    .pagination {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 6px;
-    }
-
-    .pagination li {
-        margin: 2px;
-    }
-
-    .pagination .page-link {
-        border-radius: 8px !important;
-        padding: 6px 12px;
-        font-size: 13px;
-    }
+    .pagination { flex-wrap: wrap; justify-content: center; gap: 6px; }
+    .pagination li { margin: 2px; }
+    .pagination .page-link { border-radius: 8px !important; padding: 6px 12px; font-size: 13px; }
     @media (max-width: 768px) {
-        .pagination {
-            font-size: 12px;
-        }
-
-        .pagination .page-link {
-            padding: 4px 8px;
-        }
+        .pagination { font-size: 12px; }
+        .pagination .page-link { padding: 4px 8px; }
     }
+
+    .btn-escalate-admin {
+        background: #fde8e8; color: #8b1a1a; border: 1.5px solid #f0b8b8;
+        font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 12px;
+        padding: 7px 16px; border-radius: 20px; cursor: pointer; transition: all .2s;
+    }
+    .btn-escalate-admin:hover { background: #f8d0d0; border-color: #e08888; }
 @endsection
 
 {{-- ══ SIDEBAR ══ --}}
@@ -349,53 +165,61 @@
     <div class="sidebar-card mb-3">
         <div class="sidebar-head">Queue</div>
         <ul class="list-group sidebar-menu rounded-0">
-            <li class="list-group-item {{ $status === 'new-request' ? 'active' : '' }}">
-                <a href="{{ route('helpdesk.dashboard', ['status' => 'new-request']) }}"
-                   class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-grid me-2"></i>New Requests</span>
-                    <span class="badge-count">{{ $counts['new_request'] }}</span>
+            <li class="list-group-item {{ $status === 'awaiting-admin-supervisor' ? 'active' : '' }}">
+                <a href="{{ route('supervisor.dashboard', ['status' => 'awaiting-admin-supervisor']) }}"
+                class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-inbox me-2"></i>Awaiting Admin Supervisor</span>
+                    <span class="badge-count">{{ $counts['awaiting_admin_supervisor'] }}</span>
                 </a>
             </li>
-            <li class="list-group-item {{ $status === 'awaiting-supervisor' ? 'active' : '' }}">
-                <a href="{{ route('helpdesk.dashboard', ['status' => 'awaiting-supervisor']) }}"
-                   class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-inbox me-2"></i>Submitted / Awaiting Supervisor</span>
-                    <span class="badge-count">{{ $counts['awaiting_supervisor'] }}</span>
+            <li class="list-group-item {{ $status === 'awaiting-admin-classification' ? 'active' : '' }}">
+                <a href="{{ route('supervisor.dashboard', ['status' => 'awaiting-admin-classification']) }}"
+                class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-tags me-2"></i>Awaiting Classification</span>
+                    <span class="badge-count">{{ $counts['awaiting_admin_classification'] }}</span>
                 </a>
             </li>
-            <li class="list-group-item {{ $status === 'in-progress' ? 'active' : '' }}">
-                <a href="{{ route('helpdesk.dashboard', ['status' => 'in-progress']) }}"
-                   class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-arrow-repeat me-2"></i>Assigned / In Progress</span>
-                    <span class="badge-count">{{ $counts['in_progress'] }}</span>
+            <li class="list-group-item {{ $status === 'awaiting-administrator-ack' ? 'active' : '' }}">
+                <a href="{{ route('supervisor.dashboard', ['status' => 'awaiting-administrator-ack']) }}"
+                class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-person-check me-2"></i>Awaiting Administrator Ack.</span>
+                    <span class="badge-count">{{ $counts['awaiting_administrator_ack'] }}</span>
                 </a>
             </li>
-            <li class="list-group-item {{ $status === 'escalated' ? 'active' : '' }}">
-                <a href="{{ route('helpdesk.dashboard', ['status' => 'escalated']) }}"
-                   class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-exclamation-triangle me-2"></i>Escalated</span>
-                    <span class="badge-count">{{ $counts['escalated'] }}</span>
+            <li class="list-group-item {{ $status === 'awaiting-administrator-sla-start' ? 'active' : '' }}">
+                <a href="{{ route('supervisor.dashboard', ['status' => 'awaiting-administrator-sla-start']) }}"
+                class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-stopwatch me-2"></i>Awaiting SLA Start</span>
+                    <span class="badge-count">{{ $counts['awaiting_administrator_sla_start'] }}</span>
                 </a>
             </li>
-            <li class="list-group-item {{ $status === 'pending-closure' ? 'active' : '' }}">
-                <a href="{{ route('helpdesk.dashboard', ['status' => 'pending-closure']) }}"
-                   class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-exclamation-triangle me-2"></i>Pending Closure</span>
-                    <span class="badge-count">{{ $counts['pending_closure'] }}</span>
+            <li class="list-group-item {{ $status === 'admin-in-progress' ? 'active' : '' }}">
+                <a href="{{ route('supervisor.dashboard', ['status' => 'admin-in-progress']) }}"
+                class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-arrow-repeat me-2"></i>Admin In Progress</span>
+                    <span class="badge-count">{{ $counts['admin_in_progress'] }}</span>
                 </a>
             </li>
-            <li class="list-group-item {{ $status === 'awaiting-requestor' ? 'active' : '' }}">
-                <a href="{{ route('helpdesk.dashboard', ['status' => 'awaiting-requestor']) }}"
-                   class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-exclamation-triangle me-2"></i>Awaiting Requestor</span>
-                    <span class="badge-count">{{ $counts['awaiting_requestor'] }}</span>
+            <li class="list-group-item {{ $status === 'pending-admin-supervisor-approval' ? 'active' : '' }}">
+                <a href="{{ route('supervisor.dashboard', ['status' => 'pending-admin-supervisor-approval']) }}"
+                class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-arrow-repeat me-2"></i>Pending Admin Supervisor Approval</span>
+                    <span class="badge-count">{{ $counts['pending_admin_supervisor_approval'] }}</span>
                 </a>
             </li>
+            
             <li class="list-group-item {{ $status === 'closed' ? 'active' : '' }}">
-                <a href="{{ route('helpdesk.dashboard', ['status' => 'closed']) }}"
-                   class="d-flex justify-content-between align-items-center text-decoration-none">
+                <a href="{{ route('supervisor.dashboard', ['status' => 'closed']) }}"
+                class="d-flex justify-content-between align-items-center text-decoration-none">
                     <span><i class="bi bi-check-circle me-2"></i>Closed</span>
                     <span class="badge-count">{{ $counts['closed'] }}</span>
+                </a>
+            </li>
+            <li class="list-group-item {{ $status === 'cancelled' ? 'active' : '' }}">
+                <a href="{{ route('supervisor.dashboard', ['status' => 'cancelled']) }}"
+                class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-x-circle me-2"></i>Cancelled</span>
+                    <span class="badge-count">{{ $counts['cancelled'] }}</span>
                 </a>
             </li>
         </ul>
@@ -456,14 +280,19 @@
         <span class="font-brand fw-900" style="font-size:22px">
             @php
                 $labels = [
-                    'new-request' => 'New Request', 'awaiting-supervisor' => 'Awating Supervisor',
-                    'in-progress' => 'In Progress', 'escalated' => 'Escalated', 'pending-closure' => 'Pending Closure', 'awaiting-requestor' => 'Awaiting Requestor',
-                    'closed' => 'Closed',
+                    'awaiting-admin-supervisor'         => 'Awaiting Admin Supervisor',
+                    'awaiting-admin-classification'     => 'Awaiting Admin Classification',
+                    'awaiting-administrator-ack'        => 'Awaiting Administrator Acknowledgement',
+                    'awaiting-administrator-sla-start'  => 'Awaiting Administrator SLA Start',
+                    'admin-in-progress'                 => 'Admin In Progress',
+                    'pending-admin-supervisor-approval' => 'Pending Admin Supervisor Approval',
+                    'closed'                            => 'Closed',
+                    'cancelled'                         => 'Cancelled',
                 ];
             @endphp
             {{ $labels[$status] ?? 'All Tickets' }}
         </span>
-        <form method="GET" action="{{ route('helpdesk.dashboard') }}"
+        <form method="GET" action="{{ route('supervisor.dashboard') }}"
               class="d-flex gap-2 flex-wrap" id="searchForm">
             <input type="hidden" name="status" value="{{ $status }}">
             <div class="search-wrap">
@@ -484,17 +313,18 @@
     <div class="d-flex flex-wrap gap-2 mb-3">
         @php
             $tabs = [
-                'new-request'         => ['label' => 'New Request',         'count' => $counts['new_request']],
-                'awaiting-supervisor'  => ['label' => 'Awaiting Supervisor',  'count' => $counts['awaiting_supervisor']],
-                'in-progress' => ['label' => 'In Progress', 'count' => $counts['in_progress']],
-                'escalated'   => ['label' => 'Escalated',   'count' => $counts['escalated']],
-                'pending-closure'   => ['label' => 'Pending Closure',   'count' => $counts['pending_closure']],
-                'awaiting-requestor'   => ['label' => 'Awaiting Requestor',   'count' => $counts['awaiting_requestor']],
-                'closed'    => ['label' => 'Closed',    'count' => $counts['closed']],
+                'awaiting-admin-supervisor'        => ['label' => 'Awaiting Admin Supervisor',        'count' => $counts['awaiting_admin_supervisor']],
+                'awaiting-admin-classification'    => ['label' => 'Awaiting Admin Classification',    'count' => $counts['awaiting_admin_classification']],
+                'awaiting-administrator-ack'       => ['label' => 'Awaiting Administrator Ack.',      'count' => $counts['awaiting_administrator_ack']],
+                'awaiting-administrator-sla-start' => ['label' => 'Awaiting SLA Start',               'count' => $counts['awaiting_administrator_sla_start']],
+                'admin-in-progress'                => ['label' => 'Admin In Progress',                'count' => $counts['admin_in_progress']],
+                'pending-admin-supervisor-approval'=> ['label' => 'Pending Admin Supervisor Approval','count' => $counts['pending_admin_supervisor_approval']],
+                'closed'                           => ['label' => 'Closed',                           'count' => $counts['closed']],
+                'cancelled'                        => ['label' => 'Cancelled',                        'count' => $counts['cancelled']],
             ];
         @endphp
         @foreach($tabs as $key => $tab)
-            <a href="{{ route('helpdesk.dashboard', array_merge(request()->except('status'), ['status' => $key])) }}"
+            <a href="{{ route('supervisor.dashboard', array_merge(request()->except('status'), ['status' => $key])) }}"
                class="tab-pill {{ $status === $key ? 'active' : '' }}">
                 {{ $tab['label'] }} ({{ $tab['count'] }})
             </a>
@@ -503,42 +333,44 @@
 
     {{-- Ticket list --}}
     <div class="d-flex flex-column gap-3" id="ticketList">
-
         @forelse($tickets as $ticket)
             @php
-                $isUnassigned = $ticket->status === 'New Request' && !$ticket->assigned_to;
+                $isUnassigned = $ticket->status === 'Awaiting Admin Supervisor' && !$ticket->assigned_to;
                 $cardClass = match(true) {
-                    $isUnassigned               => 'unassigned',
-                    $ticket->status === 'New Request' => 'new-request',
-                    $ticket->status === 'Awaiting Supervisor' => 'awaiting-supervisor',
-                    $ticket->status === 'In Progress' => 'in-progress',
-                    $ticket->status === 'Escalated'   => 'escalated',
-                    $ticket->status === 'Pending Closure'   => 'pending-closure',
-                    $ticket->status === 'Awaiting Requestor'   => 'awaiting-requestor',
-                    $ticket->status === 'Closed'   => 'closed',
-                    default                           => 'new-request'
+                    $isUnassigned                                                   => 'unassigned',
+                    $ticket->status === 'Awaiting Admin Supervisor'                 => 'awaiting-admin-supervisor',
+                    $ticket->status === 'Awaiting Admin Classification'             => 'awaiting-admin-classification',
+                    $ticket->status === 'Awaiting Administrator Acknowledgement'    => 'awaiting-administrator-ack',
+                    $ticket->status === 'Awaiting Administrator SLA Start'          => 'awaiting-administrator-sla-start',
+                    $ticket->status === 'Admin In Progress'                         => 'admin-in-progress',
+                    $ticket->status === 'Pending Admin Supervisor Approval'         => 'pending-admin-supervisor-Approval',
+                    $ticket->status === 'Closed'                                    => 'closed',
+                    $ticket->status === 'Cancelled'                                 => 'cancelled',
+                    default                                                         => 'awaiting-admin-supervisor'
                 };
                 $badgeClass = match(true) {
-                    $isUnassigned               => 'badge-unassigned',
-                    $ticket->status === 'New Request' => 'badge-new-request',
-                    $ticket->status === 'Awaiting Supervisor' => 'badge-awaiting-supervisor',
-                    $ticket->status === 'In Progress' => 'badge-in-progress',
-                    $ticket->status === 'Escalated'   => 'badge-escalated',
-                    $ticket->status === 'Pending Closure'   => 'badge-pending-closure',
-                    $ticket->status === 'Awaiting Requestor'   => 'badge-awaiting-requestor',
-                    $ticket->status === 'Closed'   => 'badge-closed',
-                    default                           => 'badge-new-request'
+                    $isUnassigned                                                   => 'badge-unassigned',
+                    $ticket->status === 'Awaiting Admin Supervisor'                 => 'badge-awaiting-admin-supervisor',
+                    $ticket->status === 'Awaiting Admin Classification'             => 'badge-awaiting-admin-classification',
+                    $ticket->status === 'Awaiting Administrator Acknowledgement'    => 'badge-awaiting-administrator-ack',
+                    $ticket->status === 'Awaiting Administrator SLA Start'          => 'badge-awaiting-administrator-sla-start',
+                    $ticket->status === 'Admin In Progress'                         => 'badge-admin-in-progress',
+                    $ticket->status === 'Pending Admin Supervisor Approval'         => 'badge-admin-in-progress',
+                    $ticket->status === 'Closed'                                    => 'badge-closed',
+                    $ticket->status === 'Cancelled'                                 => 'badge-cancelled',
+                    default                                                         => 'badge-awaiting-admin-supervisor'
                 };
                 $badgeLabel = match(true) {
-                    $isUnassigned               => '<i class="bi bi-inbox me-1"></i>Unassigned',
-                    $ticket->status === 'New Request' => '<i class="bi bi-plus-circle me-1"></i>New Request',
-                    $ticket->status === 'Awaiting Supervisor' => '<i class="bi bi-hourglass-split me-1"></i>Awaiting Supervisor',
-                    $ticket->status === 'In Progress' => '<i class="bi bi-gear-fill me-1"></i>In Progress',
-                    $ticket->status === 'Escalated'   => '<i class="bi bi-exclamation-triangle-fill me-1"></i>Escalated',
-                    $ticket->status === 'Pending Closure'    => '<i class="bi bi-clock-history me-1"></i>Pending Closure',
-                    $ticket->status === 'Awaiting Requestor'    => '<i class="bi bi-person-check me-1"></i>Awaiting Requestor',
-                    $ticket->status === 'Closed'    => '<i class="bi bi-check-circle-fill me-1"></i>Closed',
-                    default                           => '● New Request'
+                    $isUnassigned                                                   => '<i class="bi bi-inbox me-1"></i>Unassigned',
+                    $ticket->status === 'Awaiting Admin Supervisor'                 => '<i class="bi bi-hourglass-split me-1"></i>Awaiting Admin Supervisor',
+                    $ticket->status === 'Awaiting Admin Classification'             => '<i class="bi bi-tags me-1"></i>Awaiting Classification',
+                    $ticket->status === 'Awaiting Administrator Acknowledgement'    => '<i class="bi bi-person-check me-1"></i>Awaiting Ack.',
+                    $ticket->status === 'Awaiting Administrator SLA Start'          => '<i class="bi bi-stopwatch me-1"></i>Awaiting SLA Start',
+                    $ticket->status === 'Admin In Progress'                        => '<i class="bi bi-gear-fill me-1"></i>Admin In Progress',
+                    $ticket->status === 'Pending Admin Supervisor Approval'         => '<i class="bi bi-gear-fill me-1"></i>Admin In Progress',
+                    $ticket->status === 'Closed'                                    => '<i class="bi bi-check-circle-fill me-1"></i>Closed',
+                    $ticket->status === 'Cancelled'                                 => '<i class="bi bi-x-circle-fill me-1"></i>Cancelled',
+                    default                                                         => '● Awaiting Admin Supervisor'
                 };
                 $priorityClass = match($ticket->ticket_type) {
                     'High'   => 'pri-high',
@@ -548,13 +380,13 @@
                 };
                 $techInitials = $ticket->assignedTo
                     ? strtoupper(substr($ticket->assignedTo->name, 0, 1)) .
-                      strtoupper(substr($ticket->assignedTo->name, strpos($ticket->assignedTo->name, ' ') + 1, 1))
+                    strtoupper(substr($ticket->assignedTo->name, strpos($ticket->assignedTo->name, ' ') + 1, 1))
                     : '—';
             @endphp
 
             <div class="ticket-card {{ $cardClass }} p-3"
-                 data-status="{{ $cardClass }}"
-                 data-priority="{{ strtolower($ticket->ticket_type) }}">
+                data-status="{{ $cardClass }}"
+                data-priority="{{ strtolower($ticket->ticket_type) }}">
 
                 {{-- Header --}}
                 <div class="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-2">
@@ -601,9 +433,9 @@
                         <i class="bi bi-calendar3"></i>
                         {{ $ticket->created_at->diffForHumans() }}
                     </span>
-                    {{--  --}}
-                    {{-- ── SLA Status indicator (In Progress only) ── --}}
-                    @if($ticket->status === 'In Progress')
+
+                    {{-- ── SLA Status indicator (Admin In Progress only) ── --}}
+                    @if($ticket->status === 'Admin In Progress')
                         @php
                             $slaRule = \App\Models\SlaRule::where('is_active', true)
                                 ->whereHas('category', fn($q) =>
@@ -618,7 +450,6 @@
                             $isAtRisk    = $slaRule && !$isBreached && $minutesOpen >= ($slaRule->resolution_time_minutes * 0.75);
                             $timeLeft    = $slaRule ? max(0, $slaRule->resolution_time_minutes - $minutesOpen) : null;
 
-                            // ── Format time left inline (no function definition)
                             $slaTimeLeft = '';
                             if ($timeLeft !== null) {
                                 if ($timeLeft <= 0) {
@@ -649,7 +480,7 @@
                             </span>
                         @endif
                     @endif
-                    {{--  --}}
+
                     @if($ticket->assignedTo)
                         <span class="tech-chip ms-auto">
                             <span class="tc-av">{{ $techInitials }}</span>
@@ -658,118 +489,74 @@
                     @endif
                 </div>
 
-                {{-- Escalation banner --}}
-                @if($ticket->status === 'Escalated')
-                    <div class="esc-banner p-2 mb-3">
-                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                        Escalated to IT Admin — Level {{ $ticket->escalation_level }}.
-                        Awaiting admin resolution or reassignment.
-                    </div>
-                @endif
-
                 {{-- Action buttons --}}
                 <div class="d-flex gap-2 flex-wrap">
 
-                    {{-- Unassigned: Acknowledge + Assign --}}
+                    {{-- Awaiting Admin Supervisor (unassigned): Acknowledge into the queue --}}
                     @if($isUnassigned)
-                        <form method="POST"
-                              action="{{ route('helpdesk.tickets.acknowledge', $ticket) }}">
+                        <form method="POST" action="{{ route('supervisor.tickets.acknowledge', $ticket) }}">
                             @csrf
                             <button type="submit" class="btn-acknowledge">
                                 <i class="bi bi-eye me-1"></i>Acknowledge
                             </button>
                         </form>
-                        {{-- ── Chat button ── --}}
-                        <button class="btn-chat"
-                                onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-chat-dots me-1"></i>Message
-                            @php $unread = $ticket->unreadMessages()->count(); @endphp
-                            @if($unread > 0)
-                                <span class="chat-count-badge" id="badge-{{ $ticket->id }}">{{ $unread }}</span>
-                            @endif
-                        </button>
-                        {{-- <button class="btn-assign"
-                                onclick="openAssignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', false)">
-                            <i class="bi bi-person-plus me-1"></i>Assign Technician
-                        </button> --}}
                     @endif
 
-                    @if($ticket->status === 'Awaiting Supervisor')
-                        <button class="btn-chat"
-                                onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-chat-dots me-1"></i>Message
-                            @php $unread = $ticket->unreadMessages()->count(); @endphp
-                            @if($unread > 0)
-                                <span class="chat-count-badge" id="badge-{{ $ticket->id }}">{{ $unread }}</span>
-                            @endif
-                        </button>
-                    @endif
-                    {{-- In Progress: Reassign + Escalate + Resolve + Message --}}
-                    @if($ticket->status === 'In Progress')
-                        {{-- <button class="btn-reassign"
-                                onclick="openAssignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', true)">
-                            <i class="bi bi-arrow-left-right me-1"></i>Reassign
-                        </button>
-                        <button class="btn-escalate"
-                                onclick="openEscalateModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-exclamation-triangle me-1"></i>Escalate
-                        </button>
-                        <button class="btn-resolve"
-                                onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-check-circle me-1"></i>Mark Resolved
-                        </button> --}}
-                        {{-- ── Chat button ── --}}
-                        <button class="btn-chat"
-                                onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-chat-dots me-1"></i>Message
-                            @php $unread = $ticket->unreadMessages()->count(); @endphp
-                            @if($unread > 0)
-                                <span class="chat-count-badge" id="badge-{{ $ticket->id }}">{{ $unread }}</span>
-                            @endif
+                    {{-- Awaiting Admin Classification: classify & assign to an IT Admin --}}
+                    @if($ticket->status === 'Awaiting Admin Classification')
+                        <button class="btn-classify"
+                                onclick="openClassifyAssignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-tags me-1"></i>Classify & Assign
                         </button>
                     @endif
 
-                    {{-- Escalated: Reassign + Resolve + Message --}}
-                    @if($ticket->status === 'Escalated')
-                        {{-- <button class="btn-reassign"
-                                onclick="openAssignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', true)">
-                            <i class="bi bi-person-plus me-1"></i>Reassign to New Tech
-                        </button>
-                        <button class="btn-resolve"
-                                onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-check-circle me-1"></i>Mark Resolved
-                        </button> --}}
-                        {{-- ── Chat button ── --}}
-                        <button class="btn-chat"
-                                onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-chat-dots me-1"></i>Message
-                            @php $unread = $ticket->unreadMessages()->count(); @endphp
-                            @if($unread > 0)
-                                <span class="chat-count-badge" id="badge-{{ $ticket->id }}">{{ $unread }}</span>
-                            @endif
-                        </button>
-                    @endif
-
-                    @if($ticket->status === 'Pending Closure')
-                        <button class="btn-chat"
-                                onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-chat-dots me-1"></i>Message
-                            @php $unread = $ticket->unreadMessages()->count(); @endphp
-                            @if($unread > 0)
-                                <span class="chat-count-badge" id="badge-{{ $ticket->id }}">{{ $unread }}</span>
-                            @endif
-                        </button>
-                        
-                        <form method="POST"
-                            action="{{ route('helpdesk.tickets.closenotify', $ticket) }}">
+                    {{-- Awaiting Administrator Acknowledgement: assigned admin confirms receipt --}}
+                    @if($ticket->status === 'Awaiting Administrator Acknowledgement')
+                        <form method="POST" action="/supervisor/tickets/{{ $ticket->id }}/admin-acknowledge">
                             @csrf
-                            <button type="submit" class="btn-resolve">
-                                <i class="bi bi-check-circle-fill me-1"></i>
-                                Close & Notify
+                            <button type="submit" class="btn-acknowledge">
+                                <i class="bi bi-check2-circle me-1"></i>Acknowledge
                             </button>
                         </form>
                     @endif
-                    @if($ticket->status === 'Awaiting Requestor')
+
+                    {{-- Awaiting Administrator SLA Start: begin work, starts the SLA clock --}}
+                    @if($ticket->status === 'Awaiting Administrator SLA Start')
+                        <form method="POST" action="/supervisor/tickets/{{ $ticket->id }}/start">
+                            @csrf
+                            <button type="submit" class="btn-resolve">
+                                <i class="bi bi-play-circle me-1"></i>Start Work
+                            </button>
+                        </form>
+                    @endif
+
+                    {{-- Admin In Progress: Reassign + Resolve --}}
+                    @if($ticket->status === 'Admin In Progress')
+                        <button class="btn-reassign"
+                                onclick="openReassignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-arrow-left-right me-1"></i>Reassign
+                        </button>
+                        <button class="btn-resolve"
+                                onclick="openValidateModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-check-circle-fill me-1"></i>Resolve & Close
+                        </button>
+                    @endif
+                {{-- Pending Supervisor Approval: Validate Resolution --}}
+                    @if($ticket->status === 'Pending Admin Supervisor Approval')
+                        @if($ticket->validated_at)
+                            <span class="resolve-info px-3 py-2">
+                                <i class="bi bi-check-circle-fill me-1"></i>Validated — awaiting Helpdesk closure
+                            </span>
+                        @else
+                            <button class="btn-resolve"
+                                    onclick="openValidateModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                <i class="bi bi-check-circle me-1"></i>Validate Resolution
+                            </button>
+                        @endif
+                    @endif
+
+                    {{-- Chat — available on every non-terminal status --}}
+                    @if(!in_array($ticket->status, ['Closed', 'Cancelled']))
                         <button class="btn-chat"
                                 onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-chat-dots me-1"></i>Message
@@ -779,6 +566,7 @@
                             @endif
                         </button>
                     @endif
+
                 </div>
             </div>
         @empty
@@ -789,7 +577,6 @@
                 </div>
             </div>
         @endforelse
-
     </div>
 
     {{-- Pagination --}}
@@ -804,6 +591,159 @@
 {{-- ══ MODALS ══ --}}
 @section('modals')
 
+
+    {{-- Classify & Assign modal (combined steps 4 + 5) --}}
+    <div class="modal fade" id="classifyAssignModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Classify & Assign — <em id="caTicketRef">#TKT-0000</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="classifyAssignForm">
+                    @csrf
+                    <input type="hidden" name="sla_rule_id" id="caSlaRuleId">
+                    <input type="hidden" name="technician_id" id="caTechId">
+
+                    <div class="modal-body px-4 py-4">
+
+                        <label class="form-label mb-2">Category</label>
+                        <div class="d-flex flex-wrap gap-2 mb-3" id="caCategoryList"></div>
+
+                        <div id="caSubWrap" class="d-none">
+                            <label class="form-label mb-2">Subcategory & Priority</label>
+                            <div class="d-flex flex-column gap-2 mb-3" id="caSubList"></div>
+                        </div>
+
+                        <hr style="border-color:var(--bd)">
+
+                        <label class="form-label mb-2">Assign Support Specialist</label>
+                        <div class="d-flex flex-column gap-2" id="caTechList">
+                            @foreach($technicians as $tech)
+                                @php
+                                    $initials = strtoupper(substr($tech->name, 0, 1)) . strtoupper(substr($tech->name, strpos($tech->name, ' ') + 1, 1));
+                                    $isFull   = $tech->availability === 'full';
+                                    $loadPct  = min(100, $tech->active_tickets * 17);
+                                    $barClass = $tech->availability === 'busy' ? 'busy' : ($tech->availability === 'full' ? 'full' : '');
+                                @endphp
+                                <div class="tech-select-option {{ $isFull ? 'disabled' : '' }}"
+                                     data-tech-id="{{ $tech->id }}">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="tech-av-lg">{{ $initials }}</div>
+                                        <div>
+                                            <div class="ts-name">{{ $tech->name }}</div>
+                                            <div class="ts-load">{{ $tech->active_tickets }} active</div>
+                                        </div>
+                                        <span class="avail-dot {{ $tech->availability }} ms-auto"></span>
+                                    </div>
+                                    <div class="load-bar-wrap"><div class="load-bar {{ $barClass }}" style="width:{{ $loadPct }}%"></div></div>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <div class="mt-3">
+                            <label class="form-label">Notes (optional)</label>
+                            <textarea class="form-control" name="notes" rows="2" placeholder="Context for the specialist…"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm">Confirm Classification & Assignment</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Reassign modal --}}
+    <div class="modal fade" id="reassignModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Reassign <em>Specialist</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="reassignForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="mb-3 p-2 px-3 rounded"
+                             style="background:var(--ygl);font-size:13px;color:var(--gd)">
+                            Ticket <strong id="reassignTicketRef"></strong> —
+                            Select a new specialist below.
+                        </div>
+                        <label class="form-label mb-2">Choose specialist</label>
+                        <div class="d-flex flex-column gap-2" id="reassignTechList">
+                            @foreach($technicians as $tech)
+                                @php
+                                    $initials = strtoupper(substr($tech->name, 0, 1)) . strtoupper(substr($tech->name, strpos($tech->name, ' ') + 1, 1));
+                                    $isFull   = $tech->availability === 'full';
+                                    $loadPct  = min(100, $tech->active_tickets * 17);
+                                    $barClass = $tech->availability === 'busy' ? 'busy' : ($tech->availability === 'full' ? 'full' : '');
+                                @endphp
+                                <div class="tech-select-option {{ $isFull ? 'disabled' : '' }}"
+                                     data-tech-id="{{ $tech->id }}">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="tech-av-lg">{{ $initials }}</div>
+                                        <div>
+                                            <div class="ts-name">{{ $tech->name }}</div>
+                                            <div class="ts-load">{{ $tech->active_tickets }} active</div>
+                                        </div>
+                                        <span class="avail-dot {{ $tech->availability }} ms-auto"></span>
+                                    </div>
+                                    <div class="load-bar-wrap"><div class="load-bar {{ $barClass }}" style="width:{{ $loadPct }}%"></div></div>
+                                </div>
+                            @endforeach
+                        </div>
+                        <input type="hidden" name="technician_id" id="reassignTechId">
+                        <div class="mt-3">
+                            <label class="form-label">Note (optional)</label>
+                            <textarea class="form-control" name="notes" rows="2" placeholder="Reason for reassignment…"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm">Confirm Reassignment</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Validate Resolution modal --}}
+    <div class="modal fade" id="validateModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Validate <em>Resolution</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="validateForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="resolve-info p-3 mb-3">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Ticket <strong id="validateRef"></strong> —
+                            Confirm resolution quality and readiness for closure.
+                        </div>
+                        <div>
+                            <label class="form-label">
+                                Validation notes <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" name="validation_notes"
+                                      rows="3" required
+                                      placeholder="Confirm resolution quality and service completeness…"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm">
+                            <i class="bi bi-check-circle me-1"></i>Confirm Validation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
     {{-- Submit Ticket Modal --}}
     <div class="modal fade" id="ticketModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -825,7 +765,7 @@
                         <div class="step-ind mb-4">
                             <div class="step-item active" id="si1">
                                 <div class="step-num">1</div>
-                                <span class="step-lbl">Details</span>
+                                <span class="step-lbl">Issue Type</span>
                             </div>
 
                             <div class="step-line" id="sl1"></div>
@@ -1054,173 +994,6 @@
             </div>
         </div>
     </div>
-    {{-- Assign / Reassign modal --}}
-    {{-- <div class="modal fade" id="assignModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0" id="assignModalTitle">Assign <em>Technician</em></h5>
-                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
-                </div>
-                <form method="POST" id="assignForm">
-                    @csrf
-                    <div class="modal-body px-4 py-4">
-                        <div class="mb-3 p-2 px-3 rounded"
-                             style="background:var(--ygl);font-size:13px;color:var(--gd)">
-                            Ticket <strong id="assignTicketRef"></strong> —
-                            Select an available technician below.
-                        </div>
-                        <label class="form-label mb-2">Choose technician</label>
-                        <div class="d-flex flex-column gap-2" id="techList">
-                            @foreach($technicians as $tech)
-                                @php
-                                    $initials = strtoupper(substr($tech->name, 0, 1)) .
-                                                strtoupper(substr($tech->name, strpos($tech->name, ' ') + 1, 1));
-                                    $isFull   = $tech->availability === 'full';
-                                    $loadPct  = min(100, $tech->active_tickets * 25);
-                                    $barClass = match($tech->availability) {
-                                        'busy' => 'busy', 'full' => 'full', default => ''
-                                    };
-                                    $badge = match($tech->availability) {
-                                        'free' => ['bg' => 'var(--ygl)', 'color' => 'var(--gm)', 'label' => 'Available'],
-                                        'busy' => ['bg' => '#fff4cc',    'color' => '#7a5a00',   'label' => 'Busy'],
-                                        'full' => ['bg' => '#fde8e8',    'color' => '#8b1a1a',   'label' => 'Full'],
-                                    };
-                                @endphp
-                                <div class="tech-select-option {{ $isFull ? 'disabled' : '' }}"
-                                     data-tech-id="{{ $tech->id }}"
-                                     data-tech-name="{{ $tech->name }}">
-                                    <div class="d-flex align-items-center gap-2 mb-1">
-                                        <div class="tc-av">{{ $initials }}</div>
-                                        <div>
-                                            <div class="ts-name">{{ $tech->name }}</div>
-                                            <div class="ts-load">
-                                                {{ $tech->active_tickets }} active ticket{{ $tech->active_tickets !== 1 ? 's' : '' }}
-                                            </div>
-                                        </div>
-                                        <span class="ms-auto"
-                                              style="background:{{ $badge['bg'] }};color:{{ $badge['color'] }};font-size:11px;font-weight:800;border-radius:20px;padding:2px 8px">
-                                            {{ $badge['label'] }}
-                                        </span>
-                                    </div>
-                                    <div class="load-bar-wrap">
-                                        <div class="load-bar {{ $barClass }}"
-                                             style="width:{{ $loadPct }}%"></div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                        <input type="hidden" name="technician_id" id="selectedTechId">
-                        <div class="mt-3">
-                            <label class="form-label">Note to technician (optional)</label>
-                            <textarea class="form-control" name="notes" rows="2"
-                                      placeholder="Add any context or instructions…"></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
-                        <button type="button" class="btn-cancel-modal"
-                                data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn-confirm" id="btnConfirmAssign">
-                            <i class="bi bi-check-lg me-1"></i>Confirm Assignment
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div> --}}
-
-    {{-- Escalate modal --}}
-    {{-- <div class="modal fade" id="escalateModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Escalate to <em>IT Admin</em></h5>
-                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
-                </div>
-                <form method="POST" id="escalateForm">
-                    @csrf
-                    <div class="modal-body px-4 py-4">
-                        <div class="esc-banner p-3 mb-3">
-                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                            Ticket <strong id="escalateRef"></strong> — This ticket will be
-                            escalated to IT Admin.
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">
-                                Reason for escalation <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-select" name="reason" required>
-                                <option value="">Select a reason…</option>
-                                <option value="Technician unable to resolve — hardware issue beyond scope">Technician unable to resolve — hardware issue beyond scope</option>
-                                <option value="Technician unable to resolve — requires admin access">Technician unable to resolve — requires admin access</option>
-                                <option value="Issue affecting multiple users">Issue affecting multiple users</option>
-                                <option value="Repeated failure after reassignment">Repeated failure after reassignment</option>
-                                <option value="Customer requested escalation">Customer requested escalation</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="form-label">Escalation notes</label>
-                            <textarea class="form-control" name="notes" rows="3"
-                                      placeholder="Describe what was already attempted…"></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
-                        <button type="button" class="btn-cancel-modal"
-                                data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn-confirm"
-                                style="background:#8b1a1a">
-                            <i class="bi bi-exclamation-triangle me-1"></i>Confirm Escalation
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div> --}}
-
-    {{-- Resolve modal --}}
-    {{-- <div class="modal fade" id="resolveModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Mark as <em>Resolved</em></h5>
-                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
-                </div>
-                <form method="POST" id="resolveForm">
-                    @csrf
-                    <div class="modal-body px-4 py-4">
-                        <div class="resolve-info p-3 mb-3">
-                            <i class="bi bi-check-circle me-1"></i>
-                            Ticket <strong id="resolveRef"></strong> —
-                            Confirm resolution and notify the customer.
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">
-                                Resolution summary <span class="text-danger">*</span>
-                            </label>
-                            <textarea class="form-control" name="resolution_notes"
-                                      rows="3" required
-                                      placeholder="Describe how the issue was resolved…"></textarea>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox"
-                                   id="notifyCustomer" checked>
-                            <label class="form-check-label" for="notifyCustomer"
-                                   style="font-size:13px;font-weight:600">
-                                Notify customer by email that ticket is resolved
-                            </label>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
-                        <button type="button" class="btn-cancel-modal"
-                                data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn-confirm">
-                            <i class="bi bi-check-circle me-1"></i>Mark as Resolved
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div> --}}
     {{-- Chat Modal --}}
     <div class="modal fade" id="chatModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered" style="max-width:480px">
@@ -1270,183 +1043,186 @@
 
 @section('scripts')
 <script>
-/* ── Auto-fill requestor details ── */
-$(document).on('change', '#mRequestor', function () {
-    const opt = $(this).find('option:selected');
-    $('#mPosition').val(opt.data('position')   || '');
-    $('#mBU').val(opt.data('bu')               || '');
-    $('#mCompany').val(opt.data('company')     || '');
-    $('#mDepartment').val(opt.data('department') || '');
-});
+    /* ── Auto-fill requestor details ── */
+    $(document).on('change', '#mRequestor', function () {
+        const opt = $(this).find('option:selected');
+        $('#mPosition').val(opt.data('position')   || '');
+        $('#mBU').val(opt.data('bu')               || '');
+        $('#mCompany').val(opt.data('company')     || '');
+        $('#mDepartment').val(opt.data('department') || '');
+    });
 
-/* ── Method selection ── */
-$(document).on('click', '.method-opt', function () {
-    $('.method-opt').removeClass('selected');
-    $(this).addClass('selected');
-    $('#hMethod').val($(this).data('method'));
-});
-/* ══ GLOBAL FUNCTIONS — must be outside $(function(){}) ══ */
-
-/* ── Chat modal ── */
-let currentChatTicketId = null;
-let chatPollInterval    = null;
-
-window.openChatModal = function (ticketId, ticketNumber) {
-    currentChatTicketId = ticketId;
-    $('#badge-' + ticketId).remove();
-    $('#chatTicketRef').text('#' + ticketNumber);
-    $('#modalChatMessages').html(`
-        <div class="text-center py-4" style="color:var(--tm);font-size:13px">
-            <div class="spinner-border spinner-border-sm me-2"></div>
-            Loading messages…
-        </div>
-    `);
-    new bootstrap.Modal('#chatModal').show();
-    loadChatMessages();
-    clearInterval(chatPollInterval);
-    chatPollInterval = setInterval(loadChatMessages, 3000);
-};
-
-window.sendModalMessage = function () {
-    const input = document.getElementById('modalChatInput');
-    const msg   = input.value.trim();
-    if (!msg || !currentChatTicketId) return;
-    input.value = '';
-    input.style.height = 'auto';
-    fetch(`/tickets/${currentChatTicketId}/messages`, {
-        method:  'POST',
-        headers: {
-            'Content-Type':     'application/json',
-            'X-CSRF-TOKEN':     document.querySelector('meta[name="csrf-token"]').content,
-            'X-Requested-With': 'XMLHttpRequest',
-        },
-        body: JSON.stringify({ message: msg }),
-    })
-    .then(r => r.json())
-    .then(() => loadChatMessages())
-    .catch(err => console.error('Send error:', err));
-};
-
-window.handleModalChatKey = function (e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        window.sendModalMessage();
-    }
-    const ta = document.getElementById('modalChatInput');
-    setTimeout(() => {
-        ta.style.height = 'auto';
-        ta.style.height = Math.min(ta.scrollHeight, 80) + 'px';
-    }, 0);
-};
-
-function loadChatMessages() {
-    if (!currentChatTicketId) return;
-    fetch(`/tickets/${currentChatTicketId}/messages`, {
-        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
-    })
-    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-    .then(data => {
-        const msgs = data.messages;
-        const $box = document.getElementById('modalChatMessages');
-        if (!$box) return;
-        const prevCount = $box.querySelectorAll('[data-msg-id]').length;
-        if (!msgs || !msgs.length) {
-            $box.innerHTML = `
-                <div class="text-center py-4" style="color:var(--tm)">
-                    <i class="bi bi-chat-dots" style="font-size:32px;opacity:.3;display:block;margin-bottom:8px"></i>
-                    <p style="font-size:13px;font-weight:600;margin:0">No messages yet.<br>Start the conversation!</p>
-                </div>`;
-            return;
-        }
-        if (msgs.length === prevCount) return;
-        const avColors     = { 'IT Admin':'#fde8e8','IT Support Specialist':'#fff4cc','Helpdesk':'#d4f0d4','Executive':'#e8e0ff' };
-        const avTextColors = { 'IT Admin':'#8b1a1a','IT Support Specialist':'#7a5a00','Helpdesk':'#2d5a2d','Executive':'#4a1a8a' };
-        let html = '';
-        msgs.forEach(msg => {
-            const avBg   = avColors[msg.role]      || '#e8f5b0';
-            const avText = avTextColors[msg.role]   || '#1a3c1a';
-            const isMe   = msg.is_me;
-            html += `
-                <div data-msg-id="${msg.id}" style="display:flex;gap:8px;align-items:flex-end;${isMe ? 'flex-direction:row-reverse' : ''}">
-                    <div style="width:28px;height:28px;border-radius:50%;background:${avBg};color:${avText};display:flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;font-weight:900;font-size:10px;flex-shrink:0">${msg.initials}</div>
-                    <div style="max-width:75%">
-                        <div style="font-size:10px;font-weight:700;color:var(--tm);margin-bottom:3px;${isMe ? 'text-align:right' : ''}">
-                            ${isMe ? 'You' : escapeHtmlChat(msg.sender)}
-                            <span style="font-size:9px;background:${avBg};color:${avText};border-radius:4px;padding:1px 5px;margin-left:4px;text-transform:uppercase;letter-spacing:.3px;font-weight:800">${msg.role || 'User'}</span>
-                        </div>
-                        <div style="padding:9px 13px;border-radius:16px;font-size:13px;line-height:1.5;word-break:break-word;${isMe ? 'background:var(--gd);color:var(--yg);border-bottom-right-radius:4px' : 'background:#fff;color:var(--gd);border-bottom-left-radius:4px;border:1.5px solid var(--bd)'}">
-                            ${escapeHtmlChat(msg.message)}
-                        </div>
-                        <div style="font-size:10px;color:var(--tm);margin-top:3px;font-weight:600;${isMe ? 'text-align:right' : ''}">${msg.time_ago}</div>
-                    </div>
-                </div>`;
-        });
-        $box.innerHTML = html;
-        $box.scrollTop = $box.scrollHeight;
-    })
-    .catch(err => console.error('Chat load error:', err));
-}
-
-function escapeHtmlChat(str) {
-    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-/* ══ DOM-READY ══ */
-$(function () {
+    /* ── Method selection ── */
     $(document).on('click', '.method-opt', function () {
-    $('.method-opt').removeClass('selected');
-    $(this).addClass('selected');
+        $('.method-opt').removeClass('selected');
+        $(this).addClass('selected');
+        $('#hMethod').val($(this).data('method'));
+    });
+    /* ══ GLOBAL FUNCTIONS — must be outside $(function(){}) ══ */
 
-    $('#hMethod').val($(this).data('method'));
-});
+    /* ── Chat modal ── */
+    let currentChatTicketId = null;
+    let chatPollInterval    = null;
+
+    window.openChatModal = function (ticketId, ticketNumber) {
+        currentChatTicketId = ticketId;
+        $('#badge-' + ticketId).remove();
+        $('#chatTicketRef').text('#' + ticketNumber);
+        $('#modalChatMessages').html(`
+            <div class="text-center py-4" style="color:var(--tm);font-size:13px">
+                <div class="spinner-border spinner-border-sm me-2"></div>
+                Loading messages…
+            </div>
+        `);
+        new bootstrap.Modal('#chatModal').show();
+        loadChatMessages();
+        clearInterval(chatPollInterval);
+        chatPollInterval = setInterval(loadChatMessages, 3000);
+    };
+
+    window.sendModalMessage = function () {
+        const input = document.getElementById('modalChatInput');
+        const msg   = input.value.trim();
+        if (!msg || !currentChatTicketId) return;
+        input.value = '';
+        input.style.height = 'auto';
+        fetch(`/tickets/${currentChatTicketId}/messages`, {
+            method:  'POST',
+            headers: {
+                'Content-Type':     'application/json',
+                'X-CSRF-TOKEN':     document.querySelector('meta[name="csrf-token"]').content,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ message: msg }),
+        })
+        .then(r => r.json())
+        .then(() => loadChatMessages())
+        .catch(err => console.error('Send error:', err));
+    };
+
+    window.handleModalChatKey = function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            window.sendModalMessage();
+        }
+        const ta = document.getElementById('modalChatInput');
+        setTimeout(() => {
+            ta.style.height = 'auto';
+            ta.style.height = Math.min(ta.scrollHeight, 80) + 'px';
+        }, 0);
+    };
+
+    function loadChatMessages() {
+        if (!currentChatTicketId) return;
+        fetch(`/tickets/${currentChatTicketId}/messages`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(data => {
+            const msgs = data.messages;
+            const $box = document.getElementById('modalChatMessages');
+            if (!$box) return;
+            const prevCount = $box.querySelectorAll('[data-msg-id]').length;
+            if (!msgs || !msgs.length) {
+                $box.innerHTML = `
+                    <div class="text-center py-4" style="color:var(--tm)">
+                        <i class="bi bi-chat-dots" style="font-size:32px;opacity:.3;display:block;margin-bottom:8px"></i>
+                        <p style="font-size:13px;font-weight:600;margin:0">No messages yet.<br>Start the conversation!</p>
+                    </div>`;
+                return;
+            }
+            if (msgs.length === prevCount) return;
+            const avColors     = { 'IT Admin':'#fde8e8','IT Support Specialist':'#fff4cc','Helpdesk':'#d4f0d4','Executive':'#e8e0ff' };
+            const avTextColors = { 'IT Admin':'#8b1a1a','IT Support Specialist':'#7a5a00','Helpdesk':'#2d5a2d','Executive':'#4a1a8a' };
+            let html = '';
+            msgs.forEach(msg => {
+                const avBg   = avColors[msg.role]      || '#e8f5b0';
+                const avText = avTextColors[msg.role]   || '#1a3c1a';
+                const isMe   = msg.is_me;
+                html += `
+                    <div data-msg-id="${msg.id}" style="display:flex;gap:8px;align-items:flex-end;${isMe ? 'flex-direction:row-reverse' : ''}">
+                        <div style="width:28px;height:28px;border-radius:50%;background:${avBg};color:${avText};display:flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;font-weight:900;font-size:10px;flex-shrink:0">${msg.initials}</div>
+                        <div style="max-width:75%">
+                            <div style="font-size:10px;font-weight:700;color:var(--tm);margin-bottom:3px;${isMe ? 'text-align:right' : ''}">
+                                ${isMe ? 'You' : escapeHtmlChat(msg.sender)}
+                                <span style="font-size:9px;background:${avBg};color:${avText};border-radius:4px;padding:1px 5px;margin-left:4px;text-transform:uppercase;letter-spacing:.3px;font-weight:800">${msg.role || 'User'}</span>
+                            </div>
+                            <div style="padding:9px 13px;border-radius:16px;font-size:13px;line-height:1.5;word-break:break-word;${isMe ? 'background:var(--gd);color:var(--yg);border-bottom-right-radius:4px' : 'background:#fff;color:var(--gd);border-bottom-left-radius:4px;border:1.5px solid var(--bd)'}">
+                                ${escapeHtmlChat(msg.message)}
+                            </div>
+                            <div style="font-size:10px;color:var(--tm);margin-top:3px;font-weight:600;${isMe ? 'text-align:right' : ''}">${msg.time_ago}</div>
+                        </div>
+                    </div>`;
+            });
+            $box.innerHTML = html;
+            $box.scrollTop = $box.scrollHeight;
+        })
+        .catch(err => console.error('Chat load error:', err));
+    }
+
+    function escapeHtmlChat(str) {
+        return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    /* ══ DOM-READY ══ */
+    $(function () {
+        $(document).on('click', '.method-opt', function () {
+        $('.method-opt').removeClass('selected');
+        $(this).addClass('selected');
+
+        $('#hMethod').val($(this).data('method'));
+    });
+    $(document).on('click', '#caCategoryList .cat-main-opt', function () {
+        $('#caCategoryList .cat-main-opt').removeClass('selected');
+        $(this).addClass('selected');
+
+        const catId = $(this).data('cat-id');
+        const cat   = slaCategories.find(c => c.id === catId);
+        const $subList = $('#caSubList').empty();
+
+        if (!cat || !cat.subs.length) {
+            $subList.append(`<div style="font-size:12px;color:var(--tm)">No SLA rules defined for this category yet.</div>`);
+        } else {
+            cat.subs.forEach(sub => {
+                const priColor = sub.priority === 'High' ? '#e24b4a' : (sub.priority === 'Medium' ? '#f5c842' : '#4a7c4a');
+                $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}">
+                    <div class="sub-check"></div>
+                    <span style="flex:1">${sub.name}</span>
+                    <span style="font-size:10px;font-weight:800;color:${priColor}">${sub.priority} · ${sub.resolution}m SLA</span>
+                </div>`);
+            });
+        }
+        $('#caSubWrap').removeClass('d-none');
+    });
 
     /* ── Dynamic SLA categories ── */
     const slaCategories = @json($slaCategoriesJson);
     const subCategoryMap = {};
     slaCategories.forEach(cat => { subCategoryMap[cat.name] = cat.subs; });
 
-    /* ── Main category selection ── */
-    // $(document).on('click', '.cat-main-opt', function () {
-    //     $('.cat-main-opt').removeClass('selected');
-    //     $(this).addClass('selected');
 
-    //     const catName = $(this).data('cat');
-    //     const subs    = subCategoryMap[catName] || [];
-    //     const $list   = $('#subCategoryList').empty();
+    /* ── Classify & Assign modal ── */
+    window.openClassifyAssignModal = function (ticketId, ticketNumber) {
+        $('#caTicketRef').text('#' + ticketNumber);
+        $('#classifyAssignForm').attr('action', `{{ route('supervisor.tickets.admin-classify-assign', ['ticket' => '__ID__']) }}`.replace('__ID__', ticketId))
+        $('#caSlaRuleId, #caTechId').val('');
+        $('#caSubWrap').addClass('d-none');
+        $('#caSubList').empty();
+        $('#caCategoryList .cat-main-opt, #caTechList .tech-select-option').removeClass('selected');
 
-    //     if (subs.length === 0) {
-    //         $list.append(`
-    //             <div style="font-size:12px;color:var(--tm);font-weight:600;padding:8px 12px;background:var(--ygl);border-radius:8px">
-    //                 <i class="bi bi-info-circle me-1"></i>
-    //                 No subcategories defined yet for this category. Contact IT Admin.
-    //             </div>`);
-    //     } else {
-    //         subs.forEach(sub => {
-    //             const priColor = sub.priority === 'High' ? '#e24b4a' : (sub.priority === 'Medium' ? '#f5c842' : '#4a7c4a');
-    //             const priBg    = sub.priority === 'High' ? '#fde8e8' : (sub.priority === 'Medium' ? '#fff4cc' : '#d4f0d4');
-    //             $list.append(`
-    //                 <div class="cat-sub-opt" data-sub="${sub.name}" data-priority="${sub.priority}">
-    //                     <div class="sub-check"></div>
-    //                     <span style="flex:1">${sub.name}</span>
-    //                     <span style="font-size:10px;font-weight:800;background:${priBg};color:${priColor};border-radius:20px;padding:2px 8px;flex-shrink:0">${sub.priority}</span>
-    //                 </div>`);
-    //         });
-    //     }
-    //     $('#subCategoryWrap').removeClass('d-none');
-    //     $('#hCategory').val('');
-    // });
+        const $catList = $('#caCategoryList').empty();
+        slaCategories.forEach(cat => {
+            $catList.append(`<div class="cat-main-opt" data-cat-id="${cat.id}">${cat.name}</div>`);
+        });
 
+        new bootstrap.Modal('#classifyAssignModal').show();
+    };
     $(document).on('click', '.cat-main-opt', function () {
         $('.cat-main-opt').removeClass('selected');
         $(this).addClass('selected');
     });
     /* ── Sub category selection ── */
     
-    $(document).on('click', '.cat-sub-opt', function () {
-        $('.cat-sub-opt').removeClass('selected');
-        $(this).addClass('selected');
-    });
-
     /* ── Priority selection ── */
     $(document).on('click', '.pri-opt', function () {
         $(this).siblings().removeClass('selected');
@@ -1459,13 +1235,6 @@ $(function () {
     $('#searchInput').on('input', function () {
         clearTimeout(searchTimer);
         searchTimer = setTimeout(() => $('#searchForm').submit(), 500);
-    });
-
-    /* ── Tech selection in modal ── */
-    $(document).on('click', '.tech-select-option:not(.disabled)', function () {
-        $(this).siblings().removeClass('selected');
-        $(this).addClass('selected');
-        $('#selectedTechId').val($(this).data('tech-id'));
     });
 
     /* ── Assign / Reassign modal ── */
@@ -1600,7 +1369,7 @@ function showStep(n) {
                     showStep(3);
 
                     setTimeout(() => {
-                        window.location.href = '{{ route("helpdesk.dashboard") }}';
+                        window.location.href = '{{ route("supervisor.dashboard") }}';
                     }, 3000);
                 },
                 error: function (xhr) {
@@ -1633,7 +1402,7 @@ function showStep(n) {
 
         $('#mSubject, #mDesc, #mDetails').val('');
         $('#mAsset').val('');
-        $('#mLocation').val('');
+        $('#mLocation').val(''); 
 
         $('.pri-opt').removeClass('selected').filter('.medium').addClass('selected');
         $('#hTicketType').val('Medium');
@@ -1649,58 +1418,98 @@ function showStep(n) {
 
 });
 
-/* ── Smart silent background refresh ── */
-let silentRefreshTimer = null;
-let isModalOpen        = false;
+    /* ── Smart silent background refresh ── */
+    let silentRefreshTimer = null;
+    let isModalOpen        = false;
 
-function silentRefresh() {
-    if (isModalOpen || document.hidden) return;
-    const active = document.activeElement;
-    if (active && active.matches('input, textarea, select')) return;
+    function silentRefresh() {
+        if (isModalOpen || document.hidden) return;
+        const active = document.activeElement;
+        if (active && active.matches('input, textarea, select')) return;
 
-    fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' } })
-    .then(r => r.text())
-    .then(html => {
-        const parser = new DOMParser();
-        const doc    = parser.parseFromString(html, 'text/html');
+        fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' } })
+        .then(r => r.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc    = parser.parseFromString(html, 'text/html');
 
-        const newList = doc.getElementById('ticketList');
-        const curList = document.getElementById('ticketList');
-        if (newList && curList) curList.innerHTML = newList.innerHTML;
+            const newList = doc.getElementById('ticketList');
+            const curList = document.getElementById('ticketList');
+            if (newList && curList) curList.innerHTML = newList.innerHTML;
 
-        doc.querySelectorAll('.badge-count').forEach((newEl, i) => {
-            const curEl = document.querySelectorAll('.badge-count')[i];
-            if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) {
-                curEl.textContent = newEl.textContent;
-                curEl.classList.add('badge-pulse');
-                setTimeout(() => curEl.classList.remove('badge-pulse'), 600);
-            }
-        });
+            doc.querySelectorAll('.badge-count').forEach((newEl, i) => {
+                const curEl = document.querySelectorAll('.badge-count')[i];
+                if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) {
+                    curEl.textContent = newEl.textContent;
+                    curEl.classList.add('badge-pulse');
+                    setTimeout(() => curEl.classList.remove('badge-pulse'), 600);
+                }
+            });
 
-        doc.querySelectorAll('.stat-pill .num').forEach((newEl, i) => {
-            const curEl = document.querySelectorAll('.stat-pill .num')[i];
-            if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) curEl.textContent = newEl.textContent;
-        });
+            doc.querySelectorAll('.stat-pill .num').forEach((newEl, i) => {
+                const curEl = document.querySelectorAll('.stat-pill .num')[i];
+                if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) curEl.textContent = newEl.textContent;
+            });
 
-        doc.querySelectorAll('.tab-pill').forEach((newEl, i) => {
-            const curEl = document.querySelectorAll('.tab-pill')[i];
-            if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) curEl.textContent = newEl.textContent;
-        });
-    })
-    .catch(() => {});
-}
-
-silentRefreshTimer = setInterval(silentRefresh, 30000);
-document.addEventListener('show.bs.modal',   () => { isModalOpen = true; });
-document.addEventListener('hidden.bs.modal', () => { isModalOpen = false; });
-document.addEventListener('visibilitychange', function () {
-    if (document.hidden) {
-        clearInterval(silentRefreshTimer);
-    } else {
-        silentRefresh();
-        silentRefreshTimer = setInterval(silentRefresh, 30000);
+            doc.querySelectorAll('.tab-pill').forEach((newEl, i) => {
+                const curEl = document.querySelectorAll('.tab-pill')[i];
+                if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) curEl.textContent = newEl.textContent;
+            });
+        })
+        .catch(() => {});
     }
-});
+
+    silentRefreshTimer = setInterval(silentRefresh, 30000);
+    document.addEventListener('show.bs.modal',   () => { isModalOpen = true; });
+    document.addEventListener('hidden.bs.modal', () => { isModalOpen = false; });
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+            clearInterval(silentRefreshTimer);
+        } else {
+            silentRefresh();
+            silentRefreshTimer = setInterval(silentRefresh, 30000);
+        }
+    });
+
+
+    /* ── Reassign modal ── */
+    window.openReassignModal = function (ticketId, ticketNumber) {
+        $('#reassignTicketRef').text('#' + ticketNumber);
+        $('#reassignForm').attr('action', '/supervisor/support/tickets/' + ticketId + '/reassign');
+        $('#reassignTechId').val('');
+        $('#reassignTechList .tech-select-option').removeClass('selected');
+        new bootstrap.Modal('#reassignModal').show();
+    };
+
+
+    window.openValidateModal = function (ticketId, ticketNumber) {
+        $('#validateRef').text('#' + ticketNumber);
+        $('#validateForm').attr('action', '/supervisor/tickets/' + ticketId + '/validate-resolution');
+        new bootstrap.Modal('#validateModal').show();
+    };
+
+
+
+
+
+    $(document).on('click', '#caSubList .cat-sub-opt', function () {
+        $('#caSubList .cat-sub-opt').removeClass('selected');
+        $(this).addClass('selected');
+        $('#caSlaRuleId').val($(this).data('rule-id'));
+    });
+
+    $(document).on('click', '#caTechList .tech-select-option:not(.disabled)', function () {
+        $('#caTechList .tech-select-option').removeClass('selected');
+        $(this).addClass('selected');
+        $('#caTechId').val($(this).data('tech-id'));
+    });
+
+    $('#classifyAssignForm').on('submit', function (e) {
+        if (!$('#caSlaRuleId').val()) { e.preventDefault(); alert('Please select a subcategory.'); }
+        if (!$('#caTechId').val())    { e.preventDefault(); alert('Please assign a support specialist.'); }
+    });
+
+
 
 </script>
 @endsection

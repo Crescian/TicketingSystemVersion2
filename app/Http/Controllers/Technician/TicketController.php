@@ -14,31 +14,39 @@ class TicketController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $status = $request->get('status', 'all');
+        $status = $request->get('status', 'active');
         $search = $request->get('search', '');
         $sort = $request->get('sort', 'priority');
 
         $query = Tickets::where('assigned_to', $user->id)
             ->with(['user.department', 'statusHistories.changedBy'])
             ->orderByRaw("CASE
-                WHEN status = 'In Progress' THEN 1
-                WHEN status = 'Open'        THEN 2
-                WHEN status = 'Escalated'   THEN 3
-                WHEN status = 'Resolved'    THEN 4
-                ELSE 5 END")
+                WHEN status = 'Awaiting Support Specialist Acknowledgement'  THEN 1
+                WHEN status = 'Awaiting Start SLA' THEN 2
+                WHEN status = 'Open'         THEN 3
+                WHEN status = 'Escalated'    THEN 4
+                WHEN status = 'Closed'       THEN 5
+                ELSE 6 END")
             ->orderByRaw("CASE
                 WHEN ticket_type = 'High'   THEN 1
                 WHEN ticket_type = 'Medium' THEN 2
                 WHEN ticket_type = 'Low'    THEN 3
                 ELSE 4 END");
 
-        // Status filter
-        if ($status !== 'all') {
+        // Status filter — simplified to the 4 actionable states + Closed.
+        // "active" (default) = everything still actionable by the technician,
+        // i.e. everything before it lands with the supervisor for validation/closure.
+        $activeStatuses = ['Awaiting Support Specialist Acknowledgement', 'Awaiting Start SLA', 'In Progress', 'Escalated'];
+
+        if ($status === 'active') {
+            $query->whereIn('status', $activeStatuses);
+        } else {
             $mappedStatus = match ($status) {
-                'new-assigned' => 'Open',
+                'awaiting-ack' => 'Awaiting Support Specialist Acknowledgement',
+                'ready-start' => 'Awaiting Start SLA',
                 'in-progress' => 'In Progress',
                 'escalated' => 'Escalated',
-                'resolved' => 'Resolved',
+                'closed' => 'Closed',
                 default => null
             };
             if ($mappedStatus) {
@@ -61,18 +69,28 @@ class TicketController extends Controller
 
         // Counts — only for this technician
         $counts = [
-            'all' => Tickets::where('assigned_to', $user->id)->count(),
-            'new_assigned' => Tickets::where('assigned_to', $user->id)->where('status', 'Open')->count(),
-            'in_progress' => Tickets::where('assigned_to', $user->id)->where('status', 'In Progress')->count(),
-            'escalated' => Tickets::where('assigned_to', $user->id)->where('status', 'Escalated')->count(),
-            'resolved' => Tickets::where('assigned_to', $user->id)->where('status', 'Resolved')->count(),
+            'awaiting_ack' => Tickets::where('assigned_to', $user->id)
+                ->where('status', 'Awaiting Support Specialist Acknowledgement')->count(),
+            'ready_start' => Tickets::where('assigned_to', $user->id)
+                ->where('status', 'Awaiting Start SLA')->count(),
+            'in_progress' => Tickets::where('assigned_to', $user->id)
+                ->where('status', 'In Progress')->count(),
+            'escalated' => Tickets::where('assigned_to', $user->id)
+                ->where('status', 'Escalated')->count(),
+            'closed' => Tickets::where('assigned_to', $user->id)
+                ->where('status', 'Closed')->count(),
         ];
+        $counts['active'] = $counts['awaiting_ack'] + $counts['ready_start']
+            + $counts['in_progress'] + $counts['escalated'];
 
         // Weekly stats
+        // Note: resolved_at is stamped once when the tech resolves the ticket, and never
+        // cleared afterward — so we key off the timestamp rather than a status string,
+        // since the ticket keeps moving through supervisor-side statuses after that.
         $weekStart = now()->startOfWeek();
         $weekStats = [
             'resolved' => Tickets::where('assigned_to', $user->id)
-                ->where('status', 'Resolved')
+                ->whereNotNull('resolved_at')
                 ->where('resolved_at', '>=', $weekStart)
                 ->count(),
             'escalated' => Tickets::where('assigned_to', $user->id)
@@ -80,7 +98,6 @@ class TicketController extends Controller
                 ->where('updated_at', '>=', $weekStart)
                 ->count(),
             'avg_time' => Tickets::where('assigned_to', $user->id)
-                ->where('status', 'Resolved')
                 ->whereNotNull('resolved_at')
                 ->whereNotNull('started_at')
                 ->where('resolved_at', '>=', $weekStart)
@@ -93,11 +110,11 @@ class TicketController extends Controller
                 ->avg('ticket_feed_backs.rating'),
         ];
 
-        // ── SLA Categories for filters ← ADD THIS
         $slaCategories = \App\Models\SlaCategory::where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('name')
             ->pluck('name');
+
         return view('dashboard.technician', compact(
             'tickets',
             'counts',
@@ -108,10 +125,54 @@ class TicketController extends Controller
         ));
     }
 
-    // Accept ticket → status stays In Progress, log acceptance
-    public function accept(Request $request, Tickets $ticket)
+    // -----------------------------
+    // STEP 1: Acknowledge assignment (SLA Response Time #5 ends here)
+    // -----------------------------
+    public function acknowledge(Request $request, Tickets $ticket)
     {
         $this->authorizeTech($ticket);
+
+        if ($ticket->status !== 'Awaiting Support Specialist Acknowledgement') {
+            return back()->with('error', 'Only newly assigned tickets can be acknowledged.');
+        }
+
+        $request->validate([
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $oldStatus = $ticket->status;
+
+        $ticket->update([
+            'status' => 'Awaiting Start SLA',
+            'tech_acknowledged_at' => now(),
+        ]);
+
+        TicketStatusHistories::create([
+            'ticket_id' => $ticket->id,
+            'old_status' => $oldStatus,
+            'new_status' => 'Awaiting Start SLA',
+            'changed_by' => Auth::id(),
+            'notes' => "Assignment acknowledged by " . Auth::user()->name .
+                ($request->notes ? ". Notes: {$request->notes}" : ''),
+            'changed_at' => now(),
+        ]);
+
+        return back()->with(
+            'success',
+            "Ticket #{$ticket->ticket_number} acknowledged. Start the ticket when you're ready to begin work."
+        );
+    }
+
+    // -----------------------------
+    // STEP 2: Start ticket (SLA Resolution Time officially begins here)
+    // -----------------------------
+    public function start(Request $request, Tickets $ticket)
+    {
+        $this->authorizeTech($ticket);
+
+        if ($ticket->status !== 'Awaiting Start SLA') {
+            return back()->with('error', 'Ticket must be acknowledged before it can be started.');
+        }
 
         $request->validate([
             'estimated_time' => 'required|string',
@@ -122,7 +183,7 @@ class TicketController extends Controller
 
         $ticket->update([
             'status' => 'In Progress',
-            'started_at' => now(),
+            'started_at' => now(), // SLA resolution clock starts here
         ]);
 
         TicketStatusHistories::create([
@@ -130,7 +191,7 @@ class TicketController extends Controller
             'old_status' => $oldStatus,
             'new_status' => 'In Progress',
             'changed_by' => Auth::id(),
-            'notes' => "Ticket accepted by " . Auth::user()->name .
+            'notes' => "Ticket started by " . Auth::user()->name .
                 ". Estimated time: {$request->estimated_time}." .
                 ($request->notes ? " Notes: {$request->notes}" : ''),
             'changed_at' => now(),
@@ -138,14 +199,18 @@ class TicketController extends Controller
 
         return back()->with(
             'success',
-            "Ticket #{$ticket->ticket_number} accepted. Status set to In Progress."
+            "Ticket #{$ticket->ticket_number} started. SLA resolution timer is now running."
         );
     }
 
-    // Decline ticket → unassign, return to helpdesk queue
+    // Decline ticket → unassign, return to supervisor queue (can decline before starting work)
     public function decline(Request $request, Tickets $ticket)
     {
         $this->authorizeTech($ticket);
+
+        if (!in_array($ticket->status, ['Awaiting Support Specialist Acknowledgement', 'Awaiting Start SLA'])) {
+            return back()->with('error', 'Tickets already in progress cannot be declined — escalate instead.');
+        }
 
         $request->validate([
             'reason' => 'required|string',
@@ -155,17 +220,18 @@ class TicketController extends Controller
 
         $ticket->update([
             'assigned_to' => null,
-            'status' => 'Open',
+            'status' => 'Awaiting Supervisor',
+            'tech_acknowledged_at' => null,
             'started_at' => null,
         ]);
 
         TicketStatusHistories::create([
             'ticket_id' => $ticket->id,
             'old_status' => $oldStatus,
-            'new_status' => 'Open',
+            'new_status' => 'Awaiting Supervisor',
             'changed_by' => Auth::id(),
             'notes' => "Declined by " . Auth::user()->name .
-                ". Reason: {$request->reason}. Returned to helpdesk queue.",
+                ". Reason: {$request->reason}. Returned to supervisor for reassignment.",
             'changed_at' => now(),
         ]);
 
@@ -173,14 +239,18 @@ class TicketController extends Controller
             ->route('technician.dashboard')
             ->with(
                 'success',
-                "Ticket #{$ticket->ticket_number} declined and returned to helpdesk."
+                "Ticket #{$ticket->ticket_number} declined and returned to supervisor."
             );
     }
 
-    // Add update / progress note
+    // Add update / progress note (only while In Progress)
     public function update(Request $request, Tickets $ticket)
     {
         $this->authorizeTech($ticket);
+
+        if ($ticket->status !== 'In Progress') {
+            return back()->with('error', 'Only started tickets can receive progress updates.');
+        }
 
         $request->validate([
             'progress_notes' => 'required|string',
@@ -202,10 +272,16 @@ class TicketController extends Controller
         );
     }
 
-    // Resolve ticket → notify helpdesk
+    // -----------------------------
+    // STEP 3: Resolve ticket (SLA Resolution Time ends here)
+    // -----------------------------
     public function resolve(Request $request, Tickets $ticket)
     {
         $this->authorizeTech($ticket);
+
+        if ($ticket->status !== 'In Progress') {
+            return back()->with('error', 'Only started tickets can be marked resolved.');
+        }
 
         $request->validate([
             'resolution_notes' => 'required|string',
@@ -215,14 +291,14 @@ class TicketController extends Controller
         $oldStatus = $ticket->status;
 
         $ticket->update([
-            'status' => 'Resolved',
+            'status' => 'Pending Closure',
             'resolved_at' => now(),
         ]);
 
         TicketStatusHistories::create([
             'ticket_id' => $ticket->id,
             'old_status' => $oldStatus,
-            'new_status' => 'Resolved',
+            'new_status' => 'Pending Closure',
             'changed_by' => Auth::id(),
             'notes' => "Resolved by " . Auth::user()->name .
                 ". Time spent: {$request->time_spent}. " .
@@ -232,14 +308,21 @@ class TicketController extends Controller
 
         return back()->with(
             'success',
-            "Ticket #{$ticket->ticket_number} resolved. Helpdesk has been notified."
+            "Ticket #{$ticket->ticket_number} resolved. Awaiting Supervisor validation."
         );
     }
 
-    // Escalate to IT Admin
+    // Escalate to Supervisor (only while In Progress)
+    // Note: assigned_to is intentionally left untouched here. The ticket keeps showing
+    // in this technician's queue (under the Escalated tab, then eventually Closed)
+    // even after a supervisor/admin-side member picks it up.
     public function escalate(Request $request, Tickets $ticket)
     {
         $this->authorizeTech($ticket);
+
+        if ($ticket->status !== 'In Progress') {
+            return back()->with('error', 'Only started tickets can be escalated.');
+        }
 
         $request->validate([
             'reason' => 'required|string',
@@ -250,10 +333,10 @@ class TicketController extends Controller
 
         $ticket->update([
             'status' => 'Escalated',
+            'assigned_to' => null,
             'escalation_level' => $ticket->escalation_level + 1,
         ]);
 
-        // Log to escalations table
         DB::table('escalations')->insert([
             'id' => \Illuminate\Support\Str::uuid(),
             'ticket_id' => $ticket->id,
@@ -272,7 +355,7 @@ class TicketController extends Controller
             'old_status' => $oldStatus,
             'new_status' => 'Escalated',
             'changed_by' => Auth::id(),
-            'notes' => "Escalated to IT Admin by " . Auth::user()->name .
+            'notes' => "Escalated to Supervisor by " . Auth::user()->name .
                 ". Reason: {$request->reason}. " .
                 "Already tried: {$request->already_tried}",
             'changed_at' => now(),
@@ -280,7 +363,7 @@ class TicketController extends Controller
 
         return back()->with(
             'success',
-            "Ticket #{$ticket->ticket_number} escalated to IT Admin."
+            "Ticket #{$ticket->ticket_number} escalated to Supervisor."
         );
     }
 

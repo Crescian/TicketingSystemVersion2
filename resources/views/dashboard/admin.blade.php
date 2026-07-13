@@ -1,16 +1,16 @@
 @extends('layouts.admin')
 
-@section('title', 'IT Admin — Escalation Management')
+@section('title', 'IT Admin — My Tickets')
 
 @section('nav-role-badge')
     <span class="role-badge-admin">
         <i class="bi bi-shield-fill me-1"></i>IT Admin
     </span>
-    <a href="{{ route('admin.users.index') }}" style="text-decoration:none">
+    <a href="{{ route('portal.users.index') }}" style="text-decoration:none">
       <span class="role-badge-admin">
           <i class="bi bi-shield-fill me-1"></i>Settings
       </span>
-  </a>
+    </a>
 @endsection
 @section('avatar-initials',
     strtoupper(substr(Auth::user()->name, 0, 1)) .
@@ -19,27 +19,27 @@
 @section('nav-username', Auth::user()->name)
 
 @section('hero-title')
-    <h1><strong>ADMIN</strong> <em>ESCALATION</em><br>MANAGEMENT</h1>
+    <h1><strong>ADMIN</strong> <em>TICKET</em><br>WORKSPACE</h1>
 @endsection
-@section('hero-subtitle', 'Review escalated tickets, reassign technicians, or resolve directly.')
+@section('hero-subtitle', 'Acknowledge, work, and resolve tickets assigned to you.')
 
 @section('hero-stats')
     <div class="d-flex gap-2 flex-wrap">
         <div class="stat-pill esc">
-            <span class="num">{{ $counts['escalated'] }}</span>
-            <span class="lbl">Escalated</span>
+            <span class="num">{{ $counts['awaiting_ack'] }}</span>
+            <span class="lbl">Awaiting Ack.</span>
+        </div>
+        <div class="stat-pill warn">
+            <span class="num">{{ $counts['ready_start'] }}</span>
+            <span class="lbl">Ready to Start</span>
         </div>
         <div class="stat-pill open">
-            <span class="num">{{ $counts['admin_wip'] }}</span>
-            <span class="lbl">Admin WIP</span>
-        </div>
-        <div class="stat-pill all">
-            <span class="num">{{ $counts['all'] }}</span>
-            <span class="lbl">All tickets</span>
+            <span class="num">{{ $counts['in_progress'] }}</span>
+            <span class="lbl">In Progress</span>
         </div>
         <div class="stat-pill done">
-            <span class="num">{{ $counts['resolved'] }}</span>
-            <span class="lbl">Resolved</span>
+            <span class="num">{{ $counts['closed'] }}</span>
+            <span class="lbl">Closed</span>
         </div>
     </div>
 @endsection
@@ -47,19 +47,19 @@
 {{-- ══ SIDEBAR ══ --}}
 @section('sidebar')
 
-    {{-- Admin Queue nav --}}
+    {{-- Queue nav --}}
     <div class="sidebar-card mb-3">
         <div class="sidebar-head red">
-            <i class="bi bi-shield-fill me-1"></i>Admin Queue
+            <i class="bi bi-shield-fill me-1"></i>My Queue
         </div>
         <ul class="list-group sidebar-menu rounded-0">
             @php
                 $sideItems = [
-                    ['key' => 'all',        'icon' => 'bi-grid',                 'label' => 'All tickets',    'count' => $counts['all'],       'cls' => 'dark'],
-                    ['key' => 'escalated',  'icon' => 'bi-exclamation-triangle', 'label' => 'Escalated',      'count' => $counts['escalated'], 'cls' => 'red'],
-                    ['key' => 'admin-wip',  'icon' => 'bi-person-workspace',     'label' => 'Admin handling', 'count' => $counts['admin_wip'], 'cls' => 'red'],
-                    ['key' => 'reassigned', 'icon' => 'bi-arrow-left-right',     'label' => 'Reassigned',     'count' => $counts['reassigned'],'cls' => 'green'],
-                    ['key' => 'resolved',   'icon' => 'bi-check-circle',         'label' => 'Resolved',       'count' => $counts['resolved'],  'cls' => 'green'],
+                    ['key' => 'active',       'icon' => 'bi-grid',              'label' => 'Active',            'count' => $counts['active'],       'cls' => 'dark'],
+                    ['key' => 'awaiting-ack', 'icon' => 'bi-hourglass-split',   'label' => 'Awaiting Ack.',     'count' => $counts['awaiting_ack'], 'cls' => 'red'],
+                    ['key' => 'ready-start',  'icon' => 'bi-stopwatch',        'label' => 'Ready to Start',    'count' => $counts['ready_start'],  'cls' => 'red'],
+                    ['key' => 'in-progress',  'icon' => 'bi-gear-fill',        'label' => 'In Progress',       'count' => $counts['in_progress'],  'cls' => 'green'],
+                    ['key' => 'closed',       'icon' => 'bi-check-circle',     'label' => 'Closed',            'count' => $counts['closed'],       'cls' => 'green'],
                 ];
             @endphp
             @foreach($sideItems as $item)
@@ -74,26 +74,24 @@
         </ul>
     </div>
 
-    {{-- All technicians --}}
+    {{-- Peer IT Admins --}}
     <div class="sidebar-card mb-3">
-        <div class="sidebar-head dark">All Technicians</div>
+        <div class="sidebar-head dark">IT Admin Team</div>
         <div>
-            {{-- Admin (self) --}}
             @php
-                $adminInitials = strtoupper(substr(Auth::user()->name, 0, 1)) .
+                $selfInitials = strtoupper(substr(Auth::user()->name, 0, 1)) .
                     strtoupper(substr(Auth::user()->name, strpos(Auth::user()->name, ' ') + 1, 1));
-                $adminActive = $counts['admin_wip'];
+                $selfActive = $counts['in_progress'];
             @endphp
             <div class="tech-row">
-                <div class="tech-av admin">{{ $adminInitials }}</div>
+                <div class="tech-av admin">{{ $selfInitials }}</div>
                 <div>
                     <div class="tech-name">{{ Auth::user()->name }} (You)</div>
-                    <div class="tech-load">{{ $adminActive }} escalation{{ $adminActive !== 1 ? 's' : '' }} active</div>
+                    <div class="tech-load">{{ $selfActive }} active ticket{{ $selfActive !== 1 ? 's' : '' }}</div>
                 </div>
-                <div class="avail-dot {{ $adminActive > 0 ? 'busy' : 'free' }}"></div>
+                <div class="avail-dot {{ $selfActive > 0 ? 'busy' : 'free' }}"></div>
             </div>
 
-            {{-- Technicians --}}
             @foreach($technicians as $tech)
                 @php
                     $initials = strtoupper(substr($tech->name, 0, 1)) .
@@ -121,33 +119,33 @@
 
     {{-- System overview --}}
     <div class="sidebar-card">
-        <div class="sidebar-head dark">System Overview</div>
+        <div class="sidebar-head dark">This Week</div>
         <div>
             <div class="sys-stat">
-                <span style="font-size:13px;font-weight:600;color:var(--tm)">Avg resolution time</span>
+                <span style="font-size:13px;font-weight:600;color:var(--tm)">Avg resolution (today)</span>
                 <span class="sys-val ok">
                     {{ $systemStats['avg_resolution'] ? $systemStats['avg_resolution'] . 'h' : 'N/A' }}
                 </span>
             </div>
             <div class="sys-stat">
-                <span style="font-size:13px;font-weight:600;color:var(--tm)">SLA breaches today</span>
-                <span class="sys-val {{ $systemStats['sla_breaches'] > 0 ? 'danger' : 'ok' }}">
-                    {{ $systemStats['sla_breaches'] }}
-                </span>
+                <span style="font-size:13px;font-weight:600;color:var(--tm)">Open tickets total</span>
+                <span class="sys-val ok">{{ $systemStats['total_open'] }}</span>
             </div>
             <div class="sys-stat">
-                <span style="font-size:13px;font-weight:600;color:var(--tm)">Escalation rate</span>
-                <span class="sys-val {{ $escRate > 10 ? 'warn' : 'ok' }}">{{ $escRate }}%</span>
-            </div>
-            <div class="sys-stat">
-                <span style="font-size:13px;font-weight:600;color:var(--tm)">Customer satisfaction</span>
+                <span style="font-size:13px;font-weight:600;color:var(--tm)">Satisfaction (today)</span>
                 <span class="sys-val ok">
                     {{ $systemStats['avg_rating'] ? number_format($systemStats['avg_rating'], 1) . ' ⭐' : 'N/A' }}
                 </span>
             </div>
             <div class="sys-stat">
-                <span style="font-size:13px;font-weight:600;color:var(--tm)">Open tickets total</span>
-                <span class="sys-val ok">{{ $systemStats['total_open'] }}</span>
+                <span style="font-size:13px;font-weight:600;color:var(--tm)">Resolved this week</span>
+                <span class="sys-val ok">{{ $weekStats['resolved'] }}</span>
+            </div>
+            <div class="sys-stat">
+                <span style="font-size:13px;font-weight:600;color:var(--tm)">Avg time (week)</span>
+                <span class="sys-val ok">
+                    {{ $weekStats['avg_time'] ? number_format($weekStats['avg_time'], 1) . 'h' : 'N/A' }}
+                </span>
             </div>
         </div>
     </div>
@@ -157,7 +155,6 @@
 {{-- ══ MAIN CONTENT ══ --}}
 @section('content')
 
-    {{-- Alerts --}}
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show mb-3">
             <i class="bi bi-check-circle me-2"></i>{{ session('success') }}
@@ -176,12 +173,14 @@
         <span class="font-brand fw-900" style="font-size:22px">
             @php
                 $labels = [
-                    'all' => 'All Tickets', 'escalated' => 'Escalated Tickets',
-                    'admin-wip' => 'Admin Handling', 'reassigned' => 'Reassigned by Admin',
-                    'resolved' => 'Resolved Tickets',
+                    'active'       => 'Active Tickets',
+                    'awaiting-ack' => 'Awaiting Acknowledgement',
+                    'ready-start'  => 'Ready to Start',
+                    'in-progress'  => 'In Progress',
+                    'closed'       => 'Closed Tickets',
                 ];
             @endphp
-            {{ $labels[$status] ?? 'All Tickets' }}
+            {{ $labels[$status] ?? 'Active Tickets' }}
         </span>
         <form method="GET" action="{{ route('admin.dashboard') }}"
               class="d-flex gap-2 flex-wrap" id="searchForm">
@@ -193,9 +192,9 @@
                        value="{{ $search }}" autocomplete="off">
             </div>
             <select class="sort-select" name="sort" onchange="this.form.submit()">
-                <option value="escalated" {{ $sort === 'escalated' ? 'selected' : '' }}>Escalated first</option>
-                <option value="newest"    {{ $sort === 'newest'    ? 'selected' : '' }}>Newest first</option>
-                <option value="priority"  {{ $sort === 'priority'  ? 'selected' : '' }}>Priority</option>
+                <option value="priority" {{ $sort === 'priority' ? 'selected' : '' }}>Priority first</option>
+                <option value="newest"   {{ $sort === 'newest'   ? 'selected' : '' }}>Newest first</option>
+                <option value="oldest"   {{ $sort === 'oldest'   ? 'selected' : '' }}>Oldest first</option>
             </select>
         </form>
     </div>
@@ -204,11 +203,11 @@
     <div class="d-flex flex-wrap gap-2 mb-3">
         @php
             $tabs = [
-                'all'        => ['label' => 'All',           'count' => $counts['all'],       'red' => false],
-                'escalated'  => ['label' => 'Escalated',     'count' => $counts['escalated'], 'red' => true],
-                'admin-wip'  => ['label' => 'Admin Handling','count' => $counts['admin_wip'], 'red' => true],
-                'reassigned' => ['label' => 'Reassigned',    'count' => $counts['reassigned'],'red' => false],
-                'resolved'   => ['label' => 'Resolved',      'count' => $counts['resolved'],  'red' => false],
+                'active'       => ['label' => 'Active',       'count' => $counts['active'],       'red' => false],
+                'awaiting-ack' => ['label' => 'Awaiting Ack.', 'count' => $counts['awaiting_ack'], 'red' => true],
+                'ready-start'  => ['label' => 'Ready to Start','count' => $counts['ready_start'],  'red' => true],
+                'in-progress'  => ['label' => 'In Progress',   'count' => $counts['in_progress'],  'red' => false],
+                'closed'       => ['label' => 'Closed',        'count' => $counts['closed'],       'red' => false],
             ];
         @endphp
         @foreach($tabs as $key => $tab)
@@ -224,35 +223,27 @@
 
         @forelse($tickets as $ticket)
             @php
-                $isAdminWip   = $ticket->assigned_to === Auth::id() && $ticket->status === 'In Progress';
-                $isReassigned = $ticket->escalations->whereNotNull('reassigned_to')->isNotEmpty()
-                                && $ticket->status === 'In Progress'
-                                && $ticket->assigned_to !== Auth::id();
-
-                $cardClass = match(true) {
-                    $ticket->status === 'Escalated' => 'escalated',
-                    $isAdminWip                     => 'admin-wip',
-                    $isReassigned                   => 'reassigned',
-                    $ticket->status === 'Resolved'  => 'resolved',
-                    default                         => 'open'
+                $cardClass = match($ticket->status) {
+                    'Awaiting Administrator Acknowledgement' => 'awaiting-ack',
+                    'Awaiting Administrator SLA Start'       => 'ready-start',
+                    'Admin In Progress'                      => 'admin-progress',
+                    'Closed'                                 => 'closed',
+                    default                                  => 'awaiting-ack'
                 };
-
-                $badgeClass = match(true) {
-                    $ticket->status === 'Escalated' => 'bs-esc',
-                    $isAdminWip                     => 'bs-admin-wip',
-                    $isReassigned                   => 'bs-reassigned',
-                    $ticket->status === 'Resolved'  => 'bs-resolved',
-                    default                         => ''
+                $badgeClass = match($ticket->status) {
+                    'Awaiting Administrator Acknowledgement' => 'bs-await-ack',
+                    'Awaiting Administrator SLA Start'       => 'bs-ready-start',
+                    'Admin In Progress'                      => 'bs-admin-progress',
+                    'Closed'                                 => 'bs-closed',
+                    default                                  => ''
                 };
-
-                $badgeLabel = match(true) {
-                    $ticket->status === 'Escalated' => '<i class="bi bi-exclamation-triangle me-1"></i>Awaiting Admin Action',
-                    $isAdminWip                     => '<i class="bi bi-person-workspace me-1"></i>Admin — In Progress',
-                    $isReassigned                   => '<i class="bi bi-arrow-left-right me-1"></i>Reassigned by Admin',
-                    $ticket->status === 'Resolved'  => '<i class="bi bi-check-circle me-1"></i>Resolved',
-                    default                         => '● Open'
+                $badgeLabel = match($ticket->status) {
+                    'Awaiting Administrator Acknowledgement' => '<i class="bi bi-hourglass-split me-1"></i>Awaiting Your Ack.',
+                    'Awaiting Administrator SLA Start'       => '<i class="bi bi-stopwatch me-1"></i>Ready to Start',
+                    'Admin In Progress'                      => '<i class="bi bi-gear-fill me-1"></i>In Progress',
+                    'Closed'                                 => '<i class="bi bi-check-circle me-1"></i>Closed',
+                    default                                  => '● ' . $ticket->status
                 };
-
                 $priorityClass = match($ticket->ticket_type) {
                     'High'   => 'pri-high',
                     'Medium' => 'pri-medium',
@@ -260,20 +251,8 @@
                     default  => ''
                 };
 
-                $latestEscalation = $ticket->escalations->sortByDesc('escalated_at')->first();
-                $prevTechInitials = $latestEscalation?->previousTech
-                    ? strtoupper(substr($latestEscalation->previousTech->name, 0, 1)) .
-                      strtoupper(substr($latestEscalation->previousTech->name, strpos($latestEscalation->previousTech->name, ' ') + 1, 1))
-                    : '—';
-
-                // SLA breach = open more than 24 hrs
-                $hoursOpen  = $ticket->created_at->diffInHours(now());
-                $isSlaBreach = $hoursOpen >= 24 && $ticket->status !== 'Resolved';
-
-                $assignedInitials = $ticket->assignedTo
-                    ? strtoupper(substr($ticket->assignedTo->name, 0, 1)) .
-                      strtoupper(substr($ticket->assignedTo->name, strpos($ticket->assignedTo->name, ' ') + 1, 1))
-                    : '—';
+                $hoursOpen   = $ticket->created_at->diffInHours(now());
+                $isSlaBreach = $hoursOpen >= 24 && $ticket->status !== 'Closed';
             @endphp
 
             <div class="ticket-card {{ $cardClass }} p-3"
@@ -295,11 +274,6 @@
                                 Escalation Level {{ $ticket->escalation_level }}
                             </span>
                         @endif
-                        @if($isAdminWip)
-                            <span class="esc-level">
-                                <i class="bi bi-shield-fill me-1"></i>Admin handling
-                            </span>
-                        @endif
                     </div>
                     <span class="badge-status {{ $badgeClass }}">{!! $badgeLabel !!}</span>
                 </div>
@@ -308,21 +282,16 @@
                 <div class="ticket-title mb-1">{{ $ticket->subject }}</div>
                 <div class="ticket-desc mb-3">{{ Str::limit($ticket->concern, 150) }}</div>
 
-                {{-- Escalation history timeline --}}
-                @if($ticket->status === 'Escalated' || $isAdminWip)
+                {{-- Recent activity --}}
+                @if($ticket->statusHistories->isNotEmpty())
                     <div class="esc-timeline mb-3">
                         <div class="fw-800 mb-2"
-                             style="font-size:12px;color:var(--rd);text-transform:uppercase;letter-spacing:.4px">
-                            <i class="bi bi-{{ $isAdminWip ? 'clock-history' : 'exclamation-triangle-fill' }} me-1"></i>
-                            {{ $isAdminWip ? 'Admin Activity' : 'Escalation History' }}
+                             style="font-size:12px;color:var(--tm);text-transform:uppercase;letter-spacing:.4px">
+                            <i class="bi bi-clock-history me-1"></i>Recent Activity
                         </div>
-                        @foreach($ticket->statusHistories->sortBy('changed_at')->take(4) as $history)
+                        @foreach($ticket->statusHistories->sortByDesc('changed_at')->take(3) as $history)
                             <div class="etl-item">
-                                <div class="etl-dot"
-                                     @if($history->new_status === 'In Progress' && $history->changed_by === Auth::id())
-                                         style="background:var(--yg)"
-                                     @endif
-                                ></div>
+                                <div class="etl-dot"></div>
                                 <div>
                                     <span class="etl-time">
                                         {{ \Carbon\Carbon::parse($history->changed_at)->format('M d, g:i A') }}
@@ -337,9 +306,7 @@
                 {{-- Meta --}}
                 <div class="d-flex flex-wrap gap-3 mb-3">
                     @if($ticket->user)
-                        <span class="meta-item">
-                            <i class="bi bi-person"></i> {{ $ticket->user->name }}
-                        </span>
+                        <span class="meta-item"><i class="bi bi-person"></i> {{ $ticket->user->name }}</span>
                     @endif
                     @if($ticket->user?->department)
                         <span class="meta-item">
@@ -348,14 +315,10 @@
                         </span>
                     @endif
                     @if($ticket->asset)
-                        <span class="meta-item">
-                            <i class="bi bi-laptop"></i> {{ $ticket->asset }}
-                        </span>
+                        <span class="meta-item"><i class="bi bi-laptop"></i> {{ $ticket->asset }}</span>
                     @endif
                     @if($ticket->location)
-                        <span class="meta-item">
-                            <i class="bi bi-geo-alt"></i> {{ $ticket->location }}
-                        </span>
+                        <span class="meta-item"><i class="bi bi-geo-alt"></i> {{ $ticket->location }}</span>
                     @endif
                     <span class="meta-item">
                         <i class="bi bi-clock" @if($isSlaBreach) style="color:var(--rd)" @endif></i>
@@ -363,51 +326,53 @@
                             {{ $hoursOpen }}h open{{ $isSlaBreach ? ' — SLA breach' : '' }}
                         </span>
                     </span>
-
-                    {{-- Tech chips --}}
-                    <div class="d-flex gap-2 ms-auto flex-wrap">
-                        @if($latestEscalation?->previousTech && $latestEscalation->previousTech->id !== Auth::id())
-                            <span class="tech-chip prev">
-                                <span class="tc-av normal">{{ $prevTechInitials }}</span>
-                                Prev: {{ $latestEscalation->previousTech->name }}
-                            </span>
-                        @endif
-                        @if($ticket->assignedTo && $ticket->assigned_to === Auth::id())
-                            <span class="tech-chip curr">
-                                <span class="tc-av admin">{{ $assignedInitials }}</span>
-                                Admin: {{ $ticket->assignedTo->name }}
-                            </span>
-                        @elseif($ticket->assignedTo && $isReassigned)
-                            <span class="tech-chip curr">
-                                <span class="tc-av normal">{{ $assignedInitials }}</span>
-                                Now: {{ $ticket->assignedTo->name }}
-                            </span>
-                        @endif
-                    </div>
                 </div>
 
                 {{-- Action buttons --}}
                 <div class="d-flex gap-2 flex-wrap">
 
-                    {{-- ESCALATED: Reassign + Takeover + Resolve + History + Message --}}
-                    @if($ticket->status === 'Escalated')
+                    {{-- Awaiting Administrator Acknowledgement --}}
+                    @if($ticket->status === 'Awaiting Administrator Acknowledgement')
+                        <button class="btn-resolve-a"
+                                onclick="openAckModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-check2-circle me-1"></i>Acknowledge
+                        </button>
+                        <button class="btn-cancel-modal"
+                                onclick="openDeclineModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-x-circle me-1"></i>Decline
+                        </button>
+                    @endif
+
+                    {{-- Awaiting Administrator SLA Start --}}
+                    @if($ticket->status === 'Awaiting Administrator SLA Start')
+                        <button class="btn-resolve-a"
+                                onclick="openStartModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-play-circle me-1"></i>Start Work
+                        </button>
                         <button class="btn-reassign-a"
                                 onclick="openReassignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-person-plus me-1"></i>Reassign to New Tech
+                            <i class="bi bi-arrow-left-right me-1"></i>Reassign
                         </button>
-                        <button class="btn-takeover"
-                                onclick="openTakeoverModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-person-workspace me-1"></i>Take Over Directly
+                        <button class="btn-cancel-modal"
+                                onclick="openDeclineModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-x-circle me-1"></i>Decline
+                        </button>
+                    @endif
+
+                    {{-- Admin In Progress --}}
+                    @if($ticket->status === 'Admin In Progress')
+                        <button class="btn-reassign-a"
+                                onclick="openReassignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-arrow-left-right me-1"></i>Reassign
                         </button>
                         <button class="btn-resolve-a"
                                 onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-check-circle me-1"></i>Resolve Directly
+                            <i class="bi bi-check-circle me-1"></i>Resolve & Close
                         </button>
-                        <button class="btn-view-hist"
-                                onclick="openHistoryModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-clock-history me-1"></i>View Full History
-                        </button>
-                        {{-- ── Chat button ── --}}
+                    @endif
+
+                    {{-- Available on every non-closed status --}}
+                    @if($ticket->status !== 'Closed')
                         <button class="btn-chat"
                                 onclick="openAdminChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-chat-dots me-1"></i>Message
@@ -420,85 +385,26 @@
                         </button>
                     @endif
 
-                    {{-- ADMIN WIP: Reassign instead + Resolve + History + Message --}}
-                    @if($isAdminWip)
-                        <button class="btn-reassign-a"
-                                onclick="openReassignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-arrow-left-right me-1"></i>Reassign Instead
-                        </button>
-                        <button class="btn-resolve-a"
-                                onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-check-circle me-1"></i>Mark Resolved
-                        </button>
-                        <button class="btn-view-hist"
-                                onclick="openHistoryModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-clock-history me-1"></i>View Full History
-                        </button>
-                        {{-- ── Chat button ── --}}
-                        <button class="btn-chat"
-                                onclick="openAdminChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-chat-dots me-1"></i>Message
-                            @php $unread = \App\Models\TicketMessage::where('ticket_id', $ticket->id)
-                                ->where('sender_id', '!=', Auth::id())
-                                ->where('is_read', false)->count(); @endphp
-                            @if($unread > 0)
-                                <span class="chat-count-badge" id="badge-{{ $ticket->id }}">{{ $unread }}</span>
-                            @endif
-                        </button>
-                    @endif
-
-                    {{-- REASSIGNED: Reassign again + Resolve + History + Message --}}
-                    @if($isReassigned)
-                        <button class="btn-reassign-a"
-                                onclick="openReassignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-arrow-left-right me-1"></i>Reassign Again
-                        </button>
-                        <button class="btn-resolve-a"
-                                onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-check-circle me-1"></i>Resolve Directly
-                        </button>
-                        <button class="btn-view-hist"
-                                onclick="openHistoryModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-clock-history me-1"></i>View History
-                        </button>
-                        {{-- ── Chat button ── --}}
-                        <button class="btn-chat"
-                                onclick="openAdminChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-chat-dots me-1"></i>Message
-                            @php $unread = \App\Models\TicketMessage::where('ticket_id', $ticket->id)
-                                ->where('sender_id', '!=', Auth::id())
-                                ->where('is_read', false)->count(); @endphp
-                            @if($unread > 0)
-                                <span class="chat-count-badge" id="badge-{{ $ticket->id }}">{{ $unread }}</span>
-                            @endif
-                        </button>
-                    @endif
-
-                    {{-- RESOLVED: History only --}}
-                    @if($ticket->status === 'Resolved')
-                        <button class="btn-view-hist"
-                                onclick="openHistoryModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-clock-history me-1"></i>View History
-                        </button>
-                    @endif
-
+                    <button class="btn-view-hist"
+                            onclick="openHistoryModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                        <i class="bi bi-clock-history me-1"></i>View Full History
+                    </button>
                 </div>
             </div>
         @empty
             <div class="ticket-card p-5 text-center">
                 <div style="font-size:48px;opacity:.3">✅</div>
                 <div class="mt-3 font-brand fw-900" style="font-size:18px;color:var(--tm)">
-                    No escalated tickets right now.
+                    No tickets in this view.
                 </div>
                 <div style="font-size:13px;color:var(--tm);margin-top:4px">
-                    All tickets are being handled by technicians.
+                    You're all caught up.
                 </div>
             </div>
         @endforelse
 
     </div>
 
-    {{-- Pagination --}}
     @if($tickets->hasPages())
         <div class="mt-4">{{ $tickets->links() }}</div>
     @endif
@@ -508,12 +414,112 @@
 {{-- ══ MODALS ══ --}}
 @section('modals')
 
+    {{-- Acknowledge modal --}}
+    <div class="modal fade" id="ackModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-hdr-dark d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Acknowledge <em>Assignment</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="ackForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="info-box-green p-3 mb-3">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Acknowledging <strong id="ackRef"></strong> confirms you've received this assignment.
+                        </div>
+                        <label class="form-label">Notes (optional)</label>
+                        <textarea class="form-control" name="notes" rows="2"
+                                  placeholder="Any initial notes…"></textarea>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm">
+                            <i class="bi bi-check2-circle me-1"></i>Acknowledge
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Start modal --}}
+    <div class="modal fade" id="startModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-hdr-dark d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Start <em>Work</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="startForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="info-box-red p-3 mb-3">
+                            <i class="bi bi-stopwatch me-1"></i>
+                            Starting <strong id="startRef"></strong> begins the SLA resolution timer.
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Estimated time to resolve <span class="text-danger">*</span></label>
+                            <select class="form-select" name="estimated_time" required>
+                                <option value="Under 1 hour">Under 1 hour</option>
+                                <option value="1-2 hours">1-2 hours</option>
+                                <option value="2-4 hours">2-4 hours</option>
+                                <option value="4-8 hours">4-8 hours</option>
+                                <option value="More than 1 day">More than 1 day</option>
+                            </select>
+                        </div>
+                        <label class="form-label">Notes (optional)</label>
+                        <textarea class="form-control" name="notes" rows="2"
+                                  placeholder="Plan of action…"></textarea>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm red">
+                            <i class="bi bi-play-circle me-1"></i>Start Work
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Decline modal --}}
+    <div class="modal fade" id="declineModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-hdr-red d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Decline <em>Ticket</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="declineForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="info-box-red p-3 mb-3">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            Declining <strong id="declineRef"></strong> returns it to the Admin Supervisor's classification queue.
+                        </div>
+                        <label class="form-label">Reason <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="reason" rows="2" required
+                                  placeholder="Why are you declining this ticket?"></textarea>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm red">
+                            <i class="bi bi-x-circle me-1"></i>Decline Ticket
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {{-- Reassign modal --}}
     <div class="modal fade" id="reassignModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-hdr-dark d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Reassign <em>to New Tech</em></h5>
+                    <h5 class="mb-0">Reassign <em>to Another Admin</em></h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
                 <form method="POST" id="reassignForm">
@@ -521,10 +527,9 @@
                     <div class="modal-body px-4 py-4">
                         <div class="info-box-red p-3 mb-3">
                             <i class="bi bi-info-circle me-1"></i>
-                            Ticket <strong id="reassignRef"></strong> — Admin is reassigning
-                            to a different technician. The new tech will receive full ticket history.
+                            Ticket <strong id="reassignRef"></strong> — reassigning to a different IT Admin.
                         </div>
-                        <label class="form-label mb-2">Select new technician</label>
+                        <label class="form-label mb-2">Select IT Admin</label>
                         <div class="d-flex flex-column gap-2 mb-3" id="techListReassign">
                             @foreach($technicians as $tech)
                                 @php
@@ -532,9 +537,7 @@
                                                 strtoupper(substr($tech->name, strpos($tech->name, ' ') + 1, 1));
                                     $isFull   = $tech->availability === 'full';
                                     $loadPct  = min(100, $tech->active_tickets * 25);
-                                    $barClass = match($tech->availability) {
-                                        'busy' => 'busy', 'full' => 'full', default => ''
-                                    };
+                                    $barClass = match($tech->availability) { 'busy' => 'busy', 'full' => 'full', default => '' };
                                     $badge = match($tech->availability) {
                                         'free' => ['cls' => 'green', 'label' => 'Available'],
                                         'busy' => ['cls' => 'dark',  'label' => 'Busy'],
@@ -542,8 +545,7 @@
                                     };
                                 @endphp
                                 <div class="tech-select-option {{ $isFull ? 'disabled' : '' }} {{ $loop->first && !$isFull ? 'selected' : '' }}"
-                                     data-tech-id="{{ $tech->id }}"
-                                     data-tech-name="{{ $tech->name }}">
+                                     data-tech-id="{{ $tech->id }}" data-tech-name="{{ $tech->name }}">
                                     <div class="d-flex align-items-center gap-2 mb-1">
                                         <div class="tc-av normal">{{ $initials }}</div>
                                         <div>
@@ -552,9 +554,7 @@
                                                 {{ $tech->active_tickets }} active ticket{{ $tech->active_tickets !== 1 ? 's' : '' }}
                                             </div>
                                         </div>
-                                        <span class="badge-count {{ $badge['cls'] }} ms-auto">
-                                            {{ $badge['label'] }}
-                                        </span>
+                                        <span class="badge-count {{ $badge['cls'] }} ms-auto">{{ $badge['label'] }}</span>
                                     </div>
                                     <div class="load-bar-wrap">
                                         <div class="load-bar {{ $barClass }}" style="width:{{ $loadPct }}%"></div>
@@ -566,58 +566,12 @@
                                value="{{ $technicians->where('availability', '!=', 'full')->first()?->id }}">
                         <label class="form-label">Reassignment notes</label>
                         <textarea class="form-control" name="notes" rows="2"
-                                  placeholder="Instructions or context for the new technician…"></textarea>
+                                  placeholder="Instructions or context…"></textarea>
                     </div>
                     <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
-                        <button type="button" class="btn-cancel-modal"
-                                data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn-confirm">
                             <i class="bi bi-person-plus me-1"></i>Confirm Reassignment
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    {{-- Take over modal --}}
-    <div class="modal fade" id="takeoverModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-hdr-red d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Take Over <em>Directly</em></h5>
-                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
-                </div>
-                <form method="POST" id="takeoverForm">
-                    @csrf
-                    <div class="modal-body px-4 py-4">
-                        <div class="info-box-red p-3 mb-3">
-                            <i class="bi bi-shield-fill me-1"></i>
-                            You are taking personal ownership of
-                            <strong id="takeoverRef"></strong>.
-                            This will assign it directly to you as IT Admin.
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Reason for taking over</label>
-                            <select class="form-select" name="reason" required>
-                                <option value="Requires admin-level system access">Requires admin-level system access</option>
-                                <option value="Critical business impact — time sensitive">Critical business impact — time sensitive</option>
-                                <option value="No available technicians">No available technicians</option>
-                                <option value="Sensitive data involved">Sensitive data involved</option>
-                                <option value="Vendor coordination required">Vendor coordination required</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="form-label">Initial assessment</label>
-                            <textarea class="form-control" name="assessment" rows="2"
-                                      placeholder="Briefly describe your plan of action…"></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
-                        <button type="button" class="btn-cancel-modal"
-                                data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn-confirm red">
-                            <i class="bi bi-person-workspace me-1"></i>Take Over Ticket
                         </button>
                     </div>
                 </form>
@@ -630,7 +584,7 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-hdr-dark d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Resolve <em>Directly</em></h5>
+                    <h5 class="mb-0">Resolve <em>& Close</em></h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
                 <form method="POST" id="resolveForm">
@@ -638,18 +592,14 @@
                     <div class="modal-body px-4 py-4">
                         <div class="info-box-green p-3 mb-3">
                             <i class="bi bi-check-circle me-1"></i>
-                            Admin resolving <strong id="resolveRef"></strong> —
-                            helpdesk will be notified to confirm with the customer.
+                            Resolving <strong id="resolveRef"></strong> will close the ticket immediately.
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">
-                                Resolution summary <span class="text-danger">*</span>
-                            </label>
-                            <textarea class="form-control" name="resolution_notes"
-                                      rows="3" required
+                            <label class="form-label">Resolution summary <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="resolution_notes" rows="3" required
                                       placeholder="Describe what was done, root cause, and how it was resolved…"></textarea>
                         </div>
-                        <div class="mb-3">
+                        <div>
                             <label class="form-label">Root cause category</label>
                             <select class="form-select" name="root_cause" required>
                                 <option value="Hardware failure — replacement required">Hardware failure — replacement required</option>
@@ -660,28 +610,9 @@
                                 <option value="Human error">Human error</option>
                             </select>
                         </div>
-                        <div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox"
-                                       id="notifyCustomer" checked>
-                                <label class="form-check-label" for="notifyCustomer"
-                                       style="font-size:13px;font-weight:600">
-                                    Notify customer via email
-                                </label>
-                            </div>
-                            <div class="form-check mt-1">
-                                <input class="form-check-input" type="checkbox"
-                                       id="notifyHelpdesk" checked>
-                                <label class="form-check-label" for="notifyHelpdesk"
-                                       style="font-size:13px;font-weight:600">
-                                    Notify helpdesk to close ticket
-                                </label>
-                            </div>
-                        </div>
                     </div>
                     <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
-                        <button type="button" class="btn-cancel-modal"
-                                data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn-confirm">
                             <i class="bi bi-check-circle me-1"></i>Confirm Resolution
                         </button>
@@ -700,10 +631,8 @@
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
                 <div class="modal-body px-4 py-4">
-                    <div class="mb-3 p-2 px-3 rounded"
-                         style="background:var(--ygl);font-size:13px">
-                        <strong id="historyRef"></strong> —
-                        Complete audit trail of all status changes and actions.
+                    <div class="mb-3 p-2 px-3 rounded" style="background:var(--ygl);font-size:13px">
+                        <strong id="historyRef"></strong> — Complete audit trail of all status changes and actions.
                     </div>
                     <div id="historyTimeline">
                         <div class="text-center py-4" style="color:var(--tm)">
@@ -718,7 +647,8 @@
             </div>
         </div>
     </div>
-    {{-- ── Admin Chat Modal ── --}}
+
+    {{-- Admin Chat Modal (unchanged from before) --}}
     <div class="modal fade" id="adminChatModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered" style="max-width:480px">
             <div class="modal-content" style="border-radius:20px;overflow:hidden;border:none">
@@ -731,8 +661,6 @@
                     </div>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
-
-                {{-- Messages area --}}
                 <div id="adminChatMessages"
                      style="height:360px;overflow-y:auto;padding:16px;background:#f8f8f4;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth">
                     <div class="text-center py-4" style="color:var(--tm);font-size:13px">
@@ -740,16 +668,12 @@
                         Loading messages…
                     </div>
                 </div>
-
-                {{-- Input --}}
                 <div style="border-top:1.5px solid var(--bd);padding:12px 16px;background:#fff">
                     <div style="font-size:10px;font-weight:800;background:var(--rdl);color:var(--rd);border-radius:4px;padding:2px 8px;display:inline-block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px">
                         IT Admin
                     </div>
                     <div class="d-flex gap-2 align-items-end">
-                        <textarea id="adminChatInput"
-                                  placeholder="Type a message… (Enter to send)"
-                                  rows="1"
+                        <textarea id="adminChatInput" placeholder="Type a message… (Enter to send)" rows="1"
                                   style="flex:1;border:1.5px solid var(--bd);border-radius:20px;padding:9px 14px;font-size:13px;resize:none;outline:none;font-family:'Nunito Sans',sans-serif;max-height:80px;overflow-y:auto;color:var(--gd);background:var(--cr);transition:border-color .2s"
                                   onkeydown="handleAdminChatKey(event)"
                                   onfocus="this.style.borderColor='var(--gl)';this.style.background='#fff'"
@@ -783,18 +707,32 @@ $(function () {
         $('#selectedReassignTechId').val($(this).data('tech-id'));
     });
 
+    /* ── Acknowledge modal ── */
+    window.openAckModal = function (ticketId, ticketNumber) {
+        $('#ackRef').text('#' + ticketNumber);
+        $('#ackForm').attr('action', '/admin/tickets/' + ticketId + '/acknowledge');
+        new bootstrap.Modal('#ackModal').show();
+    };
+
+    /* ── Start modal ── */
+    window.openStartModal = function (ticketId, ticketNumber) {
+        $('#startRef').text('#' + ticketNumber);
+        $('#startForm').attr('action', '/admin/tickets/' + ticketId + '/start');
+        new bootstrap.Modal('#startModal').show();
+    };
+
+    /* ── Decline modal ── */
+    window.openDeclineModal = function (ticketId, ticketNumber) {
+        $('#declineRef').text('#' + ticketNumber);
+        $('#declineForm').attr('action', '/admin/tickets/' + ticketId + '/decline');
+        new bootstrap.Modal('#declineModal').show();
+    };
+
     /* ── Reassign modal ── */
     window.openReassignModal = function (ticketId, ticketNumber) {
         $('#reassignRef').text('#' + ticketNumber);
         $('#reassignForm').attr('action', '/admin/tickets/' + ticketId + '/reassign');
         new bootstrap.Modal('#reassignModal').show();
-    };
-
-    /* ── Takeover modal ── */
-    window.openTakeoverModal = function (ticketId, ticketNumber) {
-        $('#takeoverRef').text('#' + ticketNumber);
-        $('#takeoverForm').attr('action', '/admin/tickets/' + ticketId + '/takeover');
-        new bootstrap.Modal('#takeoverModal').show();
     };
 
     /* ── Resolve modal ── */
@@ -804,7 +742,7 @@ $(function () {
         new bootstrap.Modal('#resolveModal').show();
     };
 
-    /* ── History modal — fetch real data ── */
+    /* ── History modal ── */
     window.openHistoryModal = function (ticketId, ticketNumber) {
         $('#historyRef').text('#' + ticketNumber);
         $('#historyTimeline').html(`
@@ -815,45 +753,33 @@ $(function () {
         `);
         new bootstrap.Modal('#historyModal').show();
 
-        // Fetch real history via AJAX
         fetch('/admin/tickets/' + ticketId + '/history')
             .then(r => r.json())
             .then(data => {
                 const histories = data.status_histories || [];
                 if (!histories.length) {
-                    $('#historyTimeline').html(
-                        '<div style="color:var(--tm);font-size:13px">No history available.</div>'
-                    );
+                    $('#historyTimeline').html('<div style="color:var(--tm);font-size:13px">No history available.</div>');
                     return;
                 }
-
                 const iconMap = {
-                    'Open':        { icon: 'bi-plus-circle',          cls: 'assigned'  },
-                    'In Progress': { icon: 'bi-tools',                cls: 'working'   },
-                    'Escalated':   { icon: 'bi-exclamation-triangle', cls: 'escalated' },
-                    'Resolved':    { icon: 'bi-check-circle',         cls: 'resolved'  },
-                    'Cancelled':   { icon: 'bi-x-circle',             cls: 'cancelled' },
+                    'Awaiting Administrator Acknowledgement': { icon: 'bi-hourglass-split', cls: 'assigned'  },
+                    'Awaiting Administrator SLA Start':       { icon: 'bi-stopwatch',        cls: 'working'   },
+                    'Admin In Progress':                      { icon: 'bi-gear-fill',        cls: 'working'   },
+                    'Closed':                                 { icon: 'bi-check-circle',     cls: 'resolved'  },
                 };
-
                 let html = '';
                 histories.forEach(h => {
-                    const map   = iconMap[h.new_status] || { icon: 'bi-circle', cls: 'assigned' };
-                    const date  = new Date(h.changed_at).toLocaleString('en-PH', {
-                        month: 'short', day: 'numeric', year: 'numeric',
-                        hour: 'numeric', minute: '2-digit'
+                    const map  = iconMap[h.new_status] || { icon: 'bi-circle', cls: 'assigned' };
+                    const date = new Date(h.changed_at).toLocaleString('en-PH', {
+                        month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
                     });
                     const by = h.changed_by?.name ?? 'System';
                     html += `
                         <div class="hist-item">
-                            <div class="hist-icon ${map.cls}">
-                                <i class="bi ${map.icon}"></i>
-                            </div>
+                            <div class="hist-icon ${map.cls}"><i class="bi ${map.icon}"></i></div>
                             <div>
                                 <div class="hist-time">${date}</div>
-                                <div class="hist-title">
-                                    Status → <strong>${h.new_status}</strong>
-                                    — by ${by}
-                                </div>
+                                <div class="hist-title">Status → <strong>${h.new_status}</strong> — by ${by}</div>
                                 <div class="hist-desc">${h.notes ?? ''}</div>
                             </div>
                         </div>
@@ -862,33 +788,34 @@ $(function () {
                 $('#historyTimeline').html(html);
             })
             .catch(() => {
-                $('#historyTimeline').html(
-                    '<div style="color:#e24b4a">Failed to load history.</div>'
-                );
+                $('#historyTimeline').html('<div style="color:#e24b4a">Failed to load history.</div>');
             });
     };
 
+    /* ── Stop polling when chat modal closes ── */
+    $('#adminChatModal').on('hidden.bs.modal', function () {
+        clearInterval(adminChatPollInterval);
+        currentAdminChatTicketId = null;
+    });
+
 });
-</script>
-@section('scripts')
-<script>
 
 /* ══ GLOBAL ADMIN CHAT FUNCTIONS ══ */
-
 let currentAdminChatTicketId = null;
 let adminChatPollInterval    = null;
 
 window.openAdminChatModal = function (ticketId, ticketNumber) {
     currentAdminChatTicketId = ticketId;
     $('#adminChatTicketRef').text('#' + ticketNumber);
-
-    // ── Clear unread badge immediately
     $('#badge-' + ticketId).remove();
-
-    $('#adminChatMessages').html(`...`);
+    $('#adminChatMessages').html(`
+        <div class="text-center py-4" style="color:var(--tm);font-size:13px">
+            <div class="spinner-border spinner-border-sm me-2"></div>
+            Loading messages…
+        </div>
+    `);
     new bootstrap.Modal('#adminChatModal').show();
     loadAdminChatMessages();
-
     clearInterval(adminChatPollInterval);
     adminChatPollInterval = setInterval(loadAdminChatMessages, 3000);
 };
@@ -931,15 +858,9 @@ function loadAdminChatMessages() {
     if (!currentAdminChatTicketId) return;
 
     fetch(`/tickets/${currentAdminChatTicketId}/messages`, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept':           'application/json',
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
     })
-    .then(r => {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-    })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(data => {
         const msgs = data.messages;
         const $box = document.getElementById('adminChatMessages');
@@ -951,9 +872,7 @@ function loadAdminChatMessages() {
             $box.innerHTML = `
                 <div class="text-center py-4" style="color:var(--tm)">
                     <i class="bi bi-chat-dots" style="font-size:32px;opacity:.3;display:block;margin-bottom:8px"></i>
-                    <p style="font-size:13px;font-weight:600;margin:0">
-                        No messages yet.<br>Start the conversation!
-                    </p>
+                    <p style="font-size:13px;font-weight:600;margin:0">No messages yet.<br>Start the conversation!</p>
                 </div>`;
             return;
         }
@@ -961,18 +880,12 @@ function loadAdminChatMessages() {
         if (msgs.length === prevCount) return;
 
         const avColors = {
-            'IT Admin':      '#fde8e8',
-            'IT Support Specialist': '#fff4cc',
-            'Helpdesk':      '#d4f0d4',
-            'Executive':     '#e8e0ff',
-            'Employee':      '#e8f5b0',
+            'IT Admin': '#fde8e8', 'IT Support Specialist': '#fff4cc',
+            'Helpdesk': '#d4f0d4', 'Executive': '#e8e0ff', 'Employee': '#e8f5b0',
         };
         const avTextColors = {
-            'IT Admin':      '#8b1a1a',
-            'IT Support Specialist': '#7a5a00',
-            'Helpdesk':      '#2d5a2d',
-            'Executive':     '#4a1a8a',
-            'Employee':      '#1a3c1a',
+            'IT Admin': '#8b1a1a', 'IT Support Specialist': '#7a5a00',
+            'Helpdesk': '#2d5a2d', 'Executive': '#4a1a8a', 'Employee': '#1a3c1a',
         };
 
         let html = '';
@@ -982,8 +895,7 @@ function loadAdminChatMessages() {
             const isMe   = msg.is_me;
 
             html += `
-                <div data-msg-id="${msg.id}"
-                     style="display:flex;gap:8px;align-items:flex-end;${isMe ? 'flex-direction:row-reverse' : ''}">
+                <div data-msg-id="${msg.id}" style="display:flex;gap:8px;align-items:flex-end;${isMe ? 'flex-direction:row-reverse' : ''}">
                     <div style="width:28px;height:28px;border-radius:50%;background:${avBg};color:${avText};display:flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;font-weight:900;font-size:10px;flex-shrink:0">
                         ${msg.initials}
                     </div>
@@ -1015,149 +927,31 @@ function loadAdminChatMessages() {
 
 function escAdminHtml(str) {
     return String(str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-/* ══ DOM-READY FUNCTIONS ══ */
-$(function () {
-
-    /* ── Search debounce ── */
-    let searchTimer;
-    $('#searchInput').on('input', function () {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => $('#searchForm').submit(), 500);
-    });
-
-    /* ── Tech selection ── */
-    $(document).on('click', '.tech-select-option:not(.disabled)', function () {
-        $(this).closest('#techListReassign').find('.tech-select-option').removeClass('selected');
-        $(this).addClass('selected');
-        $('#selectedReassignTechId').val($(this).data('tech-id'));
-    });
-
-    /* ── Reassign modal ── */
-    window.openReassignModal = function (ticketId, ticketNumber) {
-        $('#reassignRef').text('#' + ticketNumber);
-        $('#reassignForm').attr('action', '/admin/tickets/' + ticketId + '/reassign');
-        new bootstrap.Modal('#reassignModal').show();
-    };
-
-    /* ── Takeover modal ── */
-    window.openTakeoverModal = function (ticketId, ticketNumber) {
-        $('#takeoverRef').text('#' + ticketNumber);
-        $('#takeoverForm').attr('action', '/admin/tickets/' + ticketId + '/takeover');
-        new bootstrap.Modal('#takeoverModal').show();
-    };
-
-    /* ── Resolve modal ── */
-    window.openResolveModal = function (ticketId, ticketNumber) {
-        $('#resolveRef').text('#' + ticketNumber);
-        $('#resolveForm').attr('action', '/admin/tickets/' + ticketId + '/resolve');
-        new bootstrap.Modal('#resolveModal').show();
-    };
-
-    /* ── History modal ── */
-    window.openHistoryModal = function (ticketId, ticketNumber) {
-        $('#historyRef').text('#' + ticketNumber);
-        $('#historyTimeline').html(`
-            <div class="text-center py-4" style="color:var(--tm)">
-                <div class="spinner-border spinner-border-sm me-2"></div>
-                Loading history…
-            </div>
-        `);
-        new bootstrap.Modal('#historyModal').show();
-
-        fetch('/admin/tickets/' + ticketId + '/history')
-            .then(r => r.json())
-            .then(data => {
-                const histories = data.status_histories || [];
-                if (!histories.length) {
-                    $('#historyTimeline').html(
-                        '<div style="color:var(--tm);font-size:13px">No history available.</div>'
-                    );
-                    return;
-                }
-
-                const iconMap = {
-                    'Open':        { icon: 'bi-plus-circle',          cls: 'assigned'  },
-                    'In Progress': { icon: 'bi-tools',                cls: 'working'   },
-                    'Escalated':   { icon: 'bi-exclamation-triangle', cls: 'escalated' },
-                    'Resolved':    { icon: 'bi-check-circle',         cls: 'resolved'  },
-                    'Cancelled':   { icon: 'bi-x-circle',             cls: 'cancelled' },
-                };
-
-                let html = '';
-                histories.forEach(h => {
-                    const map  = iconMap[h.new_status] || { icon: 'bi-circle', cls: 'assigned' };
-                    const date = new Date(h.changed_at).toLocaleString('en-PH', {
-                        month: 'short', day: 'numeric', year: 'numeric',
-                        hour: 'numeric', minute: '2-digit'
-                    });
-                    const by = h.changed_by?.name ?? 'System';
-                    html += `
-                        <div class="hist-item">
-                            <div class="hist-icon ${map.cls}">
-                                <i class="bi ${map.icon}"></i>
-                            </div>
-                            <div>
-                                <div class="hist-time">${date}</div>
-                                <div class="hist-title">
-                                    Status → <strong>${h.new_status}</strong> — by ${by}
-                                </div>
-                                <div class="hist-desc">${h.notes ?? ''}</div>
-                            </div>
-                        </div>
-                    `;
-                });
-                $('#historyTimeline').html(html);
-            })
-            .catch(() => {
-                $('#historyTimeline').html(
-                    '<div style="color:#e24b4a">Failed to load history.</div>'
-                );
-            });
-    };
-
-    /* ── Stop polling when chat modal closes ── */
-    $('#adminChatModal').on('hidden.bs.modal', function () {
-        clearInterval(adminChatPollInterval);
-        currentAdminChatTicketId = null;
-    });
-
-});
 /* ── Smart silent background refresh ── */
 let silentRefreshTimer = null;
 let isModalOpen        = false;
 
 function silentRefresh() {
-    // Don't refresh if modal is open or tab is hidden
     if (isModalOpen || document.hidden) return;
-    // Don't refresh if user is typing
     const active = document.activeElement;
     if (active && active.matches('input, textarea, select')) return;
 
     fetch(window.location.href, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept':           'text/html',
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }
     })
     .then(r => r.text())
     .then(html => {
         const parser = new DOMParser();
         const doc    = parser.parseFromString(html, 'text/html');
 
-        // ── Ticket list
         const newList = doc.getElementById('ticketList');
         const curList = document.getElementById('ticketList');
-        if (newList && curList) {
-            curList.innerHTML = newList.innerHTML;
-        }
+        if (newList && curList) curList.innerHTML = newList.innerHTML;
 
-        // ── Badge counts — only update if changed
         doc.querySelectorAll('.badge-count').forEach((newEl, i) => {
             const curEl = document.querySelectorAll('.badge-count')[i];
             if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) {
@@ -1167,7 +961,6 @@ function silentRefresh() {
             }
         });
 
-        // ── Stat pill numbers
         doc.querySelectorAll('.stat-pill .num').forEach((newEl, i) => {
             const curEl = document.querySelectorAll('.stat-pill .num')[i];
             if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) {
@@ -1175,7 +968,6 @@ function silentRefresh() {
             }
         });
 
-        // ── Tab pill counts
         doc.querySelectorAll('.tab-pill').forEach((newEl, i) => {
             const curEl = document.querySelectorAll('.tab-pill')[i];
             if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) {
@@ -1183,22 +975,17 @@ function silentRefresh() {
             }
         });
     })
-    .catch(() => {}); // Silent fail
+    .catch(() => {});
 }
 
-// ── Run every 30 seconds
 silentRefreshTimer = setInterval(silentRefresh, 30000);
-
-// ── Pause when any modal opens
 document.addEventListener('show.bs.modal', () => { isModalOpen = true; });
 document.addEventListener('hidden.bs.modal', () => { isModalOpen = false; });
-
-// ── Pause when tab is hidden, resume when visible
 document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
         clearInterval(silentRefreshTimer);
     } else {
-        silentRefresh(); // Refresh immediately when tab becomes visible
+        silentRefresh();
         silentRefreshTimer = setInterval(silentRefresh, 30000);
     }
 });

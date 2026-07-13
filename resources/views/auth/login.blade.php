@@ -23,7 +23,7 @@
       <div class="deco-circle c2"></div>
       <div class="deco-circle c3"></div>
 
-      <a href="#" class="left-logo">LG<span>ICT</span></a>
+      <a href="#" class="left-logo">Support Request<span> System</span></a>
 
       <div class="left-main">
         <div class="left-eyebrow">
@@ -77,7 +77,7 @@
       <div class="form-box">
 
         <div class="form-eyebrow">Welcome back</div>
-        <h2 class="form-title">Sign in to<br><em>LGICT</em></h2>
+        <h2 class="form-title">Sign in to<br><em>Support Request System</em></h2>
         <p class="form-sub">Use your company email and password. You'll be redirected to your role's dashboard
           automatically.</p>
 

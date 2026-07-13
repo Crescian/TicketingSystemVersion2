@@ -757,6 +757,19 @@
             animation-delay: .34s;
         }
 
+        /* Admin role badge — red gradient */
+        .role-badge-admin {
+            background: linear-gradient(135deg, var(--rd), #c0392b);
+            color: #04eb04;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 14px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            box-shadow: 0 2px 8px rgba(139, 26, 26, .3);
+        }
+
         /* ── Page-specific styles injected per view ── */
         @yield('styles')
     </style>
@@ -787,7 +800,7 @@
         'Manager' => route('executive.dashboard'),
         default => route('employee.tickets.index'),
     }
-            }}">LG<span>ICTicketingSystem</span></a>
+            }}">Support Request<span> System</span></a>
             <div class="ms-auto d-flex align-items-center gap-2">
                 @yield('nav-role-badge')
                 <a href="{{ route('profile') }}"

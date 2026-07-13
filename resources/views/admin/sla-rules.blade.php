@@ -4,7 +4,7 @@
 
 @section('nav-role-badge')
     <span class="role-badge-admin"><i class="bi bi-shield-fill me-1"></i>IT Admin</span>
-    <a href="{{ route('admin.users.index') }}" style="text-decoration:none">
+    <a href="{{ route('portal.users.index') }}" style="text-decoration:none">
         <span class="role-badge-admin"><i class="bi bi-people me-1"></i>Users</span>
     </a>
 @endsection
@@ -45,22 +45,22 @@
         <div class="sidebar-head red"><i class="bi bi-gear me-1"></i>Settings</div>
         <ul class="list-group sidebar-menu rounded-0">
             <li class="list-group-item">
-                <a href="{{ route('admin.users.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                <a href="{{ route('portal.users.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
                     <i class="bi bi-people me-1"></i>User
                 </a>
             </li>
             <li class="list-group-item">
-                <a href="{{ route('admin.settings') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                <a href="{{ route('portal.settings') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
                     <i class="bi bi-building me-1"></i>Organization
                 </a>
             </li>
             <li class="list-group-item active">
-                <a href="{{ route('admin.sla-rules.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                <a href="{{ route('portal.sla-rules.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
                     <i class="bi bi-stopwatch me-1"></i>SLA Rules
                 </a>
             </li>
             <li class="list-group-item">
-                <a href="{{ route('admin.audit-log') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                <a href="{{ route('portal.audit-log') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
                     <i class="bi bi-journal-text me-1"></i>Audit Log
                 </a>
             </li>
@@ -156,7 +156,7 @@
                         <div class="sph-sub">e.g. Hardware, Software, Network</div>
                     </div>
                 </div>
-                <form method="POST" id="catForm" action="{{ route('admin.sla-rules.category.store') }}">
+                <form method="POST" id="catForm" action="{{ route('portal.sla-rules.category.store') }}">
                     @csrf
                     <input type="hidden" id="catMethod" name="_method" value="POST">
 
@@ -198,7 +198,7 @@
                         <div class="sph-sub">Assign to a subcategory</div>
                     </div>
                 </div>
-                <form method="POST" id="ruleForm" action="{{ route('admin.sla-rules.rule.store') }}">
+                <form method="POST" id="ruleForm" action="{{ route('portal.sla-rules.rule.store') }}">
                     @csrf
                     <input type="hidden" id="ruleMethod" name="_method" value="POST">
 
@@ -334,7 +334,7 @@
                                         title="Edit category">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <form method="POST" action="{{ route('admin.sla-rules.category.destroy', $category) }}"
+                                <form method="POST" action="{{ route('portal.sla-rules.category.destroy', $category) }}"
                                       onsubmit="return confirm('Delete category \'{{ $category->name }}\' and ALL its SLA rules?')">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn-cat-action del" title="Delete category">
@@ -403,7 +403,7 @@
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <form method="POST" action="{{ route('admin.sla-rules.rule.toggle', $rule) }}">
+                                                    <form method="POST" action="{{ route('portal.sla-rules.rule.toggle', $rule) }}">
                                                         @csrf @method('PATCH')
                                                         <button type="submit" class="toggle-btn {{ $rule->is_active ? 'active' : 'inactive' }}">
                                                             {{ $rule->is_active ? '● Active' : '○ Inactive' }}
@@ -425,7 +425,7 @@
                                                                 title="Edit">
                                                             <i class="bi bi-pencil"></i>
                                                         </button>
-                                                        <form method="POST" action="{{ route('admin.sla-rules.rule.destroy', $rule) }}"
+                                                        <form method="POST" action="{{ route('portal.sla-rules.rule.destroy', $rule) }}"
                                                               onsubmit="return confirm('Delete this SLA rule?')">
                                                             @csrf @method('DELETE')
                                                             <button type="submit" class="btn-row-action del" title="Delete">
@@ -675,7 +675,7 @@ function editCategory(id, name, icon, color) {
 }
 
 function resetCatForm() {
-    document.getElementById('catForm').action           = '{{ route("admin.sla-rules.category.store") }}';
+    document.getElementById('catForm').action           = '{{ route("portal.sla-rules.category.store") }}';
     document.getElementById('catMethod').value          = 'POST';
     document.getElementById('catName').value            = '';
     document.getElementById('catIcon').value            = '';
@@ -721,7 +721,7 @@ function editRule(id, catId, subcat, priority, respMins, resMins, desc) {
 }
 
 function resetRuleForm() {
-    document.getElementById('ruleForm').action          = '{{ route("admin.sla-rules.rule.store") }}';
+    document.getElementById('ruleForm').action          = '{{ route("portal.sla-rules.rule.store") }}';
     document.getElementById('ruleMethod').value         = 'POST';
     document.getElementById('ruleCategoryId').value     = '';
     document.getElementById('ruleSubcat').value         = '';

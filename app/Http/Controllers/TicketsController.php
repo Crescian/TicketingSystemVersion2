@@ -18,6 +18,21 @@ class TicketsController extends Controller
         $search = $request->get('search', '');
         $sort = $request->get('sort', 'newest');
 
+        $requestor = \App\Models\User::query()
+        ->select(
+            'users.id',
+            'users.name',
+            'users.position',
+            'business_units_name as business_units_name',
+            'company_name as company_name',
+            'department_name as department_name'
+        )
+        ->leftJoin('departments', 'departments.id', '=', 'users.department_id')
+        ->leftJoin('companies', 'companies.id', '=', 'departments.companies_id')
+        ->leftJoin('business_units', 'business_units.id', '=', 'companies.business_units_id')
+        ->where('users.id', $user->id)
+        ->first();
+        
         $query = Tickets::with(['assignedTo', 'feedback', 'unreadMessages'])
             ->where('users_id', $user->id);
 
@@ -45,17 +60,19 @@ class TicketsController extends Controller
 
         $tickets = $query->paginate(10)->withQueryString();
 
+        // ── NOTE: 'resolved' replaced with 'awaiting_requestor' + 'closed'
         $counts = [
-            'all' => Tickets::where('users_id', $user->id)->count(),
-            'open' => Tickets::where('users_id', $user->id)->where('status', 'Open')->count(),
-            'in_progress' => Tickets::where('users_id', $user->id)->where('status', 'In Progress')->count(),
-            'escalated' => Tickets::where('users_id', $user->id)->where('status', 'Escalated')->count(),
-            'resolved' => Tickets::where('users_id', $user->id)->where('status', 'Resolved')->count(),
-            'cancelled' => Tickets::where('users_id', $user->id)->where('status', 'Cancelled')->count(),
+            'all'                 => Tickets::where('users_id', $user->id)->count(),
+            'open'                => Tickets::where('users_id', $user->id)->where('status', 'Open')->count(),
+            'in_progress'         => Tickets::where('users_id', $user->id)->where('status', 'In Progress')->count(),
+            'escalated'           => Tickets::where('users_id', $user->id)->where('status', 'Escalated')->count(),
+            'awaiting_requestor'  => Tickets::where('users_id', $user->id)->where('status', 'Awaiting Requestor')->count(),
+            'closed'              => Tickets::where('users_id', $user->id)->where('status', 'Closed')->count(),
+            'cancelled'           => Tickets::where('users_id', $user->id)->where('status', 'Cancelled')->count(),
         ];
 
         // ── Load SLA categories with their active rules for the ticket modal
-        $slaCategories = \App\Models\SlaCategory::with([
+        $slaCategories = SlaCategory::with([
             'rules' => function ($q) {
                 $q->where('is_active', true)
                     ->select('id', 'sla_category_id', 'subcategory_name', 'priority')
@@ -67,14 +84,13 @@ class TicketsController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Add this RIGHT AFTER $slaCategories is built, before the return statement
         $slaCategoriesJson = $slaCategories->map(fn($c) => [
-            'id' => $c->id,
-            'name' => $c->name,
-            'icon' => $c->icon,
+            'id'    => $c->id,
+            'name'  => $c->name,
+            'icon'  => $c->icon,
             'color' => $c->color,
-            'subs' => $c->rules->map(fn($r) => [
-                'name' => $r->subcategory_name,
+            'subs'  => $c->rules->map(fn($r) => [
+                'name'     => $r->subcategory_name,
                 'priority' => $r->priority,
             ])->values()->toArray(),
         ])->values()->toArray();
@@ -86,14 +102,14 @@ class TicketsController extends Controller
             'search',
             'sort',
             'slaCategories',
-            'slaCategoriesJson'   // ← add this
+            'slaCategoriesJson',
+            'requestor'
         ));
     }
 
     // Show single ticket details
     public function show(Tickets $ticket)
     {
-        // Make sure employee can only view their own tickets
         if ($ticket->users_id !== Auth::id()) {
             abort(403);
         }
@@ -110,35 +126,29 @@ class TicketsController extends Controller
     }
 
     // Store new ticket
-    // Store new ticket
+    // ── Simplified: employee modal is now Issue Type -> Review only.
+    // ── Requestor info + date/time received are auto-filled server-side.
     public function store(Request $request)
     {
         $request->validate([
             'ticket_type'       => 'required|string',
             'request_category'  => 'required|string',
-            'subject'           => 'required|string|max:255',
-            'concern'           => 'required|string',
+            'subject'            => 'required|string|max:255',
+            'concern'            => 'required|string',
             'request_details'   => 'nullable|string',
-            'asset'             => 'nullable|string|max:255',
-            'location'          => 'nullable|string|max:255',
-            // ── new helpdesk fields
-            'users_id'          => 'nullable|uuid|exists:users,id',
-            'position'          => 'nullable|string|max:255',
-            'business_unit'     => 'nullable|string|max:255',
-            'company'           => 'nullable|string|max:255',
-            'department'        => 'nullable|string|max:255',
-            'date_received'     => 'nullable|date',
-            'time_received'     => 'nullable|date_format:H:i',
-            'date_acknowledged' => 'nullable|date',
-            'time_acknowledged' => 'nullable|date_format:H:i',
-            'method'            => 'nullable|string|in:Verbal,Email,Text,Viber',
+            'asset'              => 'nullable|string|max:255',
+            'location'           => 'nullable|string|max:255',
+            // ── Only present when Helpdesk files on behalf of someone else
+            'users_id'           => 'nullable|uuid|exists:users,id',
         ]);
 
-        // ── Helpdesk selects an employee → use that employee's ID
-        // ── Employee files themselves    → use Auth::id()
-        $usersId = $request->filled('users_id')
-            ? $request->users_id
-            : Auth::id();
+        $isHelpdeskFiling = $request->filled('users_id');
+        $usersId = $isHelpdeskFiling ? $request->users_id : Auth::id();
+
+        // ── For self-filed (employee) tickets: auto-fill requestor context.
+        // ── Adjust the User model attribute names below (position/business_unit/
+        //    company/department) to match whatever columns actually exist on `users`.
+        $requestor = $isHelpdeskFiling ? \App\Models\User::find($usersId) : Auth::user();
 
         $ticket = Tickets::create([
             'ticket_number'     => Tickets::generateTicketNumber(),
@@ -150,26 +160,29 @@ class TicketsController extends Controller
             'request_details'   => $request->request_details,
             'asset'             => $request->asset,
             'location'          => $request->location,
-            'status'            => 'Open',
+            'status'            => 'New Request',
             'escalation_level'  => 0,
-            // ── new helpdesk fields
-            'position'          => $request->position,
-            'business_unit'     => $request->business_unit,
-            'company'           => $request->company,
-            'department'        => $request->department,
-            'date_received'     => $request->date_received,
-            'time_received'     => $request->time_received,
-            'date_acknowledged' => $request->date_acknowledged,
-            'time_acknowledged' => $request->time_acknowledged,
-            'method'            => $request->method,
+
+            // ── Requestor context — auto-filled, not user-entered when self-filed
+            'position'       => $isHelpdeskFiling ? $request->position       : ($requestor->position ?? null),
+            'business_unit'  => $isHelpdeskFiling ? $request->business_unit  : ($requestor->business_unit ?? null),
+            'company'        => $isHelpdeskFiling ? $request->company        : ($requestor->company ?? null),
+            'department'     => $isHelpdeskFiling ? $request->department     : ($requestor->department ?? null),
+
+            // ── Date/time received: system timestamp for self-filed tickets
+            'date_received'  => $isHelpdeskFiling ? $request->date_received  : now()->toDateString(),
+            'time_received'  => $isHelpdeskFiling ? $request->time_received  : now()->format('H:i'),
+
+            // ── Method: defaults to "System" for self-filed tickets
+            'method'         => $isHelpdeskFiling ? $request->method : 'System',
         ]);
 
         TicketStatusHistories::create([
             'ticket_id'  => $ticket->id,
             'old_status' => null,
-            'new_status' => 'Open',
+            'new_status' => 'New Request',
             'changed_by' => Auth::id(),
-            'notes'      => $request->filled('users_id')
+            'notes'      => $isHelpdeskFiling
                 ? 'Ticket filed by Helpdesk on behalf of employee.'
                 : 'Ticket submitted by employee.',
             'changed_at' => now(),
@@ -204,37 +217,67 @@ class TicketsController extends Controller
         $ticket->update(['status' => 'Cancelled']);
 
         TicketStatusHistories::create([
-            'ticket_id' => $ticket->id,
+            'ticket_id'  => $ticket->id,
             'old_status' => $oldStatus,
             'new_status' => 'Cancelled',
             'changed_by' => Auth::id(),
-            'notes' => 'Cancelled by employee.',
+            'notes'      => 'Cancelled by employee.',
             'changed_at' => now(),
         ]);
 
         return back()->with('success', "Ticket #{$ticket->ticket_number} has been cancelled.");
     }
 
+    // ── NEW: Employee acknowledges resolution -> ticket moves to Closed
+    public function acknowledge(Tickets $ticket)
+    {
+        if ($ticket->users_id !== Auth::id()) {
+            abort(403);
+        }
+
+        if ($ticket->status !== 'Awaiting Requestor') {
+            return back()->with('error', 'This ticket is not currently awaiting your acknowledgment.');
+        }
+
+        $oldStatus = $ticket->status;
+
+        $ticket->update([
+            'status'      => 'Closed',
+            'resolved_at' => $ticket->resolved_at ?? now(),
+        ]);
+
+        TicketStatusHistories::create([
+            'ticket_id'  => $ticket->id,
+            'old_status' => $oldStatus,
+            'new_status' => 'Closed',
+            'changed_by' => Auth::id(),
+            'notes'      => 'Requestor acknowledged resolution — ticket closed.',
+            'changed_at' => now(),
+        ]);
+
+        return back()->with('success', "Ticket #{$ticket->ticket_number} has been closed. Thanks for confirming!");
+    }
+
     private function getGreeting(): string
     {
         $hour = now()->hour;
         return match (true) {
-            $hour >= 5 && $hour < 12 => 'Good Morning',
+            $hour >= 5 && $hour < 12  => 'Good Morning',
             $hour >= 12 && $hour < 18 => 'Good Afternoon',
             $hour >= 18 && $hour < 22 => 'Good Evening',
-            default => 'Good Night',
+            default                   => 'Good Night',
         };
     }
 
-    // Add this method to the existing TicketController
+    // ── Feedback now gated on 'Closed' instead of 'Resolved'
     public function storeFeedback(Request $request, Tickets $ticket)
     {
         if ($ticket->users_id !== Auth::id()) {
             abort(403);
         }
 
-        if ($ticket->status !== 'Resolved') {
-            return back()->with('error', 'You can only rate resolved tickets.');
+        if ($ticket->status !== 'Closed') {
+            return back()->with('error', 'You can only rate closed tickets.');
         }
 
         if ($ticket->feedback) {
@@ -242,41 +285,22 @@ class TicketsController extends Controller
         }
 
         $request->validate([
-            'rating' => 'required|integer|min:1|max:5',
+            'rating'   => 'required|integer|min:1|max:5',
             'comments' => 'nullable|string|max:500',
         ]);
 
         \App\Models\TicketFeedback::create([
-            'ticket_id' => $ticket->id,
-            'user_id' => Auth::id(),
-            'rating' => $request->rating,
-            'comments' => $request->comments,
+            'ticket_id'  => $ticket->id,
+            'user_id'    => Auth::id(),
+            'rating'     => $request->rating,
+            'comments'   => $request->comments,
             'created_at' => now(),
         ]);
 
         return back()->with('success', 'Thank you for your feedback! ⭐');
     }
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Tickets $tickets)
-    {
-        //
-    }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Tickets $tickets)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Tickets $tickets)
-    {
-        //
-    }
+    public function edit(Tickets $tickets) {}
+    public function update(Request $request, Tickets $tickets) {}
+    public function destroy(Tickets $tickets) {}
 }

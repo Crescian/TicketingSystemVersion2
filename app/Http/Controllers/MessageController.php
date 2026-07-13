@@ -139,6 +139,7 @@ class MessageController extends Controller
             'Employee' => $ticket->users_id === $user->id,
             'Helpdesk' => true, // Helpdesk sees all tickets
             'IT Support Specialist' => $ticket->assigned_to === $user->id,
+            'Supervisor - Support Specialist' => true,
             'Executive' => true,
             default => false,
         };

@@ -140,23 +140,23 @@
         <div class="sidebar-head"><i class="bi bi-gear me-1"></i>Settings</div>
         <ul class="nav flex-column settings-nav">
             <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.users.index') }}">
+                <a class="nav-link" href="{{ route('portal.users.index') }}">
                     <i class="bi bi-people"></i>Users
                     <span class="badge-count">{{ \App\Models\User::count() }}</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.settings') }}">
+                <a class="nav-link" href="{{ route('portal.settings') }}">
                     <i class="bi bi-building"></i>Organization
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.sla-rules.index') }}">
+                <a class="nav-link" href="{{ route('portal.sla-rules.index') }}">
                     <i class="bi bi-clock-history"></i>SLA Rules
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link active" href="{{ route('admin.audit-log') }}">
+                <a class="nav-link active" href="{{ route('portal.audit-log') }}">
                     <i class="bi bi-journal-text"></i>Audit Log
                 </a>
             </li>
@@ -169,7 +169,7 @@
 
     {{-- Toolbar --}}
     <div class="toolbar d-flex flex-wrap align-items-center gap-3 mb-3">
-      <form method="GET" action="{{ route('admin.audit-log') }}"
+      <form method="GET" action="{{ route('portal.audit-log') }}"
             class="d-flex flex-wrap align-items-center gap-3 w-100"
             id="filterForm">
 
@@ -201,7 +201,7 @@
                 style="border-radius:50px;padding:8px 14px"
                 onchange="this.form.submit()">
 
-          <a href="{{ route('admin.audit-log') }}" class="btn-export ms-auto">
+          <a href="{{ route('portal.audit-log') }}" class="btn-export ms-auto">
               <i class="bi bi-download"></i> Export CSV
           </a>
 
@@ -210,19 +210,19 @@
 
     {{-- Tab pills --}}
     <div class="d-flex flex-wrap gap-2 mb-3">
-        <a href="{{ route('admin.audit-log') }}"
+        <a href="{{ route('portal.audit-log') }}"
           class="tab-pill {{ $severity === '' ? 'active' : '' }}">
             All Events ({{ number_format($counts['all_time']) }})
         </a>
-        <a href="{{ route('admin.audit-log', ['severity' => 'info']) }}"
+        <a href="{{ route('portal.audit-log', ['severity' => 'info']) }}"
           class="tab-pill {{ $severity === 'info' ? 'active' : '' }}">
             Info
         </a>
-        <a href="{{ route('admin.audit-log', ['severity' => 'warning']) }}"
+        <a href="{{ route('portal.audit-log', ['severity' => 'warning']) }}"
           class="tab-pill {{ $severity === 'warning' ? 'active' : '' }}">
             Warning
         </a>
-        <a href="{{ route('admin.audit-log', ['severity' => 'critical']) }}"
+        <a href="{{ route('portal.audit-log', ['severity' => 'critical']) }}"
           class="tab-pill {{ $severity === 'critical' ? 'active' : '' }}">
             <span class="sev-dot critical"></span>
             Critical ({{ $counts['critical'] }})

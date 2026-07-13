@@ -14,7 +14,7 @@ class DatabaseSeeder extends Seeder
             CompanySeeder::class,
             DepartmentSeeder::class,
             UserSeeder::class,
-            TicketSeeder::class,
+            // TicketSeeder::class,
         ]);
     }
 }

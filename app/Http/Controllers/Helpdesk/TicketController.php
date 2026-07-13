@@ -9,35 +9,44 @@ use App\Models\TicketStatusHistories;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 
 class TicketController extends Controller
 {
     public function index(Request $request)
     {
-        $status = $request->get('status', 'all');
+        $status = $request->filled('status')
+            ? $request->get('status')
+            : 'new-request';
         $search = $request->get('search', '');
         $sort = $request->get('sort', 'newest');
 
         $query = Tickets::with(['user.department', 'assignedTo'])
             ->orderByRaw("CASE
-                WHEN status = 'Open'        THEN 1
-                WHEN status = 'In Progress' THEN 2
-                WHEN status = 'Escalated'   THEN 3
-                WHEN status = 'Resolved'    THEN 4
-                ELSE 5 END")
+                WHEN status = 'New Request'        THEN 1
+                WHEN status = 'Awaiting Supervisor' THEN 2
+                WHEN status = 'In Progress'   THEN 3
+                WHEN status = 'Escalated'    THEN 4
+                WHEN status = 'Pending Closure'    THEN 5
+                WHEN status = 'Awaiting Requestor'    THEN 6
+                WHEN status = 'Closed'    THEN 7
+                ELSE 8 END")
             ->orderByDesc('created_at');
 
         if ($status !== 'all') {
             $mappedStatus = match ($status) {
-                'unassigned' => 'Open',
+                'new-request' => 'New Request',
+                'awaiting-supervisor' => 'Awaiting Supervisor',
                 'in-progress' => 'In Progress',
                 'escalated' => 'Escalated',
-                'resolved' => 'Resolved',
+                'pending-closure' => 'Pending Closure',
+                'awaiting-requestor' => 'Awaiting Requestor',
+                'closed' => 'Closed',
                 default => null
             };
-            if ($mappedStatus === 'Open') {
-                $query->where('status', 'Open')->whereNull('assigned_to');
+            if ($mappedStatus === 'New Request') {
+                $query->where('status', 'New Request')->whereNull('assigned_to');
             } elseif ($mappedStatus) {
                 $query->where('status', $mappedStatus);
             }
@@ -67,11 +76,13 @@ class TicketController extends Controller
 
         // Counts
         $counts = [
-            'all' => Tickets::count(),
-            'unassigned' => Tickets::where('status', 'Open')->whereNull('assigned_to')->count(),
+            'new_request' => Tickets::where('status', 'New Request')->whereNull('assigned_to')->count(),
+            'awaiting_supervisor' => Tickets::where('status', 'Awaiting Supervisor')->count(),
             'in_progress' => Tickets::where('status', 'In Progress')->count(),
             'escalated' => Tickets::where('status', 'Escalated')->count(),
-            'resolved' => Tickets::where('status', 'Resolved')->count(),
+            'pending_closure' => Tickets::where('status', 'Pending Closure')->count(),
+            'awaiting_requestor' => Tickets::where('status', 'Awaiting Requestor')->count(),
+            'closed' => Tickets::where('status', 'Closed')->count(),
         ];
 
         // Technicians with active ticket count
@@ -92,13 +103,6 @@ class TicketController extends Controller
             });
 
 
-        // ── SLA Categories for filters ← ADD THIS
-        // $slaCategories = \App\Models\SlaCategory::where('is_active', true)
-        //     ->orderBy('sort_order')
-        //     ->orderBy('name')
-        //     ->pluck('name');
-
-            
         // ── Load SLA categories with their active rules for the ticket modal
         $slaCategories = \App\Models\SlaCategory::with([
             'rules' => function ($q) {
@@ -125,18 +129,18 @@ class TicketController extends Controller
         ])->values()->toArray();
 
         $users = \App\Models\User::select(
-        'users.id',
-        'users.name',
-        'users.position',
-        'departments.department_name',
-        'companies.company_name',
-        'business_units.business_units_name'
+            'users.id',
+            'users.name',
+            'users.position',
+            'departments.department_name',
+            'companies.company_name',
+            'business_units.business_units_name'
         )
-        ->leftJoin('departments',    'departments.id',    '=', 'users.department_id')
-        ->leftJoin('companies',      'companies.id',      '=', 'departments.companies_id')
-        ->leftJoin('business_units', 'business_units.id', '=', 'companies.business_units_id')
-        ->orderBy('users.name')
-        ->get();
+            ->leftJoin('departments', 'departments.id', '=', 'users.department_id')
+            ->leftJoin('companies', 'companies.id', '=', 'departments.companies_id')
+            ->leftJoin('business_units', 'business_units.id', '=', 'companies.business_units_id')
+            ->orderBy('users.name')
+            ->get();
 
         return view('dashboard.helpdesk', compact(
             'tickets',
@@ -147,21 +151,29 @@ class TicketController extends Controller
             'technicians',
             'slaCategories',
             'slaCategoriesJson',
-            'users' 
+            'users'
         ));
     }
 
     // Acknowledge ticket (Open → Open with acknowledgment note)
     public function acknowledge(Tickets $ticket)
     {
-        if ($ticket->status !== 'Open') {
+        if ($ticket->status !== 'New Request') {
             return back()->with('error', 'Only Open tickets can be acknowledged.');
         }
 
+        $oldStatus = $ticket->status;
+
+        $ticket->update([
+            'status' => 'Awaiting Supervisor',
+            'date_acknowledged' => now()->toDateString(),   // YYYY-MM-DD
+            'time_acknowledged' => now()->toTimeString(),   // HH:MM:SS
+        ]);
+
         TicketStatusHistories::create([
             'ticket_id' => $ticket->id,
-            'old_status' => $ticket->status,
-            'new_status' => 'Open',
+            'old_status' => $oldStatus,
+            'new_status' => 'Awaiting Supervisor',
             'changed_by' => Auth::id(),
             'notes' => 'Ticket acknowledged by Helpdesk — ' . Auth::user()->name,
             'changed_at' => now(),
@@ -169,39 +181,76 @@ class TicketController extends Controller
 
         return back()->with('success', "Ticket #{$ticket->ticket_number} acknowledged.");
     }
-
-    // Assign technician
-    public function assign(Request $request, Tickets $ticket)
+    public function closenotify(Tickets $ticket)
     {
-        $request->validate([
-            'technician_id' => 'required|uuid|exists:users,id',
-            'notes' => 'nullable|string|max:500',
-        ]);
+        // Only allow Pending Closure
+        if ($ticket->status !== 'Pending Closure') {
+            return back()->with('error', 'Only Pending Closure tickets can be closed.');
+        }
 
         $oldStatus = $ticket->status;
-        $tech = User::findOrFail($request->technician_id);
 
+        // Update ticket
         $ticket->update([
-            'assigned_to' => $request->technician_id,
-            'status' => 'In Progress',
-            'started_at' => now(),
+            'status' => 'Awaiting Requestor',
+            'closed_at' => now(), // optional if you have this column
         ]);
 
+        // Log history (FIXED)
         TicketStatusHistories::create([
             'ticket_id' => $ticket->id,
             'old_status' => $oldStatus,
-            'new_status' => 'In Progress',
+            'new_status' => 'Awaiting Requestor',
             'changed_by' => Auth::id(),
-            'notes' => "Assigned to {$tech->name} by Helpdesk."
-                . ($request->notes ? " Note: {$request->notes}" : ''),
+            'notes' => 'Ticket closed by helpdesk and notification sent by ' . Auth::user()->name,
             'changed_at' => now(),
         ]);
 
-        return back()->with(
-            'success',
-            "Ticket #{$ticket->ticket_number} assigned to {$tech->name}."
-        );
+        // Send email to requester (employee)
+        if ($ticket->user && $ticket->user->email) {
+            Mail::raw(
+                "Your ticket #{$ticket->ticket_number} has been marked as CLOSED.\n\nThank you.",
+                function ($message) use ($ticket) {
+                    $message->to($ticket->user->email)
+                        ->subject("Ticket #{$ticket->ticket_number} Closed");
+                }
+            );
+        }
+
+        return back()->with('success', "Ticket #{$ticket->ticket_number} closed and user notified.");
     }
+    // Assign technician
+    // public function assign(Request $request, Tickets $ticket)
+    // {
+    //     $request->validate([
+    //         'technician_id' => 'required|uuid|exists:users,id',
+    //         'notes' => 'nullable|string|max:500',
+    //     ]);
+
+    //     $oldStatus = $ticket->status;
+    //     $tech = User::findOrFail($request->technician_id);
+
+    //     $ticket->update([
+    //         'assigned_to' => $request->technician_id,
+    //         'status' => 'In Progress',
+    //         'started_at' => now(),
+    //     ]);
+
+    //     TicketStatusHistories::create([
+    //         'ticket_id' => $ticket->id,
+    //         'old_status' => $oldStatus,
+    //         'new_status' => 'In Progress',
+    //         'changed_by' => Auth::id(),
+    //         'notes' => "Assigned to {$tech->name} by Helpdesk."
+    //             . ($request->notes ? " Note: {$request->notes}" : ''),
+    //         'changed_at' => now(),
+    //     ]);
+
+    //     return back()->with(
+    //         'success',
+    //         "Ticket #{$ticket->ticket_number} assigned to {$tech->name}."
+    //     );
+    // }
 
     // Reassign technician
     public function reassign(Request $request, Tickets $ticket)
@@ -211,7 +260,7 @@ class TicketController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
 
-        $oldTech = $ticket->assignedTo?->name ?? 'Unassigned';
+        $oldTech = $ticket->assignedTo?->name ?? 'New Request';
         $newTech = User::findOrFail($request->technician_id);
 
         $ticket->update([

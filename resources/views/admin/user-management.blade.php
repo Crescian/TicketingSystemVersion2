@@ -146,23 +146,23 @@
         <div class="sidebar-head"><i class="bi bi-gear me-1"></i>Settings</div>
         <ul class="nav flex-column settings-nav">
             <li class="nav-item">
-                <a class="nav-link active" href="{{ route('admin.users.index') }}">
+                <a class="nav-link active" href="{{ route('portal.users.index') }}">
                     <i class="bi bi-people"></i>Users
                     <span class="badge-count">{{ $counts['total'] }}</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.settings') }}">
+                <a class="nav-link" href="{{ route('portal.settings') }}">
                     <i class="bi bi-building"></i>Organization
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.sla-rules.index') }}">
+                <a class="nav-link" href="{{ route('portal.sla-rules.index') }}">
                     <i class="bi bi-clock-history"></i>SLA Rules
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.audit-log') }}">
+                <a class="nav-link" href="{{ route('portal.audit-log') }}">
                     <i class="bi bi-journal-text"></i>Audit Log
                 </a>
             </li>
@@ -188,7 +188,7 @@
     @endif
 
     {{-- Toolbar --}}
-    <form method="GET" action="{{ route('admin.users.index') }}"
+    <form method="GET" action="{{ route('portal.users.index') }}"
           class="toolbar d-flex flex-wrap align-items-center gap-3 mb-3"
           id="filterForm">
         <div class="search-wrap flex-grow-1" style="max-width:280px">
@@ -239,7 +239,7 @@
             ];
         @endphp
         @foreach($tabs as $key => $tab)
-            <a href="{{ route('admin.users.index', array_merge(request()->except('role'), ['role' => $key])) }}"
+            <a href="{{ route('portal.users.index', array_merge(request()->except('role'), ['role' => $key])) }}"
                class="tab-pill {{ $role === $key ? 'active' : '' }}">
                 {{ $tab['label'] }} ({{ $tab['count'] }})
             </a>
@@ -340,7 +340,7 @@
                                         </button>
                                     @else
                                         <form method="POST"
-                                              action="{{ route('admin.users.reactivate', $user) }}"
+                                              action="{{ route('portal.users.reactivate', $user) }}"
                                               style="display:inline">
                                             @csrf @method('PATCH')
                                             <button type="submit" class="btn-activ">
@@ -393,7 +393,7 @@
                     <h5 class="mb-0" id="userModalTitle">Add <em>New User</em></h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
-                <form method="POST" id="userForm" action="{{ route('admin.users.store') }}">
+                <form method="POST" id="userForm" action="{{ route('portal.users.store') }}">
                     @csrf
                     <input type="hidden" name="_method" id="formMethod" value="POST">
 
@@ -767,7 +767,7 @@ $(function () {
     /* ── Open Add Modal ── */
     window.openAddModal = function () {
         $('#userModalTitle').html('Add <em>New User</em>');
-        $('#userForm').attr('action', '{{ route('admin.users.store') }}');
+        $('#userForm').attr('action', '{{ route('portal.users.store') }}');
         $('#formMethod').val('POST');
         $('#addPasswordNote').show();
         resetModalFields();

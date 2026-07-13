@@ -15,7 +15,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\WebAuthController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SSOController;
-
+use App\Http\Controllers\Dashboard\SupervisorDashboardController as SupportSupervisorController;
+;
 
 // ── Redirect root to login
 Route::get('/', fn() => redirect('/login'));
@@ -28,7 +29,7 @@ Route::middleware('guest')->group(function () {
 
 Route::get('/sso-login', [SSOController::class, 'handleSSO'])
     ->name('sso.login');
-    
+
 // ── Logout
 Route::middleware('auth')
     ->post('/logout', [WebAuthController::class, 'logout'])
@@ -45,48 +46,13 @@ Route::middleware(['auth', 'role:Employee'])
         Route::get('/tickets/{ticket}', [EmployeeTicketsController::class, 'show'])->name('tickets.show');
         Route::patch('/tickets/{ticket}/cancel', [EmployeeTicketsController::class, 'cancel'])->name('tickets.cancel');
         Route::post('/tickets/{ticket}/feedback', [EmployeeTicketsController::class, 'storeFeedback'])->name('tickets.feedback'); // ← add this
+        Route::patch('/tickets/{ticket}/acknowledge', [EmployeeTicketsController::class, 'acknowledge'])->name('tickets.acknowledge'); // ← add this
     });
 
-// ── Helpdesk routes
-Route::middleware(['auth', 'role:Helpdesk'])
-    ->prefix('helpdesk')
-    ->name('helpdesk.')
+Route::middleware(['auth', 'role:Helpdesk,IT Admin,Supervisor - IT Admin'])
+    ->prefix('portal')
+    ->name('portal.')
     ->group(function () {
-        Route::get('/dashboard', [HelpdeskTicketController::class, 'index'])->name('dashboard');
-        Route::post('/tickets/{ticket}/acknowledge', [HelpdeskTicketController::class, 'acknowledge'])->name('tickets.acknowledge');
-        Route::post('/tickets/{ticket}/assign', [HelpdeskTicketController::class, 'assign'])->name('tickets.assign');
-        Route::post('/tickets/{ticket}/reassign', [HelpdeskTicketController::class, 'reassign'])->name('tickets.reassign');
-        Route::post('/tickets/{ticket}/escalate', [HelpdeskTicketController::class, 'escalate'])->name('tickets.escalate');
-        Route::post('/tickets/{ticket}/resolve', [HelpdeskTicketController::class, 'resolve'])->name('tickets.resolve');
-        Route::post('/tickets', [EmployeeTicketsController::class, 'store'])->name('tickets.store'); // ← reuse employee store
-    });
-
-// ── IT Support Specialist routes
-Route::middleware(['auth', 'role:IT Support Specialist'])
-    ->prefix('technician')
-    ->name('technician.')
-    ->group(function () {
-        Route::get('/dashboard', [TechnicianTicketController::class, 'index'])->name('dashboard');
-        Route::post('/tickets/{ticket}/accept', [TechnicianTicketController::class, 'accept'])->name('tickets.accept');
-        Route::post('/tickets/{ticket}/decline', [TechnicianTicketController::class, 'decline'])->name('tickets.decline');
-        Route::post('/tickets/{ticket}/update', [TechnicianTicketController::class, 'update'])->name('tickets.update');
-        Route::post('/tickets/{ticket}/resolve', [TechnicianTicketController::class, 'resolve'])->name('tickets.resolve');
-        Route::post('/tickets/{ticket}/escalate', [TechnicianTicketController::class, 'escalate'])->name('tickets.escalate');
-    });
-
-// ── IT Admin routes
-Route::middleware(['auth', 'role:IT Admin'])
-    ->prefix('admin')
-    ->name('admin.')
-    ->group(function () {
-
-        // Escalation dashboard
-        Route::get('/dashboard', [AdminTicketController::class, 'index'])->name('dashboard');
-        Route::post('/tickets/{ticket}/reassign', [AdminTicketController::class, 'reassign'])->name('tickets.reassign');
-        Route::post('/tickets/{ticket}/takeover', [AdminTicketController::class, 'takeover'])->name('tickets.takeover');
-        Route::post('/tickets/{ticket}/resolve', [AdminTicketController::class, 'resolve'])->name('tickets.resolve');
-        Route::get('/tickets/{ticket}/history', [AdminTicketController::class, 'history'])->name('tickets.history');
-
         // User management
         Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
         Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
@@ -95,6 +61,7 @@ Route::middleware(['auth', 'role:IT Admin'])
         Route::patch('/users/{user}/deactivate', [UserManagementController::class, 'deactivate'])->name('users.deactivate');
         Route::patch('/users/{user}/reactivate', [UserManagementController::class, 'reactivate'])->name('users.reactivate');
         Route::patch('/users/{user}/reset-password', [UserManagementController::class, 'resetPassword'])->name('users.reset-password');
+
 
         // Audit log  ← now correctly INSIDE the admin group
         Route::get('/audit-log', [AuditLogController::class, 'index'])->name('audit-log');
@@ -123,7 +90,7 @@ Route::middleware(['auth', 'role:IT Admin'])
         Route::put('/sla-rules/{slaRule}', [SlaRuleController::class, 'update'])->name('sla-rules.update');
         Route::delete('/sla-rules/{slaRule}', [SlaRuleController::class, 'destroy'])->name('sla-rules.destroy');
         Route::patch('/sla-rules/{slaRule}/toggle', [SlaRuleController::class, 'toggle'])->name('sla-rules.toggle');
-        
+
         // ── Categories
         Route::post('/sla-rules/categories', [SlaRuleController::class, 'storeCategory'])->name('sla-rules.category.store');
         Route::put('/sla-rules/categories/{slaCategory}', [SlaRuleController::class, 'updateCategory'])->name('sla-rules.category.update');
@@ -135,6 +102,105 @@ Route::middleware(['auth', 'role:IT Admin'])
         Route::put('/sla-rules/rules/{slaRule}', [SlaRuleController::class, 'updateRule'])->name('sla-rules.rule.update');
         Route::delete('/sla-rules/rules/{slaRule}', [SlaRuleController::class, 'destroyRule'])->name('sla-rules.rule.destroy');
         Route::patch('/sla-rules/rules/{slaRule}/toggle', [SlaRuleController::class, 'toggleRule'])->name('sla-rules.rule.toggle');
+
+    });
+// ── Helpdesk routes
+Route::middleware(['auth', 'role:Helpdesk'])
+    ->prefix('helpdesk')
+    ->name('helpdesk.')
+    ->group(function () {
+        Route::get('/dashboard', [HelpdeskTicketController::class, 'index'])->name('dashboard');
+        Route::post('/tickets/{ticket}/acknowledge', [HelpdeskTicketController::class, 'acknowledge'])->name('tickets.acknowledge');
+        Route::post('/tickets/{ticket}/closenotify', [HelpdeskTicketController::class, 'closenotify'])->name('tickets.closenotify');
+        Route::post('/tickets/{ticket}/assign', [HelpdeskTicketController::class, 'assign'])->name('tickets.assign');
+        Route::post('/tickets/{ticket}/reassign', [HelpdeskTicketController::class, 'reassign'])->name('tickets.reassign');
+        Route::post('/tickets/{ticket}/escalate', [HelpdeskTicketController::class, 'escalate'])->name('tickets.escalate');
+        Route::post('/tickets/{ticket}/resolve', [HelpdeskTicketController::class, 'resolve'])->name('tickets.resolve');
+        Route::post('/tickets', [EmployeeTicketsController::class, 'store'])->name('tickets.store'); // ← reuse employee store
+    
+    });
+
+// ── IT Support Specialist routes
+Route::middleware(['auth', 'role:IT Support Specialist'])
+    ->prefix('technician')
+    ->name('technician.')
+    ->group(function () {
+        Route::get('/dashboard', [TechnicianTicketController::class, 'index'])->name('dashboard');
+        Route::post('/tickets/{ticket}/acknowledge', [TechnicianTicketController::class, 'acknowledge'])->name('tickets.acknowledge');
+        Route::post('/tickets/{ticket}/start', [TechnicianTicketController::class, 'start'])->name('tickets.start');
+        Route::post('/tickets/{ticket}/decline', [TechnicianTicketController::class, 'decline'])->name('tickets.decline');
+        Route::post('/tickets/{ticket}/update', [TechnicianTicketController::class, 'update'])->name('tickets.update');
+        Route::post('/tickets/{ticket}/resolve', [TechnicianTicketController::class, 'resolve'])->name('tickets.resolve');
+        Route::post('/tickets/{ticket}/escalate', [TechnicianTicketController::class, 'escalate'])->name('tickets.escalate');
+    });
+
+// ── IT Admin routes
+Route::middleware(['auth', 'role:IT Admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+
+        // Escalation dashboard
+        Route::get('/dashboard', [AdminTicketController::class, 'index'])->name('dashboard');
+        Route::post('/tickets/{ticket}/acknowledge', [AdminTicketController::class, 'acknowledge'])->name('tickets.acknowledge');
+        Route::post('/tickets/{ticket}/start', [AdminTicketController::class, 'start'])->name('tickets.start');
+        Route::post('/tickets/{ticket}/decline', [AdminTicketController::class, 'decline'])->name('tickets.decline');
+        Route::post('/tickets/{ticket}/reassign', [AdminTicketController::class, 'reassign'])->name('tickets.reassign');
+        Route::post('/tickets/{ticket}/takeover', [AdminTicketController::class, 'takeover'])->name('tickets.takeover');
+        Route::post('/tickets/{ticket}/resolve', [AdminTicketController::class, 'resolve'])->name('tickets.resolve');
+        Route::get('/tickets/{ticket}/history', [AdminTicketController::class, 'history'])->name('tickets.history');
+    });
+
+Route::middleware(['auth', 'role:Supervisor - IT Admin'])
+    ->prefix('supervisor')
+    ->name('supervisor.')
+    ->group(function () {
+        Route::get('/dashboard', [SupportSupervisorController::class, 'index'])
+            ->name('dashboard');
+
+        Route::post('/tickets/{ticket}/acknowledge', [SupportSupervisorController::class, 'adminAcknowledge'])
+            ->name('tickets.acknowledge');
+
+        Route::post('/tickets/{ticket}/admin-acknowledge', [SupportSupervisorController::class, 'adminAcknowledgeAssignment'])
+            ->name('tickets.admin-acknowledge');
+
+        Route::post('/tickets/{ticket}/start', [SupportSupervisorController::class, 'adminStartSla'])
+            ->name('tickets.start');
+
+        Route::post('/tickets/{ticket}/admin-classify-assign', [SupportSupervisorController::class, 'adminClassifyAndAssign'])
+            ->name('tickets.admin-classify-assign');
+
+        Route::post('/tickets/{ticket}/reassign', [SupportSupervisorController::class, 'adminReassign'])
+            ->name('tickets.reassign');
+
+        Route::post('/tickets/{ticket}/validate-resolution', [SupportSupervisorController::class, 'adminValidateResolution'])
+            ->name('tickets.validate-resolution');
+    });
+
+Route::middleware(['auth', 'role:Supervisor - Support Specialist'])
+    ->prefix('supervisor/support')
+    ->name('supervisor.support.')
+    ->group(function () {
+        Route::get('/dashboard', [SupportSupervisorController::class, 'supportIndex'])
+            ->name('dashboard');
+
+        Route::post('/tickets/{ticket}/acknowledge', [SupportSupervisorController::class, 'supportAcknowledge'])
+            ->name('tickets.acknowledge');
+
+        Route::post('/tickets/{ticket}/classify-assign', [SupportSupervisorController::class, 'classifyAndAssign'])
+            ->name('tickets.classify-assign');
+
+        Route::post('/tickets/{ticket}/reassign', [SupportSupervisorController::class, 'reassign'])
+            ->name('tickets.reassign');
+
+        Route::post('/tickets/{ticket}/takeover', [SupportSupervisorController::class, 'takeover'])
+            ->name('tickets.takeover');
+
+        Route::post('/tickets/{ticket}/validate-resolution', [SupportSupervisorController::class, 'validateResolution'])
+            ->name('tickets.validate-resolution');
+
+        Route::post('/tickets/{ticket}/escalate-admin', [SupportSupervisorController::class, 'escalateToAdmin'])
+            ->name('tickets.escalate-admin');
     });
 
 // ── Executive routes
@@ -145,10 +211,12 @@ Route::middleware(['auth', 'role:Manager'])
         Route::get('/dashboard', [ExecutiveDashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard/data', [ExecutiveDashboardController::class, 'data'])->name('dashboard.data'); // ← add this
     });
+
 // ── Notifications (all authenticated users)
 Route::middleware('auth')
     ->get('/notifications/poll', [NotificationController::class, 'poll'])
     ->name('notifications.poll');
+
 // ── Messaging routes (all authenticated users)
 Route::middleware('auth')
     ->prefix('tickets')

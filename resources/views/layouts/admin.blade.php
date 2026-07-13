@@ -1134,7 +1134,15 @@
 </head>
 
 <body>
+  @php
+    $user = auth()->user();
 
+    $dashboardRoute = match ($user->role->role_name ?? null) {
+      'IT Admin' => 'admin.dashboard',
+      'Helpdesk' => 'helpdesk.dashboard',
+      default => 'helpdesk.dashboard',
+    };
+  @endphp
   {{-- ── ADMIN TOPBAR (dark) ── --}}
   <div id="topbar" class="d-flex justify-content-between align-items-center px-4 py-1">
     <span><strong>IT Admin Console</strong> — Full system access</span>
@@ -1155,7 +1163,7 @@
   {{-- ── NAVBAR ── --}}
   <nav class="navbar sticky-top px-4 py-0">
     <div class="container-fluid px-0">
-      <a class="navbar-brand" href="{{ route('admin.dashboard') }}">LG<span>ICT</span></a>
+      <a class="navbar-brand" href="{{ route($dashboardRoute) }}">Support Request<span> System</span></a>
       <div class="ms-auto d-flex align-items-center gap-2">
         @yield('nav-role-badge')
         <a href="{{ route('profile') }}" class="d-flex align-items-center gap-2 text-decoration-none text-reset">

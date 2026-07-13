@@ -850,7 +850,7 @@
   <div id="topbar">
     {{-- Left: logo + badge --}}
     <div class="d-flex align-items-center gap-3">
-      <a href="#" class="top-logo">LG<span>ICT</span></a>
+      <a href="#" class="top-logo">Support Request<span> System</span></a>
       <span class="exec-badge"><i class="bi bi-briefcase me-1"></i>Management View</span>
     </div>
 
