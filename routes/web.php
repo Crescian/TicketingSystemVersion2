@@ -7,6 +7,7 @@ use App\Http\Controllers\Helpdesk\TicketController as HelpdeskTicketController;
 use App\Http\Controllers\Technician\TicketController as TechnicianTicketController;
 use App\Http\Controllers\Dashboard\ExecutiveDashboardController;
 use App\Http\Controllers\Admin\TicketController as AdminTicketController;
+use App\Http\Controllers\Manager\TicketController as ManagerTicketController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Admin\OrgSettingsController;
@@ -24,7 +25,7 @@ Route::get('/', fn() => redirect('/login'));
 // ── Guest routes
 Route::middleware('guest')->group(function () {
     Route::get('/login', [WebAuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [WebAuthController::class, 'login']);
+    Route::post('/login', [WebAuthController::class, 'login'])->middleware('throttle:login');
 });
 
 Route::get('/sso-login', [SSOController::class, 'handleSSO'])
@@ -36,17 +37,17 @@ Route::middleware('auth')
     ->name('logout');
 
 // ── Employee routes
-Route::middleware(['auth', 'role:Employee'])
+Route::middleware(['auth', 'role:Employee', 'throttle:ticket-actions'])
     ->prefix('employee')
     ->name('employee.')
     ->group(function () {
         Route::get('/dashboard', [EmployeeTicketsController::class, 'index'])->name('tickets.index');
         Route::get('/tickets/create', [EmployeeTicketsController::class, 'create'])->name('tickets.create');
-        Route::post('/tickets', [EmployeeTicketsController::class, 'store'])->name('tickets.store');
+        Route::post('/tickets', [EmployeeTicketsController::class, 'store'])->name('tickets.store')->middleware(['throttle:ticket-submit', 'idempotent:10']);
         Route::get('/tickets/{ticket}', [EmployeeTicketsController::class, 'show'])->name('tickets.show');
-        Route::patch('/tickets/{ticket}/cancel', [EmployeeTicketsController::class, 'cancel'])->name('tickets.cancel');
-        Route::post('/tickets/{ticket}/feedback', [EmployeeTicketsController::class, 'storeFeedback'])->name('tickets.feedback'); // ← add this
-        Route::patch('/tickets/{ticket}/acknowledge', [EmployeeTicketsController::class, 'acknowledge'])->name('tickets.acknowledge'); // ← add this
+        Route::patch('/tickets/{ticket}/cancel', [EmployeeTicketsController::class, 'cancel'])->name('tickets.cancel')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/feedback', [EmployeeTicketsController::class, 'storeFeedback'])->name('tickets.feedback')->middleware('idempotent:8'); // ← add this
+        Route::patch('/tickets/{ticket}/acknowledge', [EmployeeTicketsController::class, 'acknowledge'])->name('tickets.acknowledge')->middleware('idempotent:8'); // ← add this
     });
 
 Route::middleware(['auth', 'role:Helpdesk,IT Admin,Supervisor - IT Admin'])
@@ -105,53 +106,54 @@ Route::middleware(['auth', 'role:Helpdesk,IT Admin,Supervisor - IT Admin'])
 
     });
 // ── Helpdesk routes
-Route::middleware(['auth', 'role:Helpdesk'])
+Route::middleware(['auth', 'role:Helpdesk', 'throttle:ticket-actions'])
     ->prefix('helpdesk')
     ->name('helpdesk.')
     ->group(function () {
         Route::get('/dashboard', [HelpdeskTicketController::class, 'index'])->name('dashboard');
-        Route::post('/tickets/{ticket}/acknowledge', [HelpdeskTicketController::class, 'acknowledge'])->name('tickets.acknowledge');
-        Route::post('/tickets/{ticket}/closenotify', [HelpdeskTicketController::class, 'closenotify'])->name('tickets.closenotify');
-        Route::post('/tickets/{ticket}/assign', [HelpdeskTicketController::class, 'assign'])->name('tickets.assign');
-        Route::post('/tickets/{ticket}/reassign', [HelpdeskTicketController::class, 'reassign'])->name('tickets.reassign');
-        Route::post('/tickets/{ticket}/escalate', [HelpdeskTicketController::class, 'escalate'])->name('tickets.escalate');
-        Route::post('/tickets/{ticket}/resolve', [HelpdeskTicketController::class, 'resolve'])->name('tickets.resolve');
-        Route::post('/tickets', [EmployeeTicketsController::class, 'store'])->name('tickets.store'); // ← reuse employee store
-    
+        Route::post('/tickets/{ticket}/acknowledge', [HelpdeskTicketController::class, 'acknowledge'])->name('tickets.acknowledge')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/closenotify', [HelpdeskTicketController::class, 'closenotify'])->name('tickets.closenotify')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/assign', [HelpdeskTicketController::class, 'assign'])->name('tickets.assign')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/reassign', [HelpdeskTicketController::class, 'reassign'])->name('tickets.reassign')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/escalate', [HelpdeskTicketController::class, 'escalate'])->name('tickets.escalate')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/resolve', [HelpdeskTicketController::class, 'resolve'])->name('tickets.resolve')->middleware('idempotent:8');
+        Route::post('/tickets', [EmployeeTicketsController::class, 'store'])->name('tickets.store')->middleware(['throttle:ticket-submit', 'idempotent:10']); // ← reuse employee store
+
     });
 
 // ── IT Support Specialist routes
-Route::middleware(['auth', 'role:IT Support Specialist'])
+Route::middleware(['auth', 'role:IT Support Specialist', 'throttle:ticket-actions'])
     ->prefix('technician')
     ->name('technician.')
     ->group(function () {
         Route::get('/dashboard', [TechnicianTicketController::class, 'index'])->name('dashboard');
-        Route::post('/tickets/{ticket}/acknowledge', [TechnicianTicketController::class, 'acknowledge'])->name('tickets.acknowledge');
-        Route::post('/tickets/{ticket}/start', [TechnicianTicketController::class, 'start'])->name('tickets.start');
-        Route::post('/tickets/{ticket}/decline', [TechnicianTicketController::class, 'decline'])->name('tickets.decline');
-        Route::post('/tickets/{ticket}/update', [TechnicianTicketController::class, 'update'])->name('tickets.update');
-        Route::post('/tickets/{ticket}/resolve', [TechnicianTicketController::class, 'resolve'])->name('tickets.resolve');
-        Route::post('/tickets/{ticket}/escalate', [TechnicianTicketController::class, 'escalate'])->name('tickets.escalate');
+        Route::post('/tickets/{ticket}/acknowledge', [TechnicianTicketController::class, 'acknowledge'])->name('tickets.acknowledge')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/start', [TechnicianTicketController::class, 'start'])->name('tickets.start')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/decline', [TechnicianTicketController::class, 'decline'])->name('tickets.decline')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/update', [TechnicianTicketController::class, 'update'])->name('tickets.update')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/resolve', [TechnicianTicketController::class, 'resolve'])->name('tickets.resolve')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/escalate', [TechnicianTicketController::class, 'escalate'])->name('tickets.escalate')->middleware('idempotent:8');
     });
 
 // ── IT Admin routes
-Route::middleware(['auth', 'role:IT Admin'])
+Route::middleware(['auth', 'role:IT Admin', 'throttle:ticket-actions'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
 
         // Escalation dashboard
         Route::get('/dashboard', [AdminTicketController::class, 'index'])->name('dashboard');
-        Route::post('/tickets/{ticket}/acknowledge', [AdminTicketController::class, 'acknowledge'])->name('tickets.acknowledge');
-        Route::post('/tickets/{ticket}/start', [AdminTicketController::class, 'start'])->name('tickets.start');
-        Route::post('/tickets/{ticket}/decline', [AdminTicketController::class, 'decline'])->name('tickets.decline');
-        Route::post('/tickets/{ticket}/reassign', [AdminTicketController::class, 'reassign'])->name('tickets.reassign');
-        Route::post('/tickets/{ticket}/takeover', [AdminTicketController::class, 'takeover'])->name('tickets.takeover');
-        Route::post('/tickets/{ticket}/resolve', [AdminTicketController::class, 'resolve'])->name('tickets.resolve');
+        Route::post('/tickets/{ticket}/acknowledge', [AdminTicketController::class, 'acknowledge'])->name('tickets.acknowledge')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/start', [AdminTicketController::class, 'start'])->name('tickets.start')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/decline', [AdminTicketController::class, 'decline'])->name('tickets.decline')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/reassign', [AdminTicketController::class, 'reassign'])->name('tickets.reassign')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/takeover', [AdminTicketController::class, 'takeover'])->name('tickets.takeover')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/resolve', [AdminTicketController::class, 'resolve'])->name('tickets.resolve')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/escalate', [AdminTicketController::class, 'escalate'])->name('tickets.escalate')->middleware('idempotent:8');
         Route::get('/tickets/{ticket}/history', [AdminTicketController::class, 'history'])->name('tickets.history');
     });
 
-Route::middleware(['auth', 'role:Supervisor - IT Admin'])
+Route::middleware(['auth', 'role:Supervisor - IT Admin', 'throttle:ticket-actions'])
     ->prefix('supervisor')
     ->name('supervisor.')
     ->group(function () {
@@ -159,25 +161,25 @@ Route::middleware(['auth', 'role:Supervisor - IT Admin'])
             ->name('dashboard');
 
         Route::post('/tickets/{ticket}/acknowledge', [SupportSupervisorController::class, 'adminAcknowledge'])
-            ->name('tickets.acknowledge');
-
-        Route::post('/tickets/{ticket}/admin-acknowledge', [SupportSupervisorController::class, 'adminAcknowledgeAssignment'])
-            ->name('tickets.admin-acknowledge');
+            ->name('tickets.acknowledge')->middleware('idempotent:8');
 
         Route::post('/tickets/{ticket}/start', [SupportSupervisorController::class, 'adminStartSla'])
-            ->name('tickets.start');
+            ->name('tickets.start')->middleware('idempotent:8');
 
         Route::post('/tickets/{ticket}/admin-classify-assign', [SupportSupervisorController::class, 'adminClassifyAndAssign'])
-            ->name('tickets.admin-classify-assign');
+            ->name('tickets.admin-classify-assign')->middleware('idempotent:8');
 
         Route::post('/tickets/{ticket}/reassign', [SupportSupervisorController::class, 'adminReassign'])
-            ->name('tickets.reassign');
+            ->name('tickets.reassign')->middleware('idempotent:8');
 
         Route::post('/tickets/{ticket}/validate-resolution', [SupportSupervisorController::class, 'adminValidateResolution'])
-            ->name('tickets.validate-resolution');
+            ->name('tickets.validate-resolution')->middleware('idempotent:8');
+
+        Route::post('/tickets/{ticket}/escalate-manager', [SupportSupervisorController::class, 'escalateToManager'])
+            ->name('tickets.escalate-manager')->middleware('idempotent:8');
     });
 
-Route::middleware(['auth', 'role:Supervisor - Support Specialist'])
+Route::middleware(['auth', 'role:Supervisor - Support Specialist', 'throttle:ticket-actions'])
     ->prefix('supervisor/support')
     ->name('supervisor.support.')
     ->group(function () {
@@ -185,31 +187,42 @@ Route::middleware(['auth', 'role:Supervisor - Support Specialist'])
             ->name('dashboard');
 
         Route::post('/tickets/{ticket}/acknowledge', [SupportSupervisorController::class, 'supportAcknowledge'])
-            ->name('tickets.acknowledge');
+            ->name('tickets.acknowledge')->middleware('idempotent:8');
 
         Route::post('/tickets/{ticket}/classify-assign', [SupportSupervisorController::class, 'classifyAndAssign'])
-            ->name('tickets.classify-assign');
+            ->name('tickets.classify-assign')->middleware('idempotent:8');
 
         Route::post('/tickets/{ticket}/reassign', [SupportSupervisorController::class, 'reassign'])
-            ->name('tickets.reassign');
+            ->name('tickets.reassign')->middleware('idempotent:8');
 
         Route::post('/tickets/{ticket}/takeover', [SupportSupervisorController::class, 'takeover'])
-            ->name('tickets.takeover');
+            ->name('tickets.takeover')->middleware('idempotent:8');
+
+        Route::post('/tickets/{ticket}/update', [SupportSupervisorController::class, 'supportUpdate'])
+            ->name('tickets.update')->middleware('idempotent:8');
+
+        Route::post('/tickets/{ticket}/resolve', [SupportSupervisorController::class, 'supportResolve'])
+            ->name('tickets.resolve')->middleware('idempotent:8');
 
         Route::post('/tickets/{ticket}/validate-resolution', [SupportSupervisorController::class, 'validateResolution'])
-            ->name('tickets.validate-resolution');
+            ->name('tickets.validate-resolution')->middleware('idempotent:8');
 
         Route::post('/tickets/{ticket}/escalate-admin', [SupportSupervisorController::class, 'escalateToAdmin'])
-            ->name('tickets.escalate-admin');
+            ->name('tickets.escalate-admin')->middleware('idempotent:8');
     });
 
 // ── Executive routes
-Route::middleware(['auth', 'role:Manager'])
+Route::middleware(['auth', 'role:Manager', 'throttle:ticket-actions'])
     ->prefix('executive')
     ->name('executive.')
     ->group(function () {
         Route::get('/dashboard', [ExecutiveDashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard/data', [ExecutiveDashboardController::class, 'data'])->name('dashboard.data'); // ← add this
+
+        Route::get('/tickets', [ManagerTicketController::class, 'index'])->name('tickets.index');
+        Route::post('/tickets/{ticket}/acknowledge', [ManagerTicketController::class, 'acknowledge'])->name('tickets.acknowledge')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/resolve', [ManagerTicketController::class, 'resolve'])->name('tickets.resolve')->middleware('idempotent:8');
+        Route::get('/tickets/{ticket}/history', [ManagerTicketController::class, 'history'])->name('tickets.history');
     });
 
 // ── Notifications (all authenticated users)

@@ -30,10 +30,27 @@ class ExecutiveDashboardController extends Controller
             ->orderByDesc('total')
             ->get();
 
+        // ── Recent tickets across the whole org (only needed for blade, not API)
+        $recentTickets = DB::table('tickets')
+            ->leftJoin('users', 'users.id', '=', 'tickets.users_id')
+            ->orderByDesc('tickets.created_at')
+            ->limit(10)
+            ->select(
+                'tickets.id',
+                'tickets.ticket_number',
+                'tickets.subject',
+                'tickets.status',
+                'tickets.ticket_type',
+                'tickets.created_at',
+                'users.name as requester_name'
+            )
+            ->get();
+
         return view('dashboard.executive', array_merge($data, compact(
             'user',
             'greeting',
             'byDepartment',
+            'recentTickets',
             'lastStart',
             'lastEnd',
             'now'
@@ -50,21 +67,21 @@ class ExecutiveDashboardController extends Controller
         $lastEnd = $now->copy()->subMonth()->endOfMonth();
 
         $totalTickets = DB::table('tickets')->whereBetween('created_at', [$start, $end])->count();
-        $resolved = DB::table('tickets')->whereBetween('created_at', [$start, $end])->where('status', 'Resolved')->count();
+        $resolved = DB::table('tickets')->whereBetween('created_at', [$start, $end])->where('status', 'Closed')->count();
         $escalations = DB::table('tickets')->whereBetween('created_at', [$start, $end])->where('status', 'Escalated')->count();
         $avgResolutionTime = DB::table('tickets')
             ->whereBetween('created_at', [$start, $end])
-            ->where('status', 'Resolved')
+            ->where('status', 'Closed')
             ->whereNotNull('resolved_at')->whereNotNull('started_at')
             ->selectRaw("ROUND(AVG(EXTRACT(EPOCH FROM (resolved_at - started_at)) / 3600)::numeric, 1) as avg_hours")
             ->value('avg_hours');
 
         $lastTotalTickets = DB::table('tickets')->whereBetween('created_at', [$lastStart, $lastEnd])->count();
-        $lastResolved = DB::table('tickets')->whereBetween('created_at', [$lastStart, $lastEnd])->where('status', 'Resolved')->count();
+        $lastResolved = DB::table('tickets')->whereBetween('created_at', [$lastStart, $lastEnd])->where('status', 'Closed')->count();
         $lastEscalations = DB::table('tickets')->whereBetween('created_at', [$lastStart, $lastEnd])->where('status', 'Escalated')->count();
         $lastAvgTime = DB::table('tickets')
             ->whereBetween('created_at', [$lastStart, $lastEnd])
-            ->where('status', 'Resolved')
+            ->where('status', 'Closed')
             ->whereNotNull('resolved_at')->whereNotNull('started_at')
             ->selectRaw("ROUND(AVG(EXTRACT(EPOCH FROM (resolved_at - started_at)) / 3600)::numeric, 1) as avg_hours")
             ->value('avg_hours');
@@ -80,7 +97,7 @@ class ExecutiveDashboardController extends Controller
             $day = $now->copy()->subDays($i)->format('Y-m-d');
             $volumeDays[] = $now->copy()->subDays($i)->format('d');
             $volumeOpened[] = DB::table('tickets')->whereDate('created_at', $day)->count();
-            $volumeResolved[] = DB::table('tickets')->whereDate('resolved_at', $day)->where('status', 'Resolved')->count();
+            $volumeResolved[] = DB::table('tickets')->whereDate('resolved_at', $day)->where('status', 'Closed')->count();
         }
 
         // SLA by priority
@@ -103,7 +120,7 @@ class ExecutiveDashboardController extends Controller
         // Resolution time by category
         $resTimeByCategory = DB::table('tickets')
             ->whereBetween('created_at', [$start, $end])
-            ->where('status', 'Resolved')
+            ->where('status', 'Closed')
             ->whereNotNull('resolved_at')->whereNotNull('started_at')
             ->selectRaw("request_category, ROUND(AVG(EXTRACT(EPOCH FROM (resolved_at - started_at)) / 3600)::numeric, 1) as avg_hours")
             ->groupBy('request_category')->get();
@@ -115,7 +132,7 @@ class ExecutiveDashboardController extends Controller
             $wEnd = $now->copy()->subWeeks($i)->endOfWeek();
             $weeklyData[] = [
                 'label' => $wStart->format('M d') . '–' . $wEnd->format('d'),
-                'resolved' => DB::table('tickets')->whereBetween('created_at', [$wStart, $wEnd])->where('status', 'Resolved')->count(),
+                'resolved' => DB::table('tickets')->whereBetween('created_at', [$wStart, $wEnd])->where('status', 'Closed')->count(),
                 'inProgress' => DB::table('tickets')->whereBetween('created_at', [$wStart, $wEnd])->where('status', 'In Progress')->count(),
                 'escalated' => DB::table('tickets')->whereBetween('created_at', [$wStart, $wEnd])->where('status', 'Escalated')->count(),
             ];
@@ -126,7 +143,7 @@ class ExecutiveDashboardController extends Controller
             ->join('users', 'users.id', '=', 'tickets.assigned_to')
             ->leftJoin('ticket_feed_backs', 'ticket_feed_backs.ticket_id', '=', 'tickets.id')
             ->whereBetween('tickets.created_at', [$start, $end])
-            ->where('tickets.status', 'Resolved')
+            ->where('tickets.status', 'Closed')
             ->whereNotNull('tickets.assigned_to')
             ->selectRaw("
                 users.id, users.name, users.position,

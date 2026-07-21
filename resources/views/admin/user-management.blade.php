@@ -90,6 +90,9 @@
     .role-dot.admin     { background:#e24b4a; }
     .role-dot.executive { background:#9b59b6; }
 
+    /* Level badge */
+    .level-badge { display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:20px; padding:0 6px; border-radius:20px; font-size:11px; font-weight:800; background:var(--gd); color:var(--yg); margin-left:6px; }
+
     /* Status chips */
     .status-chip { display:inline-flex; align-items:center; gap:5px; border-radius:20px; padding:4px 10px; font-size:11px; font-weight:800; }
     .status-chip.active   { background:#e8f5ee; color:#1a5a3a; }
@@ -309,6 +312,9 @@
                                     <span class="role-dot {{ $roleSlug }}"></span>
                                     {{ $roleIcon }} {{ $user->role?->role_name ?? 'N/A' }}
                                 </span>
+                                @if($user->levelLabel())
+                                    <span class="level-badge" title="Support tier level">{{ $user->levelLabel() }}</span>
+                                @endif
                             </td>
                             <td>{{ $user->department?->department_name ?? '—' }}</td>
                             <td style="color:var(--tm);font-size:13px">
@@ -494,6 +500,9 @@
                                         data-role-name="{{ $r->role_name }}">
                                         <span class="ro-icon">{{ $icon }}</span>
                                         <span class="ro-lbl">{{ $r->role_name }}</span>
+                                        @if($r->level_label)
+                                            <span class="level-badge" style="margin-left:0;margin-top:4px">{{ $r->level_label }}</span>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>

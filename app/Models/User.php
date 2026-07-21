@@ -66,6 +66,31 @@ class User extends Authenticatable
     {
         return $this->role?->role_name === $role;
     }
+
+    // Active users holding a given role — used to fan out queue notifications.
+    public function scopeWithActiveRole($query, string $roleName)
+    {
+        return $query->whereHas('role', fn($q) => $q->where('role_name', $roleName))
+            ->where('active', true);
+    }
+
+    // Support-tier level (1-4) derived from the user's role, or null if unassigned/no tier.
+    public function level(): ?int
+    {
+        return $this->role?->level;
+    }
+
+    // "L1"-"L4" label for display, or null for roles with no tier (e.g. Employee).
+    public function levelLabel(): ?string
+    {
+        return $this->role?->level_label;
+    }
+
+    // Users holding a role at the given support-tier level (1-4) — used to fan out level-based notifications/assignment.
+    public function scopeWithLevel($query, int $level)
+    {
+        return $query->whereHas('role', fn($q) => $q->where('level', $level));
+    }
     public function assignedTickets()
     {
         return $this->hasMany(Tickets::class, 'assigned_to');

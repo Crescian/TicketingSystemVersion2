@@ -128,6 +128,28 @@
         padding: 7px 16px; border-radius: 20px; cursor: pointer; transition: all .2s;
     }
     .btn-escalate-admin:hover { background: #f8d0d0; border-color: #e08888; }
+
+    .btn-update    { background:var(--ygl); color:var(--gd); font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid var(--bd); cursor:pointer; transition:all .2s; }
+    .btn-update:hover { background:#d8eda0; border-color:var(--gl); }
+    .btn-resolve-t { background:#e8f5ee; color:#1a5a3a; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #a8ddc0; cursor:pointer; transition:all .2s; }
+    .btn-resolve-t:hover { background:#c8ead8; }
+    .btn-escalate-t { background:#fde8e8; color:#8b1a1a; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #f0c0c0; cursor:pointer; transition:all .2s; }
+    .btn-escalate-t:hover { background:#f8c8c8; }
+
+    .status-opts { display:flex; flex-direction:column; gap:8px; }
+    .status-opt { border:1.5px solid var(--bd); border-radius:12px; padding:12px 16px; cursor:pointer; transition:all .2s; background:var(--cr); display:flex; align-items:center; gap:12px; }
+    .status-opt:hover { border-color:var(--gl); background:var(--ygl); }
+    .status-opt.selected { border-color:var(--gd); background:var(--ygl); box-shadow:0 0 0 2px var(--yg); }
+    .status-opt .so-dot   { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+    .status-opt .so-label { font-weight:800; font-size:14px; font-family:'Nunito',sans-serif; }
+    .status-opt .so-desc  { font-size:12px; color:var(--tm); }
+
+    .esc-timeline { background:#fde8e8; border-radius:10px; padding:12px 14px; }
+    .etl-item { display:flex; gap:10px; font-size:12px; padding-bottom:8px; }
+    .etl-item:last-child { padding-bottom:0; }
+    .etl-dot { width:8px; height:8px; border-radius:50%; background:#8b1a1a; flex-shrink:0; margin-top:4px; }
+    .etl-time { color:#8b1a1a; font-weight:700; min-width:70px; }
+    .etl-text { color:#5a1a1a; font-weight:600; }
 @endsection
 
 {{-- ══ SIDEBAR ══ --}}
@@ -137,6 +159,13 @@
     <div class="sidebar-card mb-3">
         <div class="sidebar-head">Queue</div>
         <ul class="list-group sidebar-menu rounded-0">
+            <li class="list-group-item {{ $status === 'active' ? 'active' : '' }}">
+                <a href="{{ route('supervisor.support.dashboard', ['status' => 'active']) }}"
+                   class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-grid me-2"></i>Active</span>
+                    <span class="badge-count">{{ $counts['active'] }}</span>
+                </a>
+            </li>
             <li class="list-group-item {{ $status === 'awaiting-classification' ? 'active' : '' }}">
                 <a href="{{ route('supervisor.support.dashboard', ['status' => 'awaiting-classification']) }}"
                    class="d-flex justify-content-between align-items-center text-decoration-none">
@@ -223,6 +252,7 @@
         <span class="font-brand fw-900" style="font-size:22px">
             @php
                 $labels = [
+                    'active' => 'Active',
                     'awaiting-acknowledgment' => 'Awaiting Acknowledgment',
                     'awaiting-classification' => 'Awaiting Classification',
                     'in-progress' => 'In Progress', 'escalated' => 'Escalated',
@@ -252,6 +282,7 @@
     <div class="d-flex flex-wrap gap-2 mb-3">
         @php
             $tabs = [
+                'active'                  => ['label' => 'Active',                  'count' => $counts['active']],
                 'awaiting-classification' => ['label' => 'Awaiting Classification', 'count' => $counts['awaiting_classification']],
                 'in-progress'             => ['label' => 'In Progress',             'count' => $counts['in_progress']],
                 'escalated'               => ['label' => 'Escalated',               'count' => $counts['escalated']],
@@ -366,6 +397,27 @@
                 <div class="ticket-title mb-1">{{ $ticket->subject }}</div>
                 <div class="ticket-desc mb-2">{{ Str::limit($ticket->concern, 140) }}</div>
 
+                {{-- Recent activity --}}
+                @if($ticket->statusHistories->isNotEmpty())
+                    <div class="esc-timeline mb-3">
+                        <div class="fw-800 mb-2"
+                             style="font-size:12px;color:var(--tm);text-transform:uppercase;letter-spacing:.4px">
+                            <i class="bi bi-clock-history me-1"></i>Recent Activity
+                        </div>
+                        @foreach($ticket->statusHistories->sortByDesc('changed_at')->take(3) as $history)
+                            <div class="etl-item">
+                                <div class="etl-dot"></div>
+                                <div>
+                                    <span class="etl-time">
+                                        {{ \Carbon\Carbon::parse($history->changed_at)->format('M d, g:i A') }}
+                                    </span>
+                                    <span class="etl-text ms-2">{{ $history->notes }}</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
                 {{-- Meta --}}
                 <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
                     @if($ticket->user)
@@ -385,47 +437,31 @@
                     </span>
 
                     {{-- SLA Status indicator (In Progress only) --}}
-                    @if($ticket->status === 'In Progress')
+                    @if($ticket->status === 'In Progress' && $ticket->sla_due_at)
                         @php
-                            $slaRule = \App\Models\SlaRule::where('is_active', true)
-                                ->where('subcategory_name', $ticket->subcategory_name)
-                                ->where('priority', $ticket->ticket_type)
-                                ->first();
+                            $slaSecondsLeft = $ticket->slaSecondsRemaining();
+                            $isBreached = $slaSecondsLeft <= 0;
+                            $isAtRisk   = !$isBreached && $ticket->isSlaAtRisk();
 
-                            $minutesOpen = $ticket->created_at->diffInMinutes(now());
-                            $isBreached  = $slaRule && $minutesOpen >= $slaRule->resolution_time_minutes;
-                            $isAtRisk    = $slaRule && !$isBreached && $minutesOpen >= ($slaRule->resolution_time_minutes * 0.75);
-                            $timeLeft    = $slaRule ? max(0, $slaRule->resolution_time_minutes - $minutesOpen) : null;
-
-                            $slaTimeLeft = '';
-                            if ($timeLeft !== null) {
-                                if ($timeLeft <= 0) {
-                                    $slaTimeLeft = 'Overdue';
-                                } elseif ($timeLeft < 60) {
-                                    $slaTimeLeft = intval($timeLeft) . 'm left';
-                                } else {
-                                    $h   = floor($timeLeft / 60);
-                                    $min = intval($timeLeft % 60);
-                                    $slaTimeLeft = $h . 'h' . ($min > 0 ? ' ' . $min . 'm' : '') . ' left';
-                                }
-                            }
+                            $abs = abs($slaSecondsLeft);
+                            $h   = intdiv($abs, 3600);
+                            $m   = intdiv($abs % 3600, 60);
+                            $slaTimeLeft = ($h > 0 ? $h . 'h ' : '') . $m . 'm';
 
                             $slaColor = $isBreached ? '#e24b4a' : ($isAtRisk ? '#f5c842' : '#3fb950');
                             $slaBg    = $isBreached ? '#fde8e8' : ($isAtRisk ? '#fff4cc' : '#d4f0d4');
                             $slaIcon  = $isBreached ? 'bi-exclamation-triangle-fill' : ($isAtRisk ? 'bi-clock-history' : 'bi-check-circle');
                             $slaLabel = $isBreached ? 'SLA Breached' : ($isAtRisk ? 'SLA At Risk' : 'SLA OK');
                         @endphp
-                        @if($slaRule)
-                            <span style="background:{{ $slaBg }};color:{{ $slaColor }};font-size:11px;font-weight:800;border-radius:20px;padding:3px 10px;display:inline-flex;align-items:center;gap:5px;border:1px solid {{ $slaColor }}20">
-                                <i class="bi {{ $slaIcon }}"></i>
-                                {{ $slaLabel }}
-                                @if($isBreached)
-                                    · {{ intval($minutesOpen - $slaRule->resolution_time_minutes) }}m over
-                                @else
-                                    · {{ $slaTimeLeft }}
-                                @endif
-                            </span>
-                        @endif
+                        <span style="background:{{ $slaBg }};color:{{ $slaColor }};font-size:11px;font-weight:800;border-radius:20px;padding:3px 10px;display:inline-flex;align-items:center;gap:5px;border:1px solid {{ $slaColor }}20">
+                            <i class="bi {{ $slaIcon }}"></i>
+                            {{ $slaLabel }}
+                            @if($isBreached)
+                                · {{ $slaTimeLeft }} over
+                            @else
+                                · {{ $slaTimeLeft }} left
+                            @endif
+                        </span>
                     @endif
 
                     @if($ticket->assignedTo)
@@ -704,6 +740,153 @@
         </div>
     </div>
 
+    {{-- Add Update modal --}}
+    <div class="modal fade" id="updateModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Add <em>Update</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="updateForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <p style="font-size:13px;color:var(--tm)" class="mb-3">
+                            Ticket <strong id="updateRef" style="color:var(--gd)"></strong> —
+                            Log your progress below.
+                        </p>
+                        <div class="mb-3">
+                            <label class="form-label">What have you done so far?</label>
+                            <textarea class="form-control" name="progress_notes" rows="3"
+                                      required
+                                      placeholder="Describe the steps you've taken, findings, or current status…"></textarea>
+                        </div>
+                        <div class="mb-1">
+                            <label class="form-label">Current work status</label>
+                            <div class="status-opts">
+                                <div class="status-opt" data-val="Investigating">
+                                    <span class="so-dot" style="background:#f5c842"></span>
+                                    <div>
+                                        <div class="so-label">Investigating</div>
+                                        <div class="so-desc">Still diagnosing the root cause</div>
+                                    </div>
+                                </div>
+                                <div class="status-opt selected" data-val="Actively working">
+                                    <span class="so-dot" style="background:var(--yg)"></span>
+                                    <div>
+                                        <div class="so-label">Actively working</div>
+                                        <div class="so-desc">Fix is underway</div>
+                                    </div>
+                                </div>
+                                <div class="status-opt" data-val="Waiting for parts or access">
+                                    <span class="so-dot" style="background:#d85a30"></span>
+                                    <div>
+                                        <div class="so-label">Waiting for parts / access</div>
+                                        <div class="so-desc">Blocked, pending external resource</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" name="work_status" id="workStatusVal"
+                                   value="Actively working">
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal"
+                                data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm">
+                            <i class="bi bi-arrow-up-circle me-1"></i>Save Update
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Resolve modal --}}
+    <div class="modal fade" id="resolveModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Mark as <em>Resolved</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="resolveForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="resolve-info p-3 mb-3">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Resolving <strong id="resolveRef"></strong> —
+                            this ends the SLA resolution timer and sends the ticket
+                            for closure.
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Resolution summary <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" name="resolution_notes"
+                                      rows="3" required
+                                      placeholder="Describe exactly what was done to resolve the issue…"></textarea>
+                        </div>
+                        <div>
+                            <label class="form-label">Time spent</label>
+                            <select class="form-select" name="time_spent">
+                                <option value="Less than 30 min">Less than 30 min</option>
+                                <option value="30 – 60 min">30 – 60 min</option>
+                                <option value="1 – 2 hours" selected>1 – 2 hours</option>
+                                <option value="2 – 4 hours">2 – 4 hours</option>
+                                <option value="More than 4 hours">More than 4 hours</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal"
+                                data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm">
+                            <i class="bi bi-check-circle me-1"></i>Submit Resolution
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Escalate (from In Progress) modal --}}
+    <div class="modal fade" id="escModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Escalate to <em>IT Admin</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="escForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="esc-banner p-3 mb-3">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            <strong id="escRef"></strong> — This sends the ticket to
+                            Supervisor - IT Admin for further handling.
+                        </div>
+                        <div>
+                            <label class="form-label">
+                                Reason for escalation <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" name="reason"
+                                      rows="3" required
+                                      placeholder="Explain why this needs to go to IT Admin…"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal"
+                                data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm" style="background:#8b1a1a">
+                            <i class="bi bi-exclamation-triangle me-1"></i>Confirm Escalation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {{-- Chat Modal --}}
     <div class="modal fade" id="chatModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered" style="max-width:480px">
@@ -939,6 +1122,36 @@ window.openValidateModal = function (ticketId, ticketNumber) {
     $('#validateForm').attr('action', '/supervisor/support/tickets/' + ticketId + '/validate-resolution');
     new bootstrap.Modal('#validateModal').show();
 };
+
+/* ── Add Update modal (In Progress) ── */
+window.openUpdateModal = function (ticketId, ticketNumber) {
+    $('#updateRef').text('#' + ticketNumber);
+    $('#updateForm').attr('action', '/supervisor/support/tickets/' + ticketId + '/update');
+    $('.status-opt').removeClass('selected');
+    $('.status-opt[data-val="Actively working"]').addClass('selected');
+    $('#workStatusVal').val('Actively working');
+    new bootstrap.Modal('#updateModal').show();
+};
+
+/* ── Resolve modal (In Progress) ── */
+window.openResolveModal = function (ticketId, ticketNumber) {
+    $('#resolveRef').text('#' + ticketNumber);
+    $('#resolveForm').attr('action', '/supervisor/support/tickets/' + ticketId + '/resolve');
+    new bootstrap.Modal('#resolveModal').show();
+};
+
+/* ── Escalate modal (In Progress -> Awaiting Admin Supervisor) ── */
+window.openEscModal = function (ticketId, ticketNumber) {
+    $('#escRef').text('#' + ticketNumber);
+    $('#escForm').attr('action', '/supervisor/support/tickets/' + ticketId + '/escalate-admin');
+    new bootstrap.Modal('#escModal').show();
+};
+
+$(document).on('click', '.status-opt', function () {
+    $(this).siblings().removeClass('selected');
+    $(this).addClass('selected');
+    $('#workStatusVal').val($(this).data('val'));
+});
 
 /* ── DOM-ready ── */
 $(function () {

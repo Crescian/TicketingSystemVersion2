@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\TicketAssignedMail;
+use App\Mail\TicketSubmittedMail;
 use App\Models\Tickets;
 use App\Models\SlaCategory;
 use App\Models\TicketStatusHistories;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 
 class TicketsController extends Controller
 {
@@ -142,7 +146,10 @@ class TicketsController extends Controller
             'users_id'           => 'nullable|uuid|exists:users,id',
         ]);
 
-        $isHelpdeskFiling = $request->filled('users_id');
+        // ── users_id is always sent by the employee modal too (hidden field, pre-filled
+        //    with their own id), so presence alone can't distinguish helpdesk-on-behalf
+        //    filing from employee self-filing — only a *different* id can.
+        $isHelpdeskFiling = $request->filled('users_id') && $request->users_id !== Auth::id();
         $usersId = $isHelpdeskFiling ? $request->users_id : Auth::id();
 
         // ── For self-filed (employee) tickets: auto-fill requestor context.
@@ -187,6 +194,20 @@ class TicketsController extends Controller
                 : 'Ticket submitted by employee.',
             'changed_at' => now(),
         ]);
+
+        if ($requestor && $requestor->email) {
+            Mail::to($requestor->email)->send(new TicketSubmittedMail($ticket));
+        }
+
+        // Helpdesk owns triage of self-filed tickets — no need to notify them of their own filing.
+        if (!$isHelpdeskFiling) {
+            $helpdeskUsers = User::withActiveRole('Helpdesk')->get();
+            foreach ($helpdeskUsers as $helpdeskUser) {
+                Mail::to($helpdeskUser->email)->send(
+                    new TicketAssignedMail($ticket, 'A new ticket has been submitted and needs triage.', 'helpdesk.dashboard')
+                );
+            }
+        }
 
         if ($request->ajax()) {
             return response()->json([

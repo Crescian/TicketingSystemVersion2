@@ -340,6 +340,13 @@
             padding: 4px 8px;
         }
     }
+
+    .esc-timeline { background:#fde8e8; border-radius:10px; padding:12px 14px; }
+    .etl-item { display:flex; gap:10px; font-size:12px; padding-bottom:8px; }
+    .etl-item:last-child { padding-bottom:0; }
+    .etl-dot { width:8px; height:8px; border-radius:50%; background:#8b1a1a; flex-shrink:0; margin-top:4px; }
+    .etl-time { color:#8b1a1a; font-weight:700; min-width:70px; }
+    .etl-text { color:#5a1a1a; font-weight:600; }
 @endsection
 
 {{-- ══ SIDEBAR ══ --}}
@@ -349,6 +356,13 @@
     <div class="sidebar-card mb-3">
         <div class="sidebar-head">Queue</div>
         <ul class="list-group sidebar-menu rounded-0">
+            <li class="list-group-item {{ $status === 'active' ? 'active' : '' }}">
+                <a href="{{ route('helpdesk.dashboard', ['status' => 'active']) }}"
+                   class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-grid-fill me-2"></i>Active</span>
+                    <span class="badge-count">{{ $counts['active'] }}</span>
+                </a>
+            </li>
             <li class="list-group-item {{ $status === 'new-request' ? 'active' : '' }}">
                 <a href="{{ route('helpdesk.dashboard', ['status' => 'new-request']) }}"
                    class="d-flex justify-content-between align-items-center text-decoration-none">
@@ -456,6 +470,7 @@
         <span class="font-brand fw-900" style="font-size:22px">
             @php
                 $labels = [
+                    'active' => 'Active',
                     'new-request' => 'New Request', 'awaiting-supervisor' => 'Awating Supervisor',
                     'in-progress' => 'In Progress', 'escalated' => 'Escalated', 'pending-closure' => 'Pending Closure', 'awaiting-requestor' => 'Awaiting Requestor',
                     'closed' => 'Closed',
@@ -484,6 +499,7 @@
     <div class="d-flex flex-wrap gap-2 mb-3">
         @php
             $tabs = [
+                'active'              => ['label' => 'Active',              'count' => $counts['active']],
                 'new-request'         => ['label' => 'New Request',         'count' => $counts['new_request']],
                 'awaiting-supervisor'  => ['label' => 'Awaiting Supervisor',  'count' => $counts['awaiting_supervisor']],
                 'in-progress' => ['label' => 'In Progress', 'count' => $counts['in_progress']],
@@ -579,6 +595,27 @@
                 <div class="ticket-title mb-1">{{ $ticket->subject }}</div>
                 <div class="ticket-desc mb-2">{{ Str::limit($ticket->concern, 140) }}</div>
 
+                {{-- Recent activity --}}
+                @if($ticket->statusHistories->isNotEmpty())
+                    <div class="esc-timeline mb-3">
+                        <div class="fw-800 mb-2"
+                             style="font-size:12px;color:var(--tm);text-transform:uppercase;letter-spacing:.4px">
+                            <i class="bi bi-clock-history me-1"></i>Recent Activity
+                        </div>
+                        @foreach($ticket->statusHistories->sortByDesc('changed_at')->take(3) as $history)
+                            <div class="etl-item">
+                                <div class="etl-dot"></div>
+                                <div>
+                                    <span class="etl-time">
+                                        {{ \Carbon\Carbon::parse($history->changed_at)->format('M d, g:i A') }}
+                                    </span>
+                                    <span class="etl-text ms-2">{{ $history->notes }}</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
                 {{-- Meta --}}
                 <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
                     @if($ticket->user)
@@ -603,51 +640,31 @@
                     </span>
                     {{--  --}}
                     {{-- ── SLA Status indicator (In Progress only) ── --}}
-                    @if($ticket->status === 'In Progress')
+                    @if($ticket->status === 'In Progress' && $ticket->sla_due_at)
                         @php
-                            $slaRule = \App\Models\SlaRule::where('is_active', true)
-                                ->whereHas('category', fn($q) =>
-                                    $q->where('name', explode(' — ', $ticket->request_category)[0] ?? '')
-                                )
-                                ->where('subcategory_name', explode(' — ', $ticket->request_category)[1] ?? '')
-                                ->where('priority', $ticket->ticket_type)
-                                ->first();
+                            $slaSecondsLeft = $ticket->slaSecondsRemaining();
+                            $isBreached = $slaSecondsLeft <= 0;
+                            $isAtRisk   = !$isBreached && $ticket->isSlaAtRisk();
 
-                            $minutesOpen = $ticket->created_at->diffInMinutes(now());
-                            $isBreached  = $slaRule && $minutesOpen >= $slaRule->resolution_time_minutes;
-                            $isAtRisk    = $slaRule && !$isBreached && $minutesOpen >= ($slaRule->resolution_time_minutes * 0.75);
-                            $timeLeft    = $slaRule ? max(0, $slaRule->resolution_time_minutes - $minutesOpen) : null;
-
-                            // ── Format time left inline (no function definition)
-                            $slaTimeLeft = '';
-                            if ($timeLeft !== null) {
-                                if ($timeLeft <= 0) {
-                                    $slaTimeLeft = 'Overdue';
-                                } elseif ($timeLeft < 60) {
-                                    $slaTimeLeft = intval($timeLeft) . 'm left';
-                                } else {
-                                    $h   = floor($timeLeft / 60);
-                                    $min = intval($timeLeft % 60);
-                                    $slaTimeLeft = $h . 'h' . ($min > 0 ? ' ' . $min . 'm' : '') . ' left';
-                                }
-                            }
+                            $abs = abs($slaSecondsLeft);
+                            $h   = intdiv($abs, 3600);
+                            $m   = intdiv($abs % 3600, 60);
+                            $slaTimeLeft = ($h > 0 ? $h . 'h ' : '') . $m . 'm';
 
                             $slaColor = $isBreached ? '#e24b4a' : ($isAtRisk ? '#f5c842' : '#3fb950');
                             $slaBg    = $isBreached ? '#fde8e8' : ($isAtRisk ? '#fff4cc' : '#d4f0d4');
                             $slaIcon  = $isBreached ? 'bi-exclamation-triangle-fill' : ($isAtRisk ? 'bi-clock-history' : 'bi-check-circle');
                             $slaLabel = $isBreached ? 'SLA Breached' : ($isAtRisk ? 'SLA At Risk' : 'SLA OK');
                         @endphp
-                        @if($slaRule)
-                            <span style="background:{{ $slaBg }};color:{{ $slaColor }};font-size:11px;font-weight:800;border-radius:20px;padding:3px 10px;display:inline-flex;align-items:center;gap:5px;border:1px solid {{ $slaColor }}20">
-                                <i class="bi {{ $slaIcon }}"></i>
-                                {{ $slaLabel }}
-                                @if($isBreached)
-                                    · {{ intval($minutesOpen - $slaRule->resolution_time_minutes) }}m over
-                                @else
-                                    · {{ $slaTimeLeft }}
-                                @endif
-                            </span>
-                        @endif
+                        <span style="background:{{ $slaBg }};color:{{ $slaColor }};font-size:11px;font-weight:800;border-radius:20px;padding:3px 10px;display:inline-flex;align-items:center;gap:5px;border:1px solid {{ $slaColor }}20">
+                            <i class="bi {{ $slaIcon }}"></i>
+                            {{ $slaLabel }}
+                            @if($isBreached)
+                                · {{ $slaTimeLeft }} over
+                            @else
+                                · {{ $slaTimeLeft }} left
+                            @endif
+                        </span>
                     @endif
                     {{--  --}}
                     @if($ticket->assignedTo)

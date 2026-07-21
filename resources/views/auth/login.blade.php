@@ -102,26 +102,6 @@
           </div>
         @endif
 
-        {{-- ── Demo role chips (UI only, autofills the form) ── --}}
-        {{-- <div class="divider">
-          <div class="divider-line"></div>
-          <div class="divider-text">Try a demo role</div>
-          <div class="divider-line"></div>
-        </div>
-        <div class="role-preview" id="demoChips">
-          <div class="rp-chip" data-email="customer@lgict.com" data-name="Juan Dela Cruz" data-role="Customer">
-            <span class="rp-dot customer"></span>Customer
-          </div>
-          <div class="rp-chip" data-email="helpdesk@lgict.com" data-name="Maria Santos" data-role="Helpdesk">
-            <span class="rp-dot helpdesk"></span>Helpdesk
-          </div>
-          <div class="rp-chip" data-email="tech@lgict.com" data-name="R. Buenaventura" data-role="IT Technician">
-            <span class="rp-dot tech"></span>IT Tech
-          </div>
-          <div class="rp-chip" data-email="admin@lgict.com" data-name="M. Aquino" data-role="IT Admin">
-            <span class="rp-dot admin"></span>IT Admin
-          </div>
-        </div> --}}
 
         {{-- ── Laravel Login Form ── --}}
         <form method="POST" action="{{ route('login') }}" id="loginForm" novalidate>
@@ -248,6 +228,6 @@
         }, 300);
       @endif
 
-                            });
+                              });
   </script>
 @endsection

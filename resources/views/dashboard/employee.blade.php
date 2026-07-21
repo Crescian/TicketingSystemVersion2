@@ -263,6 +263,28 @@
     border-color: var(--gd);
     color: var(--yg);
   }
+
+  .pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+  .pagination li {
+    margin: 2px;
+  }
+  .pagination .page-link {
+    border-radius: 8px !important;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  @media (max-width: 768px) {
+    .pagination {
+        font-size: 12px;
+    }
+    .pagination .page-link {
+        padding: 4px 8px;
+    }
+  }
 @endsection
 
 {{-- ══ SIDEBAR ══ --}}
@@ -610,7 +632,7 @@
 
     {{-- Pagination --}}
     @if($tickets->hasPages())
-        <div class="mt-4">{{ $tickets->links() }}</div>
+        <div class="mt-4">{{ $tickets->onEachSide(1)->links('pagination::bootstrap-5') }}</div>
     @endif
 
 @endsection
@@ -667,18 +689,6 @@
                                 <i class="bi bi-ticket-perforated ms-auto" style="font-size:28px;opacity:.2;color:var(--gd)"></i>
                             </div>
 
-                            {{-- Date & Time Received / Acknowledged --}}
-                            <div class="row g-3 mb-3">
-                                <div class="col-6">
-                                    <label class="form-label">Date Received <span class="text-danger">*</span></label>
-                                    <input type="date" class="form-control" id="mDateReceived" name="date_received">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label">Time Received <span class="text-danger">*</span></label>
-                                    <input type="time" class="form-control" id="mTimeReceived" name="time_received">
-                                </div>
-                            </div>
-
                             {{-- Requestor (auto-filled, read-only) --}}
                             <div class="mb-3">
                                 <label class="form-label">Requestor</label>
@@ -714,28 +724,6 @@
                                         style="background:var(--ygl);color:var(--gd);font-weight:700">
                                 </div>
                             </div>
-
-                            {{-- Method --}}
-                            <div class="mb-1">
-                                <label class="form-label">Method <span class="text-danger">*</span></label>
-                                <div class="d-flex gap-2 flex-wrap" id="methodOptions">
-                                    @foreach([
-                                        ['value' => 'Verbal', 'icon' => 'bi-person-fill',   'color' => '#4a7c4a', 'bg' => '#d4f0d4'],
-                                        ['value' => 'Email',  'icon' => 'bi-envelope-fill', 'color' => '#2a4ab0', 'bg' => '#e8eeff'],
-                                        ['value' => 'Text',   'icon' => 'bi-chat-fill',     'color' => '#7a5a00', 'bg' => '#fff4cc'],
-                                        ['value' => 'Viber',  'icon' => 'bi-phone-fill',    'color' => '#5a1a7a', 'bg' => '#f0e8ff'],
-                                    ] as $method)
-                                        <div class="method-opt" data-method="{{ $method['value'] }}"
-                                            style="--mc:{{ $method['color'] }};--mb:{{ $method['bg'] }}">
-                                            <i class="bi {{ $method['icon'] }} method-icon"></i>
-                                            <span class="method-lbl">{{ $method['value'] }}</span>
-                                        </div>
-                                    @endforeach
-                                </div>
-                                <input type="hidden" name="method" id="hMethod" value="">
-                            </div>
-                            {{-- Divider --}}
-                            <hr style="border-color:var(--bd);margin:20px 0">
 
                             {{-- Subject & Description --}}
                             <div class="mb-3">
@@ -802,15 +790,11 @@
 
                                 <hr>
 
-                                <div class="mb-2"><b>Date Received:</b> <span id="rv-date">—</span></div>
-                                <div class="mb-2"><b>Time Received:</b> <span id="rv-time">—</span></div>
-
                                 <div class="mb-2"><b>Date Acknowledged:</b> <span id="rv-ack-date">—</span></div>
                                 <div class="mb-2"><b>Time Acknowledged:</b> <span id="rv-ack-time">—</span></div>
 
                                 <hr>
 
-                                <div class="mb-2"><b>Method:</b> <span id="rv-method">—</span></div>
                                 <div class="mb-2"><b>Location:</b> <span id="rv-location">—</span></div>
 
                             </div>
@@ -1307,9 +1291,6 @@
                 $('#rv-bu').text($('#mBU').val() || '—');
                 $('#rv-company').text($('#mCompany').val() || '—');
                 $('#rv-department').text($('#mDepartment').val() || '—');
-                $('#rv-date').text($('#mDateReceived').val() || '—');
-                $('#rv-time').text($('#mTimeReceived').val() || '—');
-                $('#rv-method').text($('#hMethod').val() || '—');
                 $('#rv-location').text($('#mLocation').val() || '—');
                 $('#rv-subject-preview').text($('#mSubject').val() || '—');
                 $('#rv-desc-preview').text($('#mDesc').val() || '—');
@@ -1335,10 +1316,7 @@
                 // Validate Details panel
                 if (!$('#mSubject').val().trim()) { alert('Please enter a subject.'); return; }
                 if (!$('#mDesc').val().trim())    { alert('Please describe the issue.'); return; }
-                if (!$('#mDateReceived').val())   { alert('Please enter the date received.'); return; }
-                if (!$('#mTimeReceived').val())   { alert('Please enter the time received.'); return; }
                 if (!$('#users_id').val())      { alert('Please select a requestor.'); return; }
-                // if (!$('#hMethod').val())         { alert('Please select a contact method.'); return; }
 
                 $('#hAsset').val($('#mAsset').val());
                 $('#hLocation').val($('#mLocation').val());

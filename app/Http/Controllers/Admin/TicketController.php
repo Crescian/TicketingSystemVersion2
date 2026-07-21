@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\TicketAssignedMail;
 use App\Models\Tickets;
 use App\Models\TicketStatusHistories;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class TicketController extends Controller
 {
@@ -369,6 +371,52 @@ class TicketController extends Controller
         return back()->with(
             'success',
             "You have taken ownership of ticket #{$ticket->ticket_number}."
+        );
+    }
+
+    // Escalate to Admin Supervisor (only while In Progress)
+    public function escalate(Request $request, Tickets $ticket)
+    {
+        $this->authorizeAdmin($ticket);
+
+        if ($ticket->status !== 'Admin In Progress') {
+            return back()->with('error', 'Only started tickets can be escalated.');
+        }
+
+        $request->validate([
+            'reason' => 'required|string',
+        ]);
+
+        $oldStatus = $ticket->status;
+
+        $ticket->update([
+            'status' => 'Awaiting Admin Supervisor',
+            'assigned_to' => null,
+            'escalation_level' => $ticket->escalation_level + 1,
+        ]);
+
+        TicketStatusHistories::create([
+            'ticket_id' => $ticket->id,
+            'old_status' => $oldStatus,
+            'new_status' => 'Awaiting Admin Supervisor',
+            'changed_by' => Auth::id(),
+            'notes' => "Escalated to Supervisor by " . Auth::user()->name .
+                ". Reason: {$request->reason}",
+            'changed_at' => now(),
+        ]);
+
+        $adminSupervisors = User::withActiveRole('Supervisor - IT Admin')->get();
+        foreach ($adminSupervisors as $adminSupervisor) {
+            if ($adminSupervisor->email) {
+                Mail::to($adminSupervisor->email)->send(
+                    new TicketAssignedMail($ticket, 'A ticket has been escalated to your team and needs classification & assignment.', 'supervisor.dashboard')
+                );
+            }
+        }
+
+        return back()->with(
+            'success',
+            "Ticket #{$ticket->ticket_number} escalated to Admin Supervisor."
         );
     }
 

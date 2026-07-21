@@ -51,10 +51,6 @@
             <span class="num">{{ $counts['closed'] }}</span>
             <span class="lbl">Closed</span>
         </div>
-        <div class="stat-pill">
-            <span class="num">{{ $counts['cancelled'] }}</span>
-            <span class="lbl">Cancelled</span>
-        </div>
     </div>
 @endsection
 
@@ -215,13 +211,6 @@
                     <span class="badge-count">{{ $counts['closed'] }}</span>
                 </a>
             </li>
-            <li class="list-group-item {{ $status === 'cancelled' ? 'active' : '' }}">
-                <a href="{{ route('supervisor.dashboard', ['status' => 'cancelled']) }}"
-                class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-x-circle me-2"></i>Cancelled</span>
-                    <span class="badge-count">{{ $counts['cancelled'] }}</span>
-                </a>
-            </li>
         </ul>
     </div>
 
@@ -287,7 +276,6 @@
                     'admin-in-progress'                 => 'Admin In Progress',
                     'pending-admin-supervisor-approval' => 'Pending Admin Supervisor Approval',
                     'closed'                            => 'Closed',
-                    'cancelled'                         => 'Cancelled',
                 ];
             @endphp
             {{ $labels[$status] ?? 'All Tickets' }}
@@ -320,7 +308,6 @@
                 'admin-in-progress'                => ['label' => 'Admin In Progress',                'count' => $counts['admin_in_progress']],
                 'pending-admin-supervisor-approval'=> ['label' => 'Pending Admin Supervisor Approval','count' => $counts['pending_admin_supervisor_approval']],
                 'closed'                           => ['label' => 'Closed',                           'count' => $counts['closed']],
-                'cancelled'                        => ['label' => 'Cancelled',                        'count' => $counts['cancelled']],
             ];
         @endphp
         @foreach($tabs as $key => $tab)
@@ -435,50 +422,31 @@
                     </span>
 
                     {{-- ── SLA Status indicator (Admin In Progress only) ── --}}
-                    @if($ticket->status === 'Admin In Progress')
+                    @if($ticket->status === 'Admin In Progress' && $ticket->sla_due_at)
                         @php
-                            $slaRule = \App\Models\SlaRule::where('is_active', true)
-                                ->whereHas('category', fn($q) =>
-                                    $q->where('name', explode(' — ', $ticket->request_category)[0] ?? '')
-                                )
-                                ->where('subcategory_name', explode(' — ', $ticket->request_category)[1] ?? '')
-                                ->where('priority', $ticket->ticket_type)
-                                ->first();
+                            $slaSecondsLeft = $ticket->slaSecondsRemaining();
+                            $isBreached = $slaSecondsLeft <= 0;
+                            $isAtRisk   = !$isBreached && $ticket->isSlaAtRisk();
 
-                            $minutesOpen = $ticket->created_at->diffInMinutes(now());
-                            $isBreached  = $slaRule && $minutesOpen >= $slaRule->resolution_time_minutes;
-                            $isAtRisk    = $slaRule && !$isBreached && $minutesOpen >= ($slaRule->resolution_time_minutes * 0.75);
-                            $timeLeft    = $slaRule ? max(0, $slaRule->resolution_time_minutes - $minutesOpen) : null;
-
-                            $slaTimeLeft = '';
-                            if ($timeLeft !== null) {
-                                if ($timeLeft <= 0) {
-                                    $slaTimeLeft = 'Overdue';
-                                } elseif ($timeLeft < 60) {
-                                    $slaTimeLeft = intval($timeLeft) . 'm left';
-                                } else {
-                                    $h   = floor($timeLeft / 60);
-                                    $min = intval($timeLeft % 60);
-                                    $slaTimeLeft = $h . 'h' . ($min > 0 ? ' ' . $min . 'm' : '') . ' left';
-                                }
-                            }
+                            $abs = abs($slaSecondsLeft);
+                            $h   = intdiv($abs, 3600);
+                            $m   = intdiv($abs % 3600, 60);
+                            $slaTimeLeft = ($h > 0 ? $h . 'h ' : '') . $m . 'm';
 
                             $slaColor = $isBreached ? '#e24b4a' : ($isAtRisk ? '#f5c842' : '#3fb950');
                             $slaBg    = $isBreached ? '#fde8e8' : ($isAtRisk ? '#fff4cc' : '#d4f0d4');
                             $slaIcon  = $isBreached ? 'bi-exclamation-triangle-fill' : ($isAtRisk ? 'bi-clock-history' : 'bi-check-circle');
                             $slaLabel = $isBreached ? 'SLA Breached' : ($isAtRisk ? 'SLA At Risk' : 'SLA OK');
                         @endphp
-                        @if($slaRule)
-                            <span style="background:{{ $slaBg }};color:{{ $slaColor }};font-size:11px;font-weight:800;border-radius:20px;padding:3px 10px;display:inline-flex;align-items:center;gap:5px;border:1px solid {{ $slaColor }}20">
-                                <i class="bi {{ $slaIcon }}"></i>
-                                {{ $slaLabel }}
-                                @if($isBreached)
-                                    · {{ intval($minutesOpen - $slaRule->resolution_time_minutes) }}m over
-                                @else
-                                    · {{ $slaTimeLeft }}
-                                @endif
-                            </span>
-                        @endif
+                        <span style="background:{{ $slaBg }};color:{{ $slaColor }};font-size:11px;font-weight:800;border-radius:20px;padding:3px 10px;display:inline-flex;align-items:center;gap:5px;border:1px solid {{ $slaColor }}20">
+                            <i class="bi {{ $slaIcon }}"></i>
+                            {{ $slaLabel }}
+                            @if($isBreached)
+                                · {{ $slaTimeLeft }} over
+                            @else
+                                · {{ $slaTimeLeft }} left
+                            @endif
+                        </span>
                     @endif
 
                     @if($ticket->assignedTo)
@@ -510,14 +478,12 @@
                         </button>
                     @endif
 
-                    {{-- Awaiting Administrator Acknowledgement: assigned admin confirms receipt --}}
+                    {{-- Awaiting Administrator Acknowledgement: view-only, only the assigned admin can acknowledge --}}
                     @if($ticket->status === 'Awaiting Administrator Acknowledgement')
-                        <form method="POST" action="/supervisor/tickets/{{ $ticket->id }}/admin-acknowledge">
-                            @csrf
-                            <button type="submit" class="btn-acknowledge">
-                                <i class="bi bi-check2-circle me-1"></i>Acknowledge
-                            </button>
-                        </form>
+                        <span class="resolve-info px-3 py-2">
+                            <i class="bi bi-hourglass-split me-1"></i>
+                            Waiting for {{ $ticket->assignedTo->name ?? 'the assigned admin' }} to acknowledge
+                        </span>
                     @endif
 
                     {{-- Awaiting Administrator SLA Start: begin work, starts the SLA clock --}}
@@ -539,6 +505,10 @@
                         <button class="btn-resolve"
                                 onclick="openValidateModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-check-circle-fill me-1"></i>Resolve & Close
+                        </button>
+                        <button class="btn-reassign"
+                                onclick="openEscManagerModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-arrow-up-circle me-1"></i>Escalate to Manager
                         </button>
                     @endif
                 {{-- Pending Supervisor Approval: Validate Resolution --}}
@@ -738,6 +708,36 @@
                         <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn-confirm">
                             <i class="bi bi-check-circle me-1"></i>Confirm Validation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {{-- Escalate to Manager Modal --}}
+    <div class="modal fade" id="escManagerModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Escalate to <em>Manager</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="escManagerForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="resolve-info p-3 mb-3">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            Ticket <strong id="escManagerRef"></strong> — escalating hands this to the
+                            Manager and unassigns it from you.
+                        </div>
+                        <label class="form-label">Reason (optional)</label>
+                        <textarea class="form-control" name="reason" rows="3"
+                                  placeholder="Why does this need Manager-level attention?"></textarea>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm">
+                            <i class="bi bi-arrow-up-circle me-1"></i>Confirm Escalation
                         </button>
                     </div>
                 </form>
@@ -1486,6 +1486,12 @@ function showStep(n) {
         $('#validateRef').text('#' + ticketNumber);
         $('#validateForm').attr('action', '/supervisor/tickets/' + ticketId + '/validate-resolution');
         new bootstrap.Modal('#validateModal').show();
+    };
+
+    window.openEscManagerModal = function (ticketId, ticketNumber) {
+        $('#escManagerRef').text('#' + ticketNumber);
+        $('#escManagerForm').attr('action', '/supervisor/tickets/' + ticketId + '/escalate-manager');
+        new bootstrap.Modal('#escManagerModal').show();
     };
 
 

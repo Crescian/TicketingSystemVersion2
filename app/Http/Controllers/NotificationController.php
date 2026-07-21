@@ -120,6 +120,24 @@ class NotificationController extends Controller
             }
         }
 
+        // ── Escalations to Manager
+        if ($roleName === 'Manager') {
+            $newManagerEscalations = Tickets::where('status', 'Awaiting Manager')
+                ->where('updated_at', '>=', $sinceTs)
+                ->get();
+
+            foreach ($newManagerEscalations as $ticket) {
+                $notifications->push([
+                    'type' => 'escalation',
+                    'title' => '🚨 Ticket Escalated to You',
+                    'body' => "#{$ticket->ticket_number} — {$ticket->subject}",
+                    'url' => route('executive.tickets.index'),
+                    'tag' => 'esc-' . $ticket->id,
+                    'time' => $ticket->updated_at,
+                ]);
+            }
+        }
+
         return response()->json([
             'notifications' => $notifications->sortByDesc('time')->values(),
             'server_time' => now()->toISOString(),
@@ -142,6 +160,7 @@ class NotificationController extends Controller
             'Helpdesk' => route('helpdesk.dashboard'),
             'IT Technician' => route('technician.dashboard'),
             'IT Admin' => route('admin.dashboard'),
+            'Manager' => route('executive.tickets.index'),
             default => '/',
         };
     }
@@ -153,7 +172,7 @@ class NotificationController extends Controller
             'Helpdesk' => route('helpdesk.dashboard'),
             'IT Support Specialist' => route('technician.dashboard'),
             'IT Admin' => route('admin.dashboard'),
-            'Manager' => route('executive.dashboard'),
+            'Manager' => route('executive.tickets.index'),
             default => '/',
         };
     }

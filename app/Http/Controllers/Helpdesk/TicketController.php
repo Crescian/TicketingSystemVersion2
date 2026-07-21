@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Helpdesk;
 
 use App\Http\Controllers\Controller;
+use App\Mail\TicketAssignedMail;
+use App\Mail\TicketResolvedMail;
 use App\Models\Tickets;
 use App\Models\SlaCategory;
 use App\Models\TicketStatusHistories;
@@ -22,7 +24,7 @@ class TicketController extends Controller
         $search = $request->get('search', '');
         $sort = $request->get('sort', 'newest');
 
-        $query = Tickets::with(['user.department', 'assignedTo'])
+        $query = Tickets::with(['user.department', 'assignedTo', 'statusHistories.changedBy'])
             ->orderByRaw("CASE
                 WHEN status = 'New Request'        THEN 1
                 WHEN status = 'Awaiting Supervisor' THEN 2
@@ -34,7 +36,19 @@ class TicketController extends Controller
                 ELSE 8 END")
             ->orderByDesc('created_at');
 
-        if ($status !== 'all') {
+        // 'active' = everything still open, before it lands on Closed
+        $activeStatuses = [
+            'New Request',
+            'Awaiting Supervisor',
+            'In Progress',
+            'Escalated',
+            'Pending Closure',
+            'Awaiting Requestor',
+        ];
+
+        if ($status === 'active') {
+            $query->whereIn('status', $activeStatuses);
+        } elseif ($status !== 'all') {
             $mappedStatus = match ($status) {
                 'new-request' => 'New Request',
                 'awaiting-supervisor' => 'Awaiting Supervisor',
@@ -84,6 +98,7 @@ class TicketController extends Controller
             'awaiting_requestor' => Tickets::where('status', 'Awaiting Requestor')->count(),
             'closed' => Tickets::where('status', 'Closed')->count(),
         ];
+        $counts['active'] = Tickets::whereIn('status', $activeStatuses)->count();
 
         // Technicians with active ticket count
         $technicians = User::whereHas('role', fn($q) =>
@@ -179,6 +194,13 @@ class TicketController extends Controller
             'changed_at' => now(),
         ]);
 
+        $supervisors = User::withActiveRole('Supervisor - Support Specialist')->get();
+        foreach ($supervisors as $supervisor) {
+            Mail::to($supervisor->email)->send(
+                new TicketAssignedMail($ticket, 'A ticket has been acknowledged by Helpdesk and needs classification & assignment.', 'supervisor.support.dashboard')
+            );
+        }
+
         return back()->with('success', "Ticket #{$ticket->ticket_number} acknowledged.");
     }
     public function closenotify(Tickets $ticket)
@@ -206,15 +228,9 @@ class TicketController extends Controller
             'changed_at' => now(),
         ]);
 
-        // Send email to requester (employee)
+        // Send email to requester (employee) — resolved, awaiting their confirmation
         if ($ticket->user && $ticket->user->email) {
-            Mail::raw(
-                "Your ticket #{$ticket->ticket_number} has been marked as CLOSED.\n\nThank you.",
-                function ($message) use ($ticket) {
-                    $message->to($ticket->user->email)
-                        ->subject("Ticket #{$ticket->ticket_number} Closed");
-                }
-            );
+            Mail::to($ticket->user->email)->send(new TicketResolvedMail($ticket));
         }
 
         return back()->with('success', "Ticket #{$ticket->ticket_number} closed and user notified.");

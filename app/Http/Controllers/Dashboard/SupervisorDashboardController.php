@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
+use App\Mail\TicketAssignedMail;
 use Illuminate\Http\Request;
 use App\Models\Tickets;
 use App\Models\User;
@@ -26,9 +27,15 @@ class SupervisorDashboardController extends Controller
         $search = $request->get('search', '');
         $sort = $request->get('sort', 'newest');
 
-        $query = Tickets::with(['user.department', 'assignedTo']);
+        $query = Tickets::with(['user.department', 'assignedTo', 'statusHistories.changedBy']);
+
+        // 'active' = everything still in flight for this supervisor, before it lands on Closed
+        $activeStatuses = ['Awaiting Supervisor', 'Escalated', 'In Progress', 'Pending Supervisor Approval'];
 
         switch ($status) {
+            case 'active':
+                $query->whereIn('status', $activeStatuses);
+                break;
             case 'awaiting-classification':
                 $query->whereIn('status', ['Awaiting Supervisor', 'Escalated'])
                     ->whereNotNull('date_acknowledged')
@@ -93,6 +100,7 @@ class SupervisorDashboardController extends Controller
             'pending_closure' => Tickets::where('status', 'Pending Closure')->count(),
             'closed' => Tickets::where('status', 'Closed')->count(),
         ];
+        $counts['active'] = Tickets::whereIn('status', $activeStatuses)->count();
 
         $technicians = User::whereHas(
             'role',
@@ -208,6 +216,12 @@ class SupervisorDashboardController extends Controller
             'changed_at' => now(),
         ]);
 
+        if ($technician->email) {
+            Mail::to($technician->email)->send(
+                new TicketAssignedMail($ticket, 'This ticket has been assigned to you and needs your acknowledgement.', 'technician.dashboard')
+            );
+        }
+
         return back()->with('success', "Ticket #{$ticket->ticket_number} classified and assigned to {$technician->name}.");
     }
 
@@ -266,6 +280,63 @@ class SupervisorDashboardController extends Controller
         return back()->with('success', "You have taken over ticket #{$ticket->ticket_number}.");
     }
 
+    // Add update / progress note (only while In Progress)
+    public function supportUpdate(Request $request, Tickets $ticket)
+    {
+        if ($ticket->status !== 'In Progress') {
+            return back()->with('error', 'Only in-progress tickets can receive progress updates.');
+        }
+
+        $request->validate([
+            'progress_notes' => 'required|string',
+            'work_status' => 'required|string',
+        ]);
+
+        TicketStatusHistories::create([
+            'ticket_id' => $ticket->id,
+            'old_status' => $ticket->status,
+            'new_status' => 'In Progress',
+            'changed_by' => Auth::id(),
+            'notes' => "[{$request->work_status}] " . $request->progress_notes,
+            'changed_at' => now(),
+        ]);
+
+        return back()->with('success', "Progress update logged for #{$ticket->ticket_number}.");
+    }
+
+    // Mark resolved (only while In Progress)
+    public function supportResolve(Request $request, Tickets $ticket)
+    {
+        if ($ticket->status !== 'In Progress') {
+            return back()->with('error', 'Only in-progress tickets can be marked resolved.');
+        }
+
+        $request->validate([
+            'resolution_notes' => 'required|string',
+            'time_spent' => 'required|string',
+        ]);
+
+        $oldStatus = $ticket->status;
+
+        $ticket->update([
+            'status' => 'Pending Closure',
+            'resolved_at' => now(),
+        ]);
+
+        TicketStatusHistories::create([
+            'ticket_id' => $ticket->id,
+            'old_status' => $oldStatus,
+            'new_status' => 'Pending Closure',
+            'changed_by' => Auth::id(),
+            'notes' => "Resolved by " . Auth::user()->name .
+                ". Time spent: {$request->time_spent}. " .
+                $request->resolution_notes,
+            'changed_at' => now(),
+        ]);
+
+        return back()->with('success', "Ticket #{$ticket->ticket_number} resolved. Sent for closure.");
+    }
+
     public function validateResolution(Request $request, Tickets $ticket)
     {
         $request->validate([
@@ -298,23 +369,36 @@ class SupervisorDashboardController extends Controller
         return back()->with('success', "Resolution for ticket #{$ticket->ticket_number} validated. Ready for Helpdesk closure & notification.");
     }
 
-    public function escalateToAdmin(Tickets $ticket)
+    public function escalateToAdmin(Request $request, Tickets $ticket)
     {
         $oldStatus = $ticket->status;
 
         $ticket->update([
             'status' => 'Awaiting Admin Supervisor',
             'escalation_level' => $ticket->escalation_level + 1,
+            'assigned_to' => null,
         ]);
+
+        $notes = 'Escalated to Supervisor - IT Admin by ' . Auth::user()->name;
+        if ($request->filled('reason')) {
+            $notes .= '. Reason: ' . $request->reason;
+        }
 
         TicketStatusHistories::create([
             'ticket_id' => $ticket->id,
             'old_status' => $oldStatus,
             'new_status' => 'Awaiting Admin Supervisor',
             'changed_by' => Auth::id(),
-            'notes' => 'Escalated to Supervisor - IT Admin by ' . Auth::user()->name,
+            'notes' => $notes,
             'changed_at' => now(),
         ]);
+
+        $adminSupervisors = User::withActiveRole('Supervisor - IT Admin')->get();
+        foreach ($adminSupervisors as $adminSupervisor) {
+            Mail::to($adminSupervisor->email)->send(
+                new TicketAssignedMail($ticket, 'A ticket has been escalated to your team and needs classification & assignment.', 'supervisor.dashboard')
+            );
+        }
 
         return back()->with('success', "Ticket #{$ticket->ticket_number} escalated to Supervisor - IT Admin.");
     }
@@ -330,7 +414,7 @@ class SupervisorDashboardController extends Controller
         $search = $request->get('search', '');
         $sort = $request->get('sort', 'newest');
 
-        $query = Tickets::with(['user.department', 'assignedTo'])
+        $query = Tickets::with(['user.department', 'assignedTo', 'statusHistories.changedBy'])
             ->orderByRaw("CASE
             WHEN status = 'Awaiting Admin Supervisor' THEN 1
             WHEN status = 'Awaiting Admin Classification' THEN 2
@@ -342,7 +426,19 @@ class SupervisorDashboardController extends Controller
             WHEN status = 'Cancelled' THEN 8
             ELSE 8 END");
 
-        if ($status !== 'all') {
+        // 'active' = everything still in flight across the admin escalation pipeline
+        $activeStatuses = [
+            'Awaiting Admin Supervisor',
+            'Awaiting Admin Classification',
+            'Awaiting Administrator Acknowledgement',
+            'Awaiting Administrator SLA Start',
+            'Admin In Progress',
+            'Pending Admin Supervisor Approval',
+        ];
+
+        if ($status === 'active') {
+            $query->whereIn('status', $activeStatuses);
+        } elseif ($status !== 'all') {
             $mappedStatus = match ($status) {
                 'awaiting-admin-supervisor' => 'Awaiting Admin Supervisor',
                 'awaiting-admin-classification' => 'Awaiting Admin Classification',
@@ -409,6 +505,7 @@ class SupervisorDashboardController extends Controller
             'closed' => Tickets::where('status', 'Closed')->count(),
             'cancelled' => Tickets::where('status', 'Cancelled')->count(),
         ];
+        $counts['active'] = Tickets::whereIn('status', $activeStatuses)->count();
 
         $technicians = User::whereHas(
             'role',
@@ -543,6 +640,12 @@ class SupervisorDashboardController extends Controller
             'changed_at' => now(),
         ]);
 
+        if ($technician->email) {
+            Mail::to($technician->email)->send(
+                new TicketAssignedMail($ticket, 'This ticket has been assigned to you and needs your acknowledgement.', 'admin.dashboard')
+            );
+        }
+
         return back()->with('success', "Ticket #{$ticket->ticket_number} classified and assigned to {$technician->name}.");
     }
 
@@ -631,31 +734,6 @@ class SupervisorDashboardController extends Controller
         return back()->with('success', "Ticket #{$ticket->ticket_number} resolved and closed.");
     }
 
-    // Awaiting Administrator Acknowledgement -> Awaiting Administrator SLA Start
-    public function adminAcknowledgeAssignment(Tickets $ticket)
-    {
-        if ($ticket->status !== 'Awaiting Administrator Acknowledgement') {
-            return back()->with('error', 'This ticket is not awaiting administrator acknowledgment.');
-        }
-
-        $oldStatus = $ticket->status;
-
-        $ticket->update([
-            'status' => 'Awaiting Administrator SLA Start',
-        ]);
-
-        TicketStatusHistories::create([
-            'ticket_id' => $ticket->id,
-            'old_status' => $oldStatus,
-            'new_status' => 'Awaiting Administrator SLA Start',
-            'changed_by' => Auth::id(),
-            'notes' => 'Acknowledged by IT Admin - ' . Auth::user()->name,
-            'changed_at' => now(),
-        ]);
-
-        return back()->with('success', "Ticket #{$ticket->ticket_number} acknowledged. Ready to start work.");
-    }
-
     // Awaiting Administrator SLA Start -> Admin In Progress
     public function adminStartSla(Tickets $ticket)
     {
@@ -664,12 +742,17 @@ class SupervisorDashboardController extends Controller
         }
 
         $oldStatus = $ticket->status;
+        $startedAt = now();
+        $slaRule = $ticket->activeSlaRule();
 
         $ticket->update([
             'status' => 'Admin In Progress',
-            // Optional: add a nullable `sla_started_at` timestamp column via migration
-            // and set it here if you want SLA timing to count from this moment
-            // rather than from ticket creation. Not required for the transition itself.
+            'started_at' => $startedAt, // SLA resolution clock starts here
+            'sla_due_at' => $slaRule
+                ? $startedAt->copy()->addMinutes($slaRule->resolution_time_minutes)
+                : null,
+            'sla_risk_notified_at' => null,
+            'sla_breached_notified_at' => null,
         ]);
 
         TicketStatusHistories::create([
@@ -682,6 +765,46 @@ class SupervisorDashboardController extends Controller
         ]);
 
         return back()->with('success', "SLA clock started for ticket #{$ticket->ticket_number}.");
+    }
+
+    public function escalateToManager(Request $request, Tickets $ticket)
+    {
+        if ($ticket->status !== 'Admin In Progress') {
+            return back()->with('error', 'Only tickets you are actively working on can be escalated to the Manager.');
+        }
+
+        $oldStatus = $ticket->status;
+
+        $ticket->update([
+            'status' => 'Awaiting Manager',
+            'assigned_to' => null,
+            'escalation_level' => $ticket->escalation_level + 1,
+        ]);
+
+        $notes = 'Escalated to Manager by ' . Auth::user()->name;
+        if ($request->filled('reason')) {
+            $notes .= '. Reason: ' . $request->reason;
+        }
+
+        TicketStatusHistories::create([
+            'ticket_id' => $ticket->id,
+            'old_status' => $oldStatus,
+            'new_status' => 'Awaiting Manager',
+            'changed_by' => Auth::id(),
+            'notes' => $notes,
+            'changed_at' => now(),
+        ]);
+
+        $managers = User::withActiveRole('Manager')->get();
+        foreach ($managers as $manager) {
+            if ($manager->email) {
+                Mail::to($manager->email)->send(
+                    new TicketAssignedMail($ticket, 'A ticket has been escalated to you and needs acknowledgement.', 'executive.tickets.index')
+                );
+            }
+        }
+
+        return back()->with('success', "Ticket #{$ticket->ticket_number} escalated to Manager.");
     }
     // Admin Supervisor Closing
 }

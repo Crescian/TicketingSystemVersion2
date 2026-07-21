@@ -369,6 +369,10 @@
                                 onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-check-circle me-1"></i>Resolve & Close
                         </button>
+                        <button class="btn-cancel-modal"
+                                onclick="openEscModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-exclamation-triangle me-1"></i>Escalate
+                        </button>
                     @endif
 
                     {{-- Available on every non-closed status --}}
@@ -622,6 +626,37 @@
         </div>
     </div>
 
+    {{-- Escalate modal --}}
+    <div class="modal fade" id="escModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-hdr-red d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Escalate to <em>Admin Supervisor</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="escForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="info-box-red p-3 mb-3">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            <strong id="escRef"></strong> — Escalating hands this ticket back to your
+                            Admin Supervisor for reclassification. It will be unassigned from you.
+                        </div>
+                        <label class="form-label">Reason for escalation <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="reason" rows="3" required
+                                  placeholder="Why does this need Admin Supervisor attention?"></textarea>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm red">
+                            <i class="bi bi-exclamation-triangle me-1"></i>Confirm Escalation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {{-- History modal --}}
     <div class="modal fade" id="historyModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -740,6 +775,13 @@ $(function () {
         $('#resolveRef').text('#' + ticketNumber);
         $('#resolveForm').attr('action', '/admin/tickets/' + ticketId + '/resolve');
         new bootstrap.Modal('#resolveModal').show();
+    };
+
+    /* ── Escalate modal ── */
+    window.openEscModal = function (ticketId, ticketNumber) {
+        $('#escRef').text('#' + ticketNumber);
+        $('#escForm').attr('action', '/admin/tickets/' + ticketId + '/escalate');
+        new bootstrap.Modal('#escModal').show();
     };
 
     /* ── History modal ── */

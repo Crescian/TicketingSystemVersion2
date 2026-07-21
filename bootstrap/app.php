@@ -19,7 +19,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register role middleware alias
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
+            'idempotent' => \App\Http\Middleware\PreventDuplicateSubmission::class,
         ]);
+    })
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
+        $schedule->command('sla:check')->everyMinute();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

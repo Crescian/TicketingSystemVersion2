@@ -180,10 +180,17 @@ class TicketController extends Controller
         ]);
 
         $oldStatus = $ticket->status;
+        $startedAt = now();
+        $slaRule = $ticket->activeSlaRule();
 
         $ticket->update([
             'status' => 'In Progress',
-            'started_at' => now(), // SLA resolution clock starts here
+            'started_at' => $startedAt, // SLA resolution clock starts here
+            'sla_due_at' => $slaRule
+                ? $startedAt->copy()->addMinutes($slaRule->resolution_time_minutes)
+                : null,
+            'sla_risk_notified_at' => null,
+            'sla_breached_notified_at' => null,
         ]);
 
         TicketStatusHistories::create([
@@ -223,6 +230,9 @@ class TicketController extends Controller
             'status' => 'Awaiting Supervisor',
             'tech_acknowledged_at' => null,
             'started_at' => null,
+            'sla_due_at' => null,
+            'sla_risk_notified_at' => null,
+            'sla_breached_notified_at' => null,
         ]);
 
         TicketStatusHistories::create([

@@ -22,8 +22,8 @@
         $user      = Auth::user()->load('role', 'department');
         $roleName  = $user->role?->role_name ?? 'Employee';
         $myTickets = \App\Models\Tickets::where('users_id', $user->id)->count();
-        $myResolved = \App\Models\Tickets::where('users_id', $user->id)->where('status', 'Resolved')->count();
-        $assignedResolved = \App\Models\Tickets::where('assigned_to', $user->id)->where('status', 'Resolved')->count();
+        $myResolved = \App\Models\Tickets::where('users_id', $user->id)->where('status', 'Closed')->count();
+        $assignedResolved = \App\Models\Tickets::where('assigned_to', $user->id)->where('status', 'Closed')->count();
         $avgRating = \Illuminate\Support\Facades\DB::table('ticket_feed_backs')
             ->whereIn('ticket_id', \App\Models\Tickets::where('assigned_to', $user->id)->pluck('id'))
             ->avg('rating');
@@ -53,12 +53,12 @@
                 <span class="lbl">Total Tickets</span>
             </div>
             <div class="stat-pill">
-                <span class="num">{{ \App\Models\Tickets::where('status', 'Resolved')->count() }}</span>
+                <span class="num">{{ \App\Models\Tickets::where('status', 'Closed')->count() }}</span>
                 <span class="lbl">Resolved</span>
             </div>
         @endif
         <div class="stat-pill">
-            <span class="num">{{ $user->created_at->diffInDays(now()) }}</span>
+            <span class="num">{{ (int) $user->created_at->diffInDays(now()) }}</span>
             <span class="lbl">Days Active</span>
         </div>
     </div>

@@ -37,11 +37,24 @@ class Tickets extends Model
         'time_acknowledged',
 
         'method',
+
+        'started_at',
+        'resolved_at',
+
+        // ── SLA FIELDS
+        'sla_category_id',
+        'subcategory_name',
+        'sla_due_at',
+        'sla_risk_notified_at',
+        'sla_breached_notified_at',
     ];
 
     protected $casts = [
         'started_at' => 'datetime',
         'resolved_at' => 'datetime',
+        'sla_due_at' => 'datetime',
+        'sla_risk_notified_at' => 'datetime',
+        'sla_breached_notified_at' => 'datetime',
     ];
 
     public function user()
@@ -90,5 +103,50 @@ class Tickets extends Model
         return $this->hasMany(TicketMessage::class, 'ticket_id')
             ->where('is_read', false)
             ->where('sender_id', '!=', auth()->id());
+    }
+
+    public function slaCategory()
+    {
+        return $this->belongsTo(SlaCategory::class, 'sla_category_id');
+    }
+
+    // Matching active SLA rule for this ticket's subcategory + priority.
+    public function activeSlaRule(): ?SlaRule
+    {
+        if (!$this->subcategory_name || !$this->ticket_type) {
+            return null;
+        }
+
+        return SlaRule::where('subcategory_name', $this->subcategory_name)
+            ->where('priority', $this->ticket_type)
+            ->where('is_active', true)
+            ->first();
+    }
+
+    public function slaSecondsRemaining(): ?int
+    {
+        if (!$this->sla_due_at) {
+            return null;
+        }
+
+        return (int) now()->diffInSeconds($this->sla_due_at, false);
+    }
+
+    public function isSlaBreached(): bool
+    {
+        $remaining = $this->slaSecondsRemaining();
+        return $remaining !== null && $remaining <= 0;
+    }
+
+    public function isSlaAtRisk(): bool
+    {
+        if (!$this->sla_due_at || !$this->started_at || $this->isSlaBreached()) {
+            return false;
+        }
+
+        $totalSeconds = $this->started_at->diffInSeconds($this->sla_due_at);
+        $elapsedSeconds = $this->started_at->diffInSeconds(now());
+
+        return $totalSeconds > 0 && $elapsedSeconds >= ($totalSeconds * 0.75);
     }
 }

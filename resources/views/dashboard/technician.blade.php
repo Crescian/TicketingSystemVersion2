@@ -356,6 +356,22 @@
                 $line3 = $isInProgress || $isClosed || $isEscalated ? 'done' : '';
 
                 $recentHistory = $ticket->statusHistories->sortByDesc('changed_at')->take(3)->reverse();
+
+                // ── SLA countdown (In Progress only) ──
+                $slaSecondsLeft = $isInProgress ? $ticket->slaSecondsRemaining() : null;
+                if ($slaSecondsLeft !== null) {
+                    $slaBreached = $slaSecondsLeft <= 0;
+                    $slaAtRisk   = !$slaBreached && $ticket->isSlaAtRisk();
+                    $slaColor    = $slaBreached ? '#e24b4a' : ($slaAtRisk ? '#f5c842' : '#3fb950');
+                    $slaBg       = $slaBreached ? '#fde8e8' : ($slaAtRisk ? '#fff4cc' : '#d4f0d4');
+                    $slaIcon     = $slaBreached ? 'bi-exclamation-triangle-fill' : ($slaAtRisk ? 'bi-clock-history' : 'bi-stopwatch');
+                    $abs = abs($slaSecondsLeft);
+                    $h = intdiv($abs, 3600);
+                    $m = intdiv($abs % 3600, 60);
+                    $s = $abs % 60;
+                    $slaText = ($h > 0 ? $h . 'h ' : '') . $m . 'm ' . $s . 's';
+                    $slaLabel = $slaBreached ? 'Overdue by ' . $slaText : $slaText . ' left';
+                }
             @endphp
 
             <div class="ticket-card {{ $cardClass }} p-3"
@@ -467,10 +483,18 @@
                               <i class="bi bi-geo-alt"></i> {{ $ticket->location }}
                           </span>
                     @endif
-                    @if($isInProgress && $ticket->started_at)
+                    @if($isInProgress && $ticket->sla_due_at)
+                          <span class="sla-timer"
+                                data-sla-timer
+                                data-sla-due="{{ $ticket->sla_due_at->toIso8601String() }}"
+                                style="background:{{ $slaBg }};color:{{ $slaColor }};font-size:12px;font-weight:800;border-radius:20px;padding:4px 12px;display:inline-flex;align-items:center;gap:5px;border:1px solid {{ $slaColor }}40">
+                              <i class="bi {{ $slaIcon }}"></i>
+                              <span class="sla-timer-text">{{ $slaLabel }}</span>
+                          </span>
+                    @elseif($isInProgress && $ticket->started_at)
                           <span class="meta-item">
-                              <i class="bi bi-clock"></i>
-                              SLA running for {{ $ticket->started_at->diffForHumans(null, true) }}
+                              <i class="bi bi-dash-circle"></i>
+                              No SLA configured for this category
                           </span>
                     @elseif($isAcknowledged && $ticket->tech_acknowledged_at)
                           <span class="meta-item">
@@ -1136,5 +1160,33 @@
             silentRefreshTimer = setInterval(silentRefresh, 30000);
         }
     });
+
+    /* ══ SLA COUNTDOWN TIMER ══ */
+    function tickSlaTimers() {
+        document.querySelectorAll('[data-sla-timer]').forEach(el => {
+            const due = new Date(el.getAttribute('data-sla-due'));
+            if (isNaN(due.getTime())) return;
+
+            const diffMs = due.getTime() - Date.now();
+            const breached = diffMs <= 0;
+            const abs = Math.abs(Math.floor(diffMs / 1000));
+            const h = Math.floor(abs / 3600);
+            const m = Math.floor((abs % 3600) / 60);
+            const s = abs % 60;
+            const text = (h > 0 ? h + 'h ' : '') + m + 'm ' + s + 's';
+
+            const textEl = el.querySelector('.sla-timer-text');
+            if (textEl) textEl.textContent = breached ? ('Overdue by ' + text) : (text + ' left');
+
+            if (breached) {
+                el.style.background = '#fde8e8';
+                el.style.color = '#e24b4a';
+                el.style.borderColor = '#e24b4a40';
+                const icon = el.querySelector('i');
+                if (icon) icon.className = 'bi bi-exclamation-triangle-fill';
+            }
+        });
+    }
+    setInterval(tickSlaTimers, 1000);
     </script>
 @endsection

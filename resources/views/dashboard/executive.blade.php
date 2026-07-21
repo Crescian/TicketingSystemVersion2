@@ -5,6 +5,92 @@
 @section('avatar-initials', 'CE')
 @section('nav-username', 'C. Evangelista')
 
+@section('styles')
+    .rt-btn {
+        background: rgba(200, 230, 60, .12);
+        color: var(--ex-yg);
+        border: 1px solid rgba(200, 230, 60, .25);
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 800;
+        padding: 5px 14px;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .rt-btn:hover {
+        background: rgba(200, 230, 60, .22);
+    }
+
+    .esc-badge.success {
+        background: rgba(63, 185, 80, .15);
+        color: var(--ex-green);
+        border: 1px solid rgba(63, 185, 80, .2);
+    }
+
+    .esc-badge.muted {
+        background: rgba(125, 133, 144, .15);
+        color: var(--ex-muted);
+        border: 1px solid rgba(125, 133, 144, .2);
+    }
+
+    /* ── Dark-themed modal (Bootstrap defaults are light) ── */
+    #timelineModal .modal-content {
+        background: var(--ex-card);
+        border: 1px solid var(--ex-bd);
+        border-radius: 16px;
+        color: var(--ex-txt);
+    }
+
+    #timelineModal .modal-header,
+    #timelineModal .modal-footer {
+        border-color: var(--ex-bd);
+    }
+
+    #timelineModal .btn-close {
+        filter: invert(1) grayscale(100%) brightness(200%);
+    }
+
+    .tl-item {
+        display: flex;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(48, 54, 61, .6);
+    }
+
+    .tl-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .tl-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--ex-yg);
+        flex-shrink: 0;
+        margin-top: 5px;
+    }
+
+    .tl-time {
+        font-size: 11px;
+        color: var(--ex-muted);
+        font-weight: 700;
+    }
+
+    .tl-status {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--ex-txt);
+        margin: 2px 0;
+    }
+
+    .tl-notes {
+        font-size: 12px;
+        color: var(--ex-muted);
+    }
+@endsection
+
 {{-- ══ MAIN CONTENT ══ --}}
 @section('content')
 
@@ -21,6 +107,10 @@
                 <div class="greeting-sub">
                     Here's your IT Support overview for the last 30 days — {{ now()->format('F Y') }}.
                 </div>
+                <a href="{{ route('executive.tickets.index') }}"
+                   style="display:inline-flex;align-items:center;gap:6px;margin-top:14px;background:var(--ex-yg);color:#161611;font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;padding:9px 20px;border-radius:50px;text-decoration:none">
+                    <i class="bi bi-inbox-fill"></i> View Ticket Queue
+                </a>
             </div>
             <div class="d-flex gap-3 flex-wrap align-items-center">
                 <div style="text-align:center">
@@ -485,6 +575,120 @@
 
         </div>
 
+        {{-- ── Row 6: Recent Tickets ── --}}
+        <div class="row g-3 mb-2">
+            <div class="col-12">
+                <div class="chart-card">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div>
+                            <div class="chart-title">Recent Tickets</div>
+                            <div class="chart-sub">Latest activity across the whole org — click Timeline for the full history</div>
+                        </div>
+                        <a href="{{ route('executive.tickets.index') }}"
+                           style="font-size:12px;font-weight:800;color:var(--ex-yg);text-decoration:none">
+                            View Ticket Queue <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="lb-table mt-3">
+                            <thead>
+                                <tr>
+                                    <th>Ticket</th>
+                                    <th>Requester</th>
+                                    <th>Status</th>
+                                    <th>Priority</th>
+                                    <th>Opened</th>
+                                    <th style="text-align:right">Timeline</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($recentTickets as $ticket)
+                                    @php
+                                        $statusLower = strtolower($ticket->status ?? '');
+                                        $badgeClass = match (true) {
+                                            str_contains($statusLower, 'closed') => 'success',
+                                            str_contains($statusLower, 'escalated') => 'breach',
+                                            str_contains($statusLower, 'cancelled') => 'muted',
+                                            str_contains($statusLower, 'awaiting') || str_contains($statusLower, 'pending') => 'open',
+                                            str_contains($statusLower, 'progress') => 'admin',
+                                            default => 'muted',
+                                        };
+                                        $priorityColor = match ($ticket->ticket_type) {
+                                            'High' => 'var(--ex-red)',
+                                            'Medium' => 'var(--ex-amber)',
+                                            'Low' => 'var(--ex-green)',
+                                            default => 'var(--ex-muted)',
+                                        };
+                                    @endphp
+                                    <tr>
+                                        <td>
+                                            <div style="font-weight:800;font-size:13px;color:var(--ex-txt)">
+                                                #{{ $ticket->ticket_number }}
+                                            </div>
+                                            <div style="font-size:12px;color:var(--ex-muted)">
+                                                {{ Str::limit($ticket->subject, 40) }}
+                                            </div>
+                                        </td>
+                                        <td style="font-size:12px;color:var(--ex-muted)">
+                                            {{ $ticket->requester_name ?? 'Unknown' }}
+                                        </td>
+                                        <td>
+                                            <span class="esc-badge {{ $badgeClass }}">{{ $ticket->status }}</span>
+                                        </td>
+                                        <td>
+                                            <span style="font-size:12px;font-weight:700;color:{{ $priorityColor }}">
+                                                {{ $ticket->ticket_type ?? 'N/A' }}
+                                            </span>
+                                        </td>
+                                        <td style="font-size:12px;color:var(--ex-muted)">
+                                            {{ \Carbon\Carbon::parse($ticket->created_at)->diffForHumans() }}
+                                        </td>
+                                        <td style="text-align:right">
+                                            <button type="button" class="rt-btn"
+                                                    onclick="openTimelineModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                                <i class="bi bi-clock-history me-1"></i>Timeline
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" style="text-align:center;color:var(--ex-muted);padding:20px">
+                                            No tickets yet.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+@endsection
+
+{{-- ══ MODALS ══ --}}
+@section('modals')
+    <div class="modal fade" id="timelineModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="mb-0">Ticket Timeline — <em id="timelineRef" style="color:var(--ex-yg)"></em></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body px-4 py-3" style="max-height:60vh;overflow-y:auto">
+                    <div id="timelineBody">
+                        <div class="text-center py-4" style="color:var(--ex-muted)">
+                            <div class="spinner-border spinner-border-sm me-2"></div>
+                            Loading timeline…
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="rt-btn" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
     {{-- ══ CHART SCRIPTS ══ --}}
@@ -827,6 +1031,52 @@
                         refreshTimer = setInterval(fetchExecutiveData, 30000);
                     }
                 });
+
+                /* ══ Ticket timeline modal ══ */
+                window.openTimelineModal = function (ticketId, ticketNumber) {
+                    $('#timelineRef').text('#' + ticketNumber);
+                    $('#timelineBody').html(`
+                        <div class="text-center py-4" style="color:var(--ex-muted)">
+                            <div class="spinner-border spinner-border-sm me-2"></div>
+                            Loading timeline…
+                        </div>
+                    `);
+                    new bootstrap.Modal('#timelineModal').show();
+
+                    fetch('{{ url('/executive/tickets') }}/' + ticketId + '/history')
+                        .then(r => r.json())
+                        .then(data => {
+                            const histories = data.status_histories || [];
+                            if (!histories.length) {
+                                $('#timelineBody').html('<div style="color:var(--ex-muted);font-size:13px">No history available.</div>');
+                                return;
+                            }
+                            let html = '';
+                            histories
+                                .slice()
+                                .sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at))
+                                .forEach(h => {
+                                    const date = new Date(h.changed_at).toLocaleString('en-PH', {
+                                        month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
+                                    });
+                                    const by = h.changed_by?.name ?? 'System';
+                                    html += `
+                                        <div class="tl-item">
+                                            <div class="tl-dot"></div>
+                                            <div>
+                                                <div class="tl-time">${date} · ${by}</div>
+                                                <div class="tl-status">${h.old_status ?? '—'} → ${h.new_status}</div>
+                                                <div class="tl-notes">${h.notes ?? ''}</div>
+                                            </div>
+                                        </div>
+                                    `;
+                                });
+                            $('#timelineBody').html(html);
+                        })
+                        .catch(() => {
+                            $('#timelineBody').html('<div style="color:var(--ex-red)">Failed to load timeline.</div>');
+                        });
+                };
 
             });
         </script>
