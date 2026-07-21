@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\OrgSettingsController;
 use App\Http\Controllers\Admin\SlaRuleController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\WebAuthController;
+use App\Http\Controllers\Auth\MicrosoftController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SSOController;
 use App\Http\Controllers\Dashboard\SupervisorDashboardController as SupportSupervisorController;
@@ -26,6 +27,9 @@ Route::get('/', fn() => redirect('/login'));
 Route::middleware('guest')->group(function () {
     Route::get('/login', [WebAuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [WebAuthController::class, 'login'])->middleware('throttle:login');
+
+    Route::get('/auth/microsoft/redirect', [MicrosoftController::class, 'redirect'])->name('auth.microsoft.redirect');
+    Route::get('/auth/microsoft/callback', [MicrosoftController::class, 'callback'])->name('auth.microsoft.callback');
 });
 
 Route::get('/sso-login', [SSOController::class, 'handleSSO'])

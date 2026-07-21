@@ -156,6 +156,23 @@
 
         </form>
 
+        <div style="display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--tm);font-size:12px;font-weight:600;">
+          <div style="flex:1;height:1px;background:var(--bd,#e0e0e0);"></div>
+          OR
+          <div style="flex:1;height:1px;background:var(--bd,#e0e0e0);"></div>
+        </div>
+
+        <a href="{{ route('auth.microsoft.redirect') }}" class="btn-login"
+          style="display:flex;align-items:center;justify-content:center;gap:10px;text-decoration:none;background:#fff;color:#5e5e5e;border:1.5px solid #d0d0d0;">
+          <svg width="18" height="18" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+            <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+            <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+            <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+          </svg>
+          Sign in with Microsoft
+        </a>
+
         <p style="text-align:center;font-size:12px;color:var(--tm)">
           Having trouble? Contact your IT Helpdesk or email
           <a href="mailto:icthelpdesk@leoniogroup.com"

@@ -4,8 +4,11 @@ namespace App\Providers;
 
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use SocialiteProviders\Azure\AzureExtendSocialite;
+use SocialiteProviders\Manager\SocialiteWasCalled;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -22,6 +25,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Event::listen(SocialiteWasCalled::class, AzureExtendSocialite::class);
+
         // New-ticket filing: generous enough for Helpdesk filing several tickets in a
         // row on behalf of employees, tight enough to stop a runaway client/bug.
         RateLimiter::for('ticket-submit', function (Request $request) {
