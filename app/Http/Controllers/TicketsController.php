@@ -6,14 +6,94 @@ use App\Mail\TicketAssignedMail;
 use App\Mail\TicketSubmittedMail;
 use App\Models\Tickets;
 use App\Models\SlaCategory;
+use App\Models\TicketAttachment;
 use App\Models\TicketStatusHistories;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class TicketsController extends Controller
 {
+    // Roles the employee "Available IT" panel surfaces — just the two tiers a
+    // requester's ticket actually passes through (Helpdesk triage, then the
+    // technician who gets assigned). Same online-window mechanism as the
+    // Admin/Executive presence panels (sessions.last_activity).
+    private const IT_TEAM_ROLES = ['Helpdesk', 'IT Support Specialist'];
+
+    private const ONLINE_WINDOW_MINUTES = 5;
+
+    private function onlineUserIds(): \Illuminate\Support\Collection
+    {
+        return DB::table('sessions')
+            ->whereNotNull('user_id')
+            ->where('last_activity', '>=', now()->subMinutes(self::ONLINE_WINDOW_MINUTES)->timestamp)
+            ->distinct()
+            ->pluck('user_id');
+    }
+
+    // Not-yet-started statuses a ticket passes through once a specialist is assigned —
+    // matches App\Services\TicketScheduler's own NOT_STARTED_STATUSES, duplicated here
+    // since that constant is private to the scheduler.
+    private const QUEUED_STATUSES = ['Awaiting Support Specialist Acknowledgement', 'Awaiting Start SLA'];
+
+    // A soft, employee-facing ETA for when a specialist will actually start on this
+    // ticket — deliberately fuzzy (rounded hour today, day name if further out) rather
+    // than the exact scheduled_start minute, since that projection can legitimately
+    // shift later (a higher-priority ticket jumping the queue) or earlier (an earlier
+    // ticket finishing ahead of schedule). Showing a precise time that then moves would
+    // read as a broken promise even though the system behaved correctly.
+    private function expectedStartLabel(Tickets $ticket): ?string
+    {
+        if (in_array($ticket->status, ['New Request', 'L1 In Progress', 'Awaiting Supervisor'], true)) {
+            return 'Awaiting assignment';
+        }
+
+        if ($ticket->status === 'In Progress') {
+            return 'Being worked on now';
+        }
+
+        if (!in_array($ticket->status, self::QUEUED_STATUSES, true) || !$ticket->scheduled_start) {
+            return null;
+        }
+
+        $now = now('Asia/Manila');
+        $start = $ticket->scheduled_start->copy()->timezone('Asia/Manila');
+
+        if ($start->isSameDay($now)) {
+            return $start->lte($now) ? 'Today, shortly' : 'Today, after ' . $start->format('g:00 A');
+        }
+
+        if ($start->isSameDay($now->copy()->addDay())) {
+            return 'Tomorrow';
+        }
+
+        if ($now->diffInDays($start) <= 6) {
+            return $start->format('l');
+        }
+
+        return 'On ' . $start->format('M j');
+    }
+
+    private function itTeamStatus(): \Illuminate\Support\Collection
+    {
+        $onlineIds = $this->onlineUserIds();
+
+        return User::with('role')
+            ->whereHas('role', fn($q) => $q->whereIn('role_name', self::IT_TEAM_ROLES))
+            ->where('active', true)
+            ->orderBy('name')
+            ->get()
+            ->map(function ($member) use ($onlineIds) {
+                $member->online = $onlineIds->contains($member->id);
+                return $member;
+            })
+            ->sortByDesc('online')
+            ->values();
+    }
+
     // Dashboard + ticket list
     public function index(Request $request)
     {
@@ -37,12 +117,44 @@ class TicketsController extends Controller
         ->where('users.id', $user->id)
         ->first();
         
-        $query = Tickets::with(['assignedTo', 'feedback', 'unreadMessages'])
+        $query = Tickets::with(['assignedTo', 'feedback', 'unreadMessages', 'slaCategory'])
             ->where('users_id', $user->id);
 
+        // ── Phase filters — grouped the same way the progress bar on the ticket
+        //    card groups statuses, so a tab and the strip never disagree about
+        //    where a ticket sits. (Previously 'open' matched the literal status
+        //    'Open', which no controller ever sets — so it was always empty.)
+        $phaseFilters = [
+            'pending_acknowledgement' => function ($q) {
+                $q->where('status', 'New Request')->whereNull('date_acknowledged');
+            },
+            'classification_assignment' => function ($q) {
+                $q->where(function ($q2) {
+                    $q2->where('status', 'New Request')->whereNotNull('date_acknowledged');
+                })->orWhereIn('status', ['L1 In Progress', 'Awaiting Supervisor']);
+            },
+            'in_progress' => function ($q) {
+                $q->whereIn('status', [
+                    'Awaiting Support Specialist Acknowledgement', 'Awaiting Start SLA', 'In Progress', 'Escalated',
+                    'Admin In Progress', 'Manager In Progress', 'Awaiting Admin Classification', 'Awaiting Admin Supervisor',
+                    'Awaiting Administrator Acknowledgement', 'Awaiting Administrator SLA Start', 'Awaiting Manager',
+                    'Pending Supervisor Approval', 'Pending Closure', 'Pending Reclassification', 'Resolved',
+                ]);
+            },
+            'awaiting_requestor' => function ($q) {
+                $q->where('status', 'Awaiting Requestor');
+            },
+            'closed' => function ($q) {
+                $q->where('status', 'Closed');
+            },
+            'cancelled' => function ($q) {
+                $q->where('status', 'Cancelled');
+            },
+        ];
+
         // Status filter
-        if ($status !== 'all') {
-            $query->where('status', ucwords($status));
+        if ($status !== 'all' && isset($phaseFilters[$status])) {
+            $query->where($phaseFilters[$status]);
         }
 
         // Search
@@ -55,25 +167,37 @@ class TicketsController extends Controller
             });
         }
 
+        // ── Category filter — matches the ticket's classified SLA category
+        //    (only set once Helpdesk classifies it), not the employee's
+        //    self-submitted request_category, which isn't reliably populated.
+        if ($request->filled('category')) {
+            $query->where('sla_category_id', $request->get('category'));
+        }
+
+        // From/To date filter — scoped to when the ticket was submitted.
+        if ($request->filled('from_date')) {
+            $query->whereDate('created_at', '>=', $request->get('from_date'));
+        }
+        if ($request->filled('to_date')) {
+            $query->whereDate('created_at', '<=', $request->get('to_date'));
+        }
+
         // Sort
         match ($sort) {
             'oldest' => $query->oldest(),
-            'priority' => $query->orderByRaw("CASE ticket_type WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 WHEN 'Low' THEN 3 END"),
+            'priority' => $query->orderByRaw("CASE ticket_type WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 WHEN 'Low' THEN 4 END"),
             default => $query->latest(),
         };
 
         $tickets = $query->paginate(10)->withQueryString();
+        $tickets->getCollection()->each(function (Tickets $ticket) {
+            $ticket->expected_start_label = $this->expectedStartLabel($ticket);
+        });
 
-        // ── NOTE: 'resolved' replaced with 'awaiting_requestor' + 'closed'
-        $counts = [
-            'all'                 => Tickets::where('users_id', $user->id)->count(),
-            'open'                => Tickets::where('users_id', $user->id)->where('status', 'Open')->count(),
-            'in_progress'         => Tickets::where('users_id', $user->id)->where('status', 'In Progress')->count(),
-            'escalated'           => Tickets::where('users_id', $user->id)->where('status', 'Escalated')->count(),
-            'awaiting_requestor'  => Tickets::where('users_id', $user->id)->where('status', 'Awaiting Requestor')->count(),
-            'closed'              => Tickets::where('users_id', $user->id)->where('status', 'Closed')->count(),
-            'cancelled'           => Tickets::where('users_id', $user->id)->where('status', 'Cancelled')->count(),
-        ];
+        $counts = ['all' => Tickets::where('users_id', $user->id)->count()];
+        foreach ($phaseFilters as $key => $filter) {
+            $counts[$key] = Tickets::where('users_id', $user->id)->where($filter)->count();
+        }
 
         // ── Load SLA categories with their active rules for the ticket modal
         $slaCategories = SlaCategory::with([
@@ -99,6 +223,8 @@ class TicketsController extends Controller
             ])->values()->toArray(),
         ])->values()->toArray();
 
+        $itTeam = $this->itTeamStatus();
+
         return view('dashboard.employee', compact(
             'tickets',
             'counts',
@@ -107,7 +233,8 @@ class TicketsController extends Controller
             'sort',
             'slaCategories',
             'slaCategoriesJson',
-            'requestor'
+            'requestor',
+            'itTeam'
         ));
     }
 
@@ -118,9 +245,41 @@ class TicketsController extends Controller
             abort(403);
         }
 
-        $ticket->load(['assignedTo', 'statusHistories.changedBy', 'feedback']);
+        $ticket->load(['assignedTo', 'statusHistories.changedBy', 'feedback', 'attachments', 'slaCategory']);
+        $ticket->expected_start_label = $this->expectedStartLabel($ticket);
 
         return view('employee.ticket-detail', compact('ticket'));
+    }
+
+    // Download a ticket attachment — owner or any non-Employee (staff) role can access.
+    public function downloadAttachment(TicketAttachment $attachment)
+    {
+        $this->authorizeAttachmentAccess($attachment);
+
+        return Storage::disk('local')->download($attachment->stored_path, $attachment->original_name);
+    }
+
+    // Stream a ticket attachment inline (PDFs/images open in-browser instead of downloading).
+    public function viewAttachment(TicketAttachment $attachment)
+    {
+        $this->authorizeAttachmentAccess($attachment);
+
+        return Storage::disk('local')->response($attachment->stored_path, $attachment->original_name);
+    }
+
+    private function authorizeAttachmentAccess(TicketAttachment $attachment): void
+    {
+        $user = Auth::user();
+        $isOwner = $attachment->ticket->users_id === $user->id;
+        $isStaff = $user->role?->role_name !== 'Employee';
+
+        if (!$isOwner && !$isStaff) {
+            abort(403);
+        }
+
+        if (!Storage::disk('local')->exists($attachment->stored_path)) {
+            abort(404, 'File no longer available.');
+        }
     }
 
     // Show create form
@@ -144,6 +303,9 @@ class TicketsController extends Controller
             'location'           => 'nullable|string|max:255',
             // ── Only present when Helpdesk files on behalf of someone else
             'users_id'           => 'nullable|uuid|exists:users,id',
+            // ── Optional supporting files (screenshots, documents, etc.)
+            'attachments'        => 'nullable|array|max:5',
+            'attachments.*'      => 'file|max:10240|mimes:jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,txt',
         ]);
 
         // ── users_id is always sent by the employee modal too (hidden field, pre-filled
@@ -170,11 +332,15 @@ class TicketsController extends Controller
             'status'            => 'New Request',
             'escalation_level'  => 0,
 
-            // ── Requestor context — auto-filled, not user-entered when self-filed
+            // ── Requestor context — auto-filled, not user-entered when self-filed.
+            // department/company/business_unit are traversed off User::department()
+            // (a belongsTo relation, not a plain column) — grabbing the relation
+            // directly instead of ->department_name would silently JSON-encode the
+            // related model into these varchar columns.
             'position'       => $isHelpdeskFiling ? $request->position       : ($requestor->position ?? null),
-            'business_unit'  => $isHelpdeskFiling ? $request->business_unit  : ($requestor->business_unit ?? null),
-            'company'        => $isHelpdeskFiling ? $request->company        : ($requestor->company ?? null),
-            'department'     => $isHelpdeskFiling ? $request->department     : ($requestor->department ?? null),
+            'business_unit'  => $isHelpdeskFiling ? $request->business_unit  : ($requestor->department?->company?->businessUnit?->business_units_name ?? null),
+            'company'        => $isHelpdeskFiling ? $request->company        : ($requestor->department?->company?->company_name ?? null),
+            'department'     => $isHelpdeskFiling ? $request->department     : ($requestor->department?->department_name ?? null),
 
             // ── Date/time received: system timestamp for self-filed tickets
             'date_received'  => $isHelpdeskFiling ? $request->date_received  : now()->toDateString(),
@@ -183,6 +349,19 @@ class TicketsController extends Controller
             // ── Method: defaults to "System" for self-filed tickets
             'method'         => $isHelpdeskFiling ? $request->method : 'System',
         ]);
+
+        foreach ($request->file('attachments', []) as $file) {
+            $storedPath = $file->store('ticket-attachments/' . $ticket->id, 'local');
+
+            TicketAttachment::create([
+                'ticket_id'     => $ticket->id,
+                'uploaded_by'   => Auth::id(),
+                'original_name' => $file->getClientOriginalName(),
+                'stored_path'   => $storedPath,
+                'mime_type'     => $file->getClientMimeType(),
+                'size'          => $file->getSize(),
+            ]);
+        }
 
         TicketStatusHistories::create([
             'ticket_id'  => $ticket->id,
@@ -229,8 +408,8 @@ class TicketsController extends Controller
             abort(403);
         }
 
-        if (!in_array($ticket->status, ['Open', 'In Progress'])) {
-            return back()->with('error', 'Only Open or In Progress tickets can be cancelled.');
+        if ($ticket->status !== 'New Request' || !is_null($ticket->date_acknowledged)) {
+            return back()->with('error', 'This ticket can no longer be cancelled — it has already been acknowledged by Helpdesk.');
         }
 
         $oldStatus = $ticket->status;

@@ -9,11 +9,34 @@ use App\Models\Departments;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class UserManagementController extends Controller
 {
+    // Roles the "IT Team — Online Now" panel surfaces, per admin's request
+    // (helpdesk, IT tech, admin, managers — including their supervisor tiers).
+    private const IT_TEAM_ROLES = [
+        'Helpdesk',
+        'IT Support Specialist',
+        'Supervisor - Support Specialist',
+        'IT Admin',
+        'Supervisor - IT Admin',
+        'Manager',
+    ];
+
+    private const ONLINE_WINDOW_MINUTES = 5;
+
+    private function onlineUserIds(): \Illuminate\Support\Collection
+    {
+        return DB::table('sessions')
+            ->whereNotNull('user_id')
+            ->where('last_activity', '>=', now()->subMinutes(self::ONLINE_WINDOW_MINUTES)->timestamp)
+            ->distinct()
+            ->pluck('user_id');
+    }
+
     public function index(Request $request)
     {
         $search = $request->get('search', '');
@@ -46,12 +69,27 @@ class UserManagementController extends Controller
 
         $users = $query->paginate(10)->withQueryString();
 
+        $onlineUserIds = $this->onlineUserIds();
+
+        $lastActivityMap = DB::table('sessions')
+            ->whereIn('user_id', $users->pluck('id'))
+            ->selectRaw('user_id, MAX(last_activity) as last_activity')
+            ->groupBy('user_id')
+            ->pluck('last_activity', 'user_id');
+
+        $itTeamOnline = User::with('role')
+            ->whereIn('id', $onlineUserIds)
+            ->whereHas('role', fn($q) => $q->whereIn('role_name', self::IT_TEAM_ROLES))
+            ->orderBy('name')
+            ->get();
+
         $counts = [
             'total' => User::count(),
             'active' => User::where('active', true)->count(),
             'inactive' => User::where('active', false)->count(),
             'techs' => User::whereHas('role', fn($q) =>
                 $q->where('role_name', 'IT Support Specialist'))->count(),
+            'online' => $onlineUserIds->count(),
         ];
 
         $roleCounts = [
@@ -59,7 +97,7 @@ class UserManagementController extends Controller
             'Helpdesk' => User::whereHas('role', fn($q) => $q->where('role_name', 'Helpdesk'))->count(),
             'IT Support Specialist' => User::whereHas('role', fn($q) => $q->where('role_name', 'IT Support Specialist'))->count(),
             'IT Admin' => User::whereHas('role', fn($q) => $q->where('role_name', 'IT Admin'))->count(),
-            'Executive' => User::whereHas('role', fn($q) => $q->where('role_name', 'Executive'))->count(),
+            'Manager' => User::whereHas('role', fn($q) => $q->where('role_name', 'Manager'))->count(),
         ];
 
         $roles = Role::all();
@@ -92,7 +130,10 @@ class UserManagementController extends Controller
             'search',
             'role',
             'dept',
-            'status'
+            'status',
+            'onlineUserIds',
+            'lastActivityMap',
+            'itTeamOnline'
         ));
     }
 
@@ -160,6 +201,30 @@ class UserManagementController extends Controller
         $tempPassword = Str::random(10);
         $user->update(['password' => Hash::make('password')]);
         return back()->with('success', "Password reset for {$user->name}. Temp: {$tempPassword}");
+    }
+
+    // Polled every 30s from the user-management page to refresh who's online
+    // without a full page reload — see resources/views/admin/user-management.blade.php.
+    public function presence()
+    {
+        $onlineUserIds = $this->onlineUserIds();
+
+        $itTeam = User::with('role')
+            ->whereIn('id', $onlineUserIds)
+            ->whereHas('role', fn($q) => $q->whereIn('role_name', self::IT_TEAM_ROLES))
+            ->orderBy('name')
+            ->get()
+            ->map(fn($u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'role_name' => $u->role?->role_name,
+            ]);
+
+        return response()->json([
+            'online_count' => $onlineUserIds->count(),
+            'online_user_ids' => $onlineUserIds->values(),
+            'it_team' => $itTeam,
+        ]);
     }
 
     public function show(User $user)

@@ -3,7 +3,7 @@
 
 Hi {{ $ticket->user->name ?? 'there' }},
 
-Good news — Helpdesk has resolved your ticket and it's now awaiting your confirmation before it can be closed.
+Good news — **{{ $ticket->assignedTo->name ?? 'our support team' }}** has resolved your ticket and it's now awaiting your confirmation before it can be closed.
 
 - **Subject:** {{ $ticket->subject }}
 - **Describe the issue:** {{ $ticket->concern }}

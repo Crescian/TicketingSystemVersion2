@@ -156,6 +156,16 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" href="{{ route('portal.holidays.index') }}">
+                    <i class="bi bi-calendar-x"></i>Holidays
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('portal.leaves.index') }}">
+                    <i class="bi bi-calendar-minus"></i>Leave
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link active" href="{{ route('portal.audit-log') }}">
                     <i class="bi bi-journal-text"></i>Audit Log
                 </a>
@@ -201,7 +211,7 @@
                 style="border-radius:50px;padding:8px 14px"
                 onchange="this.form.submit()">
 
-          <a href="{{ route('portal.audit-log') }}" class="btn-export ms-auto">
+          <a href="{{ route('portal.audit-log.export', request()->query()) }}" class="btn-export ms-auto">
               <i class="bi bi-download"></i> Export CSV
           </a>
 

@@ -245,10 +245,11 @@
                     default                                  => '● ' . $ticket->status
                 };
                 $priorityClass = match($ticket->ticket_type) {
-                    'High'   => 'pri-high',
-                    'Medium' => 'pri-medium',
-                    'Low'    => 'pri-low',
-                    default  => ''
+                    'Critical' => 'pri-critical',
+                    'High'     => 'pri-high',
+                    'Medium'   => 'pri-medium',
+                    'Low'      => 'pri-low',
+                    default    => ''
                 };
 
                 $hoursOpen   = $ticket->created_at->diffInHours(now());
@@ -386,6 +387,13 @@
                             @if($unread > 0)
                                 <span class="chat-count-badge" id="badge-{{ $ticket->id }}">{{ $unread }}</span>
                             @endif
+                        </button>
+                    @endif
+
+                    @if($ticket->status === 'Closed')
+                        <button type="button" class="btn-service-report"
+                                onclick="openServiceReportPreview('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-file-earmark-pdf me-1"></i>Service Report
                         </button>
                     @endif
 
@@ -722,6 +730,8 @@
             </div>
         </div>
     </div>
+
+    <x-service-report-modal />
 @endsection
 
 @section('scripts')

@@ -46,7 +46,7 @@ services:
         volumes:
             - pgdata:/var/lib/postgresql/data
         ports:
-            - "5436:5432" # ← ADD THIS (unique port per DB)
+            - "5434:5432" # ← ADD THIS (unique port per DB)
         networks:
             - ticketing
         restart: unless-stopped

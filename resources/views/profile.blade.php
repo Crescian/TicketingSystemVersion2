@@ -128,9 +128,9 @@
 
     /* ── Stats grid ── */
     .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .stat-box { background: var(--ygl); border-radius: 12px; padding: 14px; text-align: center; }
-    .stat-box .sb-num { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 26px; color: var(--gd); line-height: 1; }
-    .stat-box .sb-lbl { font-size: 10px; font-weight: 700; color: var(--tm); text-transform: uppercase; letter-spacing: .4px; margin-top: 4px; }
+    .stat-box { background: var(--ygl); border-radius: 12px; padding: 14px 8px; text-align: center; min-width: 0; }
+    .stat-box .sb-num { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 22px; color: var(--gd); line-height: 1; overflow-wrap: break-word; }
+    .stat-box .sb-lbl { font-size: 10px; font-weight: 700; color: var(--tm); text-transform: uppercase; letter-spacing: .4px; margin-top: 4px; overflow-wrap: break-word; }
     .stat-box.span2 { grid-column: span 3; }
 
     /* ── Activity ── */
@@ -415,37 +415,96 @@
                             <input type="email" class="form-control" value="{{ $user->email }}" readonly>
                         </div>
                     </div>
-                    <div class="field-group">
+                    <div class="field-group full mb-1">
                         <div class="field-wrap">
                             <label>Role</label>
                             <input type="text" class="form-control" value="{{ $roleName }}" readonly>
                         </div>
-                        <div class="field-wrap">
-                            <label>Position</label>
-                            <input type="text" class="form-control" value="{{ $user->position ?? '—' }}" readonly>
-                        </div>
                     </div>
-                    <div class="field-group">
-                        <div class="field-wrap">
-                            <label>Department</label>
-                            <input type="text" class="form-control" value="{{ $user->department?->department_name ?? '—' }}" readonly>
+
+                    @php
+                        $orgInfoLocked = $roleName === 'Employee' && $user->org_info_updated_at !== null;
+                    @endphp
+
+                    @if($orgInfoLocked)
+                        <div class="field-group">
+                            <div class="field-wrap">
+                                <label>Business Unit</label>
+                                <input type="text" class="form-control"
+                                       value="{{ $user->department?->company?->businessUnit?->business_units_name ?? '—' }}" readonly>
+                            </div>
+                            <div class="field-wrap">
+                                <label>Company</label>
+                                <input type="text" class="form-control"
+                                       value="{{ $user->department?->company?->company_name ?? '—' }}" readonly>
+                            </div>
                         </div>
-                        <div class="field-wrap">
-                            <label>Company</label>
-                            <input type="text" class="form-control" value="{{ $user->department?->company?->company_name ?? '—' }}" readonly>
+                        <div class="field-group">
+                            <div class="field-wrap">
+                                <label>Department</label>
+                                <input type="text" class="form-control"
+                                       value="{{ $user->department?->department_name ?? '—' }}" readonly>
+                            </div>
+                            <div class="field-wrap">
+                                <label>Position</label>
+                                <input type="text" class="form-control" value="{{ $user->position ?? '—' }}" readonly>
+                            </div>
                         </div>
-                    </div>
-                    <div class="field-group full">
-                        <div class="field-wrap">
-                            <label>Business Unit</label>
-                            <input type="text" class="form-control"
-                                   value="{{ $user->department?->company?->businessUnit?->business_units_name ?? '—' }}" readonly>
+                        <div style="padding:12px 16px;background:var(--ygl);border-radius:10px;font-size:12px;color:var(--tm);font-weight:600;display:flex;align-items:center;gap:8px">
+                            <i class="bi bi-lock-fill" style="color:var(--gd)"></i>
+                            You've already updated your account information once. Contact your IT Administrator for further changes.
                         </div>
-                    </div>
-                    <div style="padding:12px 16px;background:var(--ygl);border-radius:10px;font-size:12px;color:var(--tm);font-weight:600;display:flex;align-items:center;gap:8px">
-                        <i class="bi bi-info-circle" style="color:var(--gd)"></i>
-                        To update your information, please contact your IT Administrator.
-                    </div>
+                    @else
+                        <form method="POST" action="{{ route('profile.org-info') }}" id="orgInfoForm">
+                            @csrf
+                            @method('PUT')
+
+                            <div class="field-group">
+                                <div class="field-wrap">
+                                    <label>Business Unit</label>
+                                    <select class="form-select" id="pBusinessUnit" onchange="pFilterCompanies()">
+                                        <option value="">Select business unit…</option>
+                                        @foreach($businessUnits as $bu)
+                                            <option value="{{ $bu->id }}">{{ $bu->business_units_name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="field-wrap">
+                                    <label>Company</label>
+                                    <select class="form-select" id="pCompany" onchange="pFilterDepartments()" disabled>
+                                        <option value="">Select company…</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="field-group">
+                                <div class="field-wrap">
+                                    <label>Department</label>
+                                    <select class="form-select" name="department_id" id="pDept" disabled>
+                                        <option value="">Select department…</option>
+                                    </select>
+                                </div>
+                                <div class="field-wrap">
+                                    <label>Position</label>
+                                    <input type="text" class="form-control" name="position"
+                                           id="pPosition" value="{{ $user->position }}"
+                                           placeholder="e.g. Financial Analyst">
+                                </div>
+                            </div>
+
+                            @if($roleName === 'Employee')
+                                <div style="padding:10px 14px;background:var(--ygl);border-radius:10px;font-size:12px;color:var(--tm);font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:14px">
+                                    <i class="bi bi-info-circle" style="color:var(--gd)"></i>
+                                    You can update this information only once. Make sure it's correct before saving.
+                                </div>
+                            @endif
+
+                            <div class="d-flex justify-content-end mt-2">
+                                <button type="submit" class="btn-change-pw">
+                                    <i class="bi bi-check-circle me-1"></i>Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    @endif
                 </div>
             </div>
 
@@ -461,6 +520,13 @@
                     </div>
                 </div>
                 <div class="panel-body">
+                    @if($usingDefaultPassword)
+                        <div class="alert alert-warning d-flex align-items-start gap-2 mb-3">
+                            <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+                            <div>For first-time account login, please use the default password: <strong>password</strong>.
+                                Please change it now to keep your account secure.</div>
+                        </div>
+                    @endif
                     <form method="POST" action="{{ route('profile.password') }}" id="pwForm">
                         @csrf
                         @method('PUT')
@@ -607,6 +673,74 @@
 
 @section('scripts')
 <script>
+
+/* ── Business Unit → Company → Department cascade (Account Information) ── */
+const pAllCompanies   = @json($companiesData);
+const pAllDepartments = @json($departmentsData);
+
+function pFilterCompanies(preselectCompanyId, preselectDeptId) {
+    const buId    = document.getElementById('pBusinessUnit').value;
+    const compSel = document.getElementById('pCompany');
+    const deptSel = document.getElementById('pDept');
+
+    compSel.innerHTML = '<option value="">Select company…</option>';
+    deptSel.innerHTML  = '<option value="">Select department…</option>';
+    compSel.disabled  = !buId;
+    deptSel.disabled  = true;
+
+    if (!buId) return;
+
+    pAllCompanies
+        .filter(c => c.business_unit_id === buId)
+        .forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.text  = c.name;
+            compSel.appendChild(opt);
+        });
+
+    if (preselectCompanyId) {
+        compSel.value = preselectCompanyId;
+        pFilterDepartments(preselectDeptId);
+    }
+}
+
+function pFilterDepartments(preselectDeptId) {
+    const compId  = document.getElementById('pCompany').value;
+    const deptSel = document.getElementById('pDept');
+
+    deptSel.innerHTML = '<option value="">Select department…</option>';
+    deptSel.disabled  = !compId;
+
+    if (!compId) return;
+
+    pAllDepartments
+        .filter(d => d.company_id === compId)
+        .forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.id;
+            opt.text  = d.name;
+            deptSel.appendChild(opt);
+        });
+
+    if (preselectDeptId) {
+        deptSel.value = preselectDeptId;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const buSelect = document.getElementById('pBusinessUnit');
+    if (!buSelect) return; // org-info form is locked/hidden for this user
+
+    const buId   = @json($user->department?->company?->business_units_id);
+    const compId = @json($user->department?->companies_id);
+    const deptId = @json($user->department_id);
+
+    if (buId) {
+        buSelect.value = buId;
+        pFilterCompanies(compId, deptId);
+    }
+});
 
 /* ── Toggle password visibility ── */
 function togglePw(inputId, btn) {

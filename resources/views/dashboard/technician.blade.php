@@ -21,56 +21,108 @@
 @section('hero-subtitle', 'Acknowledge, start, and resolve tickets assigned to you.')
 
 @section('hero-stats')
-      <div class="workload-card">
-          <div class="wl-label">My workload today</div>
-          @php
-            $total = $counts['awaiting_ack'] + $counts['ready_start'] + $counts['in_progress'] + $counts['escalated'];
-            $maxLoad = 5;
-            $loadPct = min(100, ($total / $maxLoad) * 100);
-          @endphp
-          <div class="wl-bar-wrap">
-              <div class="wl-bar" style="width:{{ $loadPct }}%"></div>
-          </div>
-          <div class="wl-counts">
-              <div class="wl-item">
-                  <span class="wn">{{ $counts['awaiting_ack'] }}</span>
-                  <span class="wl">New</span>
+      <div class="d-flex flex-column gap-3">
+          @if($activeTicket)
+              @php
+                  $atSlaSeconds = $activeTicket->slaSecondsRemaining();
+                  if ($atSlaSeconds !== null) {
+                      $atBreached = $atSlaSeconds <= 0;
+                      $atAtRisk   = !$atBreached && $activeTicket->isSlaAtRisk();
+                      $atColor    = $atBreached ? '#ffb3b3' : ($atAtRisk ? '#ffe08a' : '#b8f0c0');
+                      $atAbs = abs($atSlaSeconds);
+                      $atH = intdiv($atAbs, 3600);
+                      $atM = intdiv($atAbs % 3600, 60);
+                      $atLabel = ($atBreached ? 'Overdue by ' : '') . ($atH > 0 ? $atH . 'h ' : '') . $atM . 'm' . ($atBreached ? '' : ' left');
+                  }
+              @endphp
+              <a href="#ticket-{{ $activeTicket->id }}" class="active-ticket-banner">
+                  <span class="atb-pulse"></span>
+                  <span class="atb-text">
+                      <i class="bi bi-lightning-charge-fill"></i> Working on
+                      <strong>#{{ $activeTicket->ticket_number }} — {{ $activeTicket->subject }}</strong>
+                  </span>
+                  @if($atSlaSeconds !== null)
+                      <span class="atb-sla" style="color:{{ $atColor }}">{{ $atLabel }}</span>
+                  @endif
+              </a>
+          @endif
+          <div class="workload-card">
+              <div class="wl-label">My workload today</div>
+              @php
+                // Real business-hours capacity (App\Services\TicketScheduler) — replaces the
+                // old flat "max 5 active tickets" gauge, which didn't account for how long
+                // each ticket actually takes. Outside business hours, freeMinutesToday is
+                // always 0 (the day isn't open) — that must NOT read as "100% loaded", so
+                // the bar collapses to empty rather than full in that case.
+                $loadPct = $withinBusinessHours
+                    ? 100 - min(100, round($freeMinutesToday / \App\Services\TicketScheduler::WORKING_MINUTES_PER_DAY * 100))
+                    : 0;
+              @endphp
+              <div class="wl-bar-wrap">
+                  <div class="wl-bar" style="width:{{ $loadPct }}%"></div>
               </div>
-              <div class="wl-item">
-                  <span class="wn">{{ $counts['in_progress'] }}</span>
-                  <span class="wl">Active</span>
-              </div>
-              <div class="wl-item">
-                  <span class="wn">{{ $counts['closed'] }}</span>
-                  <span class="wl">Closed</span>
-              </div>
+              <div class="wl-free-today">{{ $freeTimeLabel }}</div>
+              <!-- <div class="wl-counts">
+                  <div class="wl-item">
+                      <span class="wn">{{ $counts['awaiting_ack'] }}</span>
+                      <span class="wl">New</span>
+                  </div>
+                  <div class="wl-item">
+                      <span class="wn">{{ $counts['in_progress'] }}</span>
+                      <span class="wl">Active</span>
+                  </div>
+                  <div class="wl-item">
+                      <span class="wn">{{ $counts['closed'] }}</span>
+                      <span class="wl">Closed</span>
+                  </div>
+              </div> -->
           </div>
-      </div>
-      <div class="d-flex gap-2 flex-wrap">
-          <div class="stat-pill danger">
-              <span class="num">{{ $counts['awaiting_ack'] }}</span>
-              <span class="lbl">Awaiting Ack.</span>
-          </div>
-          <div class="stat-pill warn">
-              <span class="num">{{ $counts['ready_start'] }}</span>
-              <span class="lbl">Starts SLA</span>
-          </div>
-          <div class="stat-pill warn">
-              <span class="num">{{ $counts['in_progress'] }}</span>
-              <span class="lbl">In Progress</span>
-          </div>
-          <div class="stat-pill">
-              <span class="num">{{ $counts['closed'] }}</span>
-              <span class="lbl">Closed</span>
-          </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <div class="stat-pill danger">
+                <span class="num">{{ $counts['awaiting_ack'] }}</span>
+                <span class="lbl">Awaiting Ack.</span>
+            </div>
+            <div class="stat-pill warn">
+                <span class="num">{{ $counts['ready_start'] }}</span>
+                <span class="lbl">Starts SLA</span>
+            </div>
+            <div class="stat-pill warn">
+                <span class="num">{{ $counts['in_progress'] }}</span>
+                <span class="lbl">In Progress</span>
+            </div>
+            <div class="stat-pill">
+                <span class="num">{{ $counts['closed'] }}</span>
+                <span class="lbl">Closed</span>
+            </div>
+        </div>
       </div>
 @endsection
 
 @section('styles')
+      {{-- Highlight whatever ticket is currently In Progress — since only one ticket
+           can ever be active at a time per specialist, this always singles out the
+           one thing they should be working on right now. --}}
+      @keyframes inProgressGlow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(245, 200, 66, .45); background: #fff; }
+          50%      { box-shadow: 0 0 16px 3px rgba(245, 200, 66, .40); background: #fffdf3; }
+      }
+      .ticket-card.in-progress {
+          animation: fadeUp .35s ease both, inProgressGlow 2.4s ease-in-out .35s infinite;
+      }
+
+      .active-ticket-banner { display:flex; align-items:center; gap:8px; background:rgba(245,200,66,.15); border:1px solid rgba(245,200,66,.4); border-radius:20px; padding:4px 12px; text-decoration:none; color:#fff; transition:background .2s; max-width:520px; line-height:1.3; }
+      .active-ticket-banner:hover { background:rgba(245,200,66,.25); color:#fff; }
+      .atb-pulse { width:8px; height:8px; border-radius:50%; background:#f5c842; flex-shrink:0; animation:atbPulseAnim 1.6s ease-in-out infinite; }
+      @keyframes atbPulseAnim { 0%, 100% { box-shadow:0 0 0 0 rgba(245,200,66,.6); } 50% { box-shadow:0 0 0 6px rgba(245,200,66,0); } }
+      .atb-text { flex:1; min-width:0; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .atb-text strong { font-weight:800; }
+      .atb-sla { font-size:11px; font-weight:800; white-space:nowrap; background:rgba(0,0,0,.2); padding:2px 9px; border-radius:20px; flex-shrink:0; }
+
       .workload-card { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); border-radius:14px; padding:16px 20px; min-width:220px; }
       .wl-label { font-size:11px; color:rgba(255,255,255,.55); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
       .wl-bar-wrap { height:8px; background:rgba(255,255,255,.15); border-radius:4px; margin-bottom:8px; }
       .wl-bar  { height:8px; border-radius:4px; background:var(--yg); }
+      .wl-free-today { font-size:11px; color:rgba(255,255,255,.6); font-weight:700; margin-bottom:10px; }
       .wl-counts { display:flex; gap:16px; }
       .wl-item .wn { font-family:'Nunito',sans-serif; font-weight:900; font-size:22px; color:var(--yg); display:block; line-height:1; }
       .wl-item .wl { font-size:10px; color:rgba(255,255,255,.5); text-transform:uppercase; letter-spacing:.4px; }
@@ -112,10 +164,14 @@
       .btn-update:hover { background:#d8eda0; border-color:var(--gl); }
       .btn-resolve-t { background:#e8f5ee; color:#1a5a3a; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #a8ddc0; cursor:pointer; transition:all .2s; }
       .btn-resolve-t:hover { background:#c8ead8; }
+      .btn-service-report { background:#e8f5ee; color:#1a5a3a; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #a8ddc0; cursor:pointer; transition:all .2s; }
+      .btn-service-report:hover { background:#c8ead8; }
       .btn-escalate-t { background:#fde8e8; color:#8b1a1a; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #f0c0c0; cursor:pointer; transition:all .2s; }
       .btn-escalate-t:hover { background:#f8c8c8; }
       .btn-decline   { background:none; color:var(--tm); font-family:'Nunito',sans-serif; font-weight:700; font-size:12px; padding:7px 14px; border-radius:20px; border:1.5px solid var(--bd); cursor:pointer; transition:all .2s; }
       .btn-decline:hover { border-color:#e24b4a; color:#8b1a1a; }
+      .btn-view-detail { background:none; border:1.5px solid var(--bd); color:var(--tm); font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; transition:all .2s; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:4px; }
+      .btn-view-detail:hover { border-color:var(--gl); color:var(--gd); }
       .status-opts { display:flex; flex-direction:column; gap:8px; }
       .status-opt { border:1.5px solid var(--bd); border-radius:12px; padding:12px 16px; cursor:pointer; transition:all .2s; background:var(--cr); display:flex; align-items:center; gap:12px; }
       .status-opt:hover { border-color:var(--gl); background:var(--ygl); }
@@ -132,10 +188,61 @@
           100% { transform: scale(1); }
       }
       .badge-pulse { animation: badgePulse .6s ease; }
+
+      /* ── Re-classification category/subcategory picker ── */
+      .cat-main-opt {
+          border: 1.5px solid var(--bd);
+          border-radius: 14px;
+          padding: 12px 10px;
+          text-align: center;
+          cursor: pointer;
+          transition: all .2s;
+          background: var(--cr);
+          user-select: none;
+          font-family: 'Nunito', sans-serif;
+          font-weight: 800;
+          font-size: 13px;
+          color: var(--gd);
+      }
+      .cat-main-opt:hover { border-color: var(--gl); background: var(--ygl); }
+      .cat-main-opt.selected { border-color: var(--gd); background: var(--ygl); box-shadow: 0 0 0 2px var(--yg); }
+
+      .cat-sub-opt {
+          border: 1.5px solid var(--bd);
+          border-radius: 10px;
+          padding: 10px 14px;
+          cursor: pointer;
+          transition: all .2s;
+          background: var(--cr);
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--gd);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+      }
+      .cat-sub-opt:hover { border-color: var(--gl); background: var(--ygl); }
+      .cat-sub-opt.selected { border-color: var(--gd); background: var(--ygl); box-shadow: 0 0 0 2px var(--yg); font-weight: 700; }
+      .cat-sub-opt .sub-check {
+          width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--bd);
+          flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+          font-size: 10px; transition: all .2s;
+      }
+      .cat-sub-opt.selected .sub-check { background: var(--gd); border-color: var(--gd); color: var(--yg); }
 @endsection
 
 {{-- ══ SIDEBAR ══ --}}
 @section('sidebar')
+
+      <div class="sidebar-card mb-3">
+          <ul class="list-group sidebar-menu rounded-0">
+              <li class="list-group-item">
+                  <a href="{{ route('technician.calendar') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                      <i class="bi bi-calendar3-week me-1"></i>My Work Hours Calendar
+                  </a>
+              </li>
+          </ul>
+      </div>
 
       <div class="sidebar-card mb-3">
           <div class="sidebar-head">My Queue</div>
@@ -173,6 +280,13 @@
                      class="d-flex justify-content-between align-items-center text-decoration-none">
                       <span><i class="bi bi-exclamation-triangle me-2"></i>Escalated</span>
                       <span class="badge-count red">{{ $counts['escalated'] }}</span>
+                  </a>
+              </li>
+              <li class="list-group-item {{ $status === 'awaiting-closure' ? 'active' : '' }}">
+                  <a href="{{ route('technician.dashboard', ['status' => 'awaiting-closure']) }}"
+                     class="d-flex justify-content-between align-items-center text-decoration-none">
+                      <span><i class="bi bi-hourglass-split me-2"></i>Awaiting Closure</span>
+                      <span class="badge-count">{{ $counts['awaiting_closure'] }}</span>
                   </a>
               </li>
               <li class="list-group-item {{ $status === 'closed' ? 'active' : '' }}">
@@ -270,6 +384,7 @@
                     'ready-start' => 'Starts SLA — Ready to Start',
                     'in-progress' => 'In Progress',
                     'escalated' => 'Escalated',
+                    'awaiting-closure' => 'Awaiting Closure',
                     'closed' => 'Closed',
                 ];
               @endphp
@@ -300,6 +415,7 @@
                 'ready-start' => ['label' => 'Starts SLA', 'count' => $counts['ready_start']],
                 'in-progress' => ['label' => 'In Progress', 'count' => $counts['in_progress']],
                 'escalated' => ['label' => 'Escalated', 'count' => $counts['escalated']],
+                'awaiting-closure' => ['label' => 'Awaiting Closure', 'count' => $counts['awaiting_closure']],
                 'closed' => ['label' => 'Closed', 'count' => $counts['closed']],
             ];
           @endphp
@@ -320,17 +436,21 @@
                 $isAcknowledged = $ticket->status === 'Awaiting Start SLA';
                 $isInProgress = $ticket->status === 'In Progress';
                 $isEscalated  = $ticket->status === 'Escalated';
-                $isClosed     = in_array($ticket->status, ['Closed', 'Pending Closure', 'Awaiting Requestor']);
+                $isClosed     = in_array($ticket->status, ['Closed', 'Pending Supervisor Approval', 'Pending Closure', 'Awaiting Requestor']);
+                // ── Resolved but not yet Closed: still tracked in the tech's queue, just no
+                //    longer actionable by them — Supervisor/Helpdesk/requestor own the remaining steps.
+                $isAwaitingClosure = in_array($ticket->status, ['Pending Supervisor Approval', 'Pending Closure', 'Awaiting Requestor']);
 
                 $cardClass = match (true) {
                     $isNew => 'new-assigned',
-                    $isAcknowledged => 'Awaiting Start SLA',
+                    $isAcknowledged => 'accepted',
                     $isInProgress => 'in-progress',
                     $isEscalated => 'escalated',
                     $isClosed => 'resolved',
                     default => 'open'
                 };
                 $priorityClass = match ($ticket->ticket_type) {
+                    'Critical' => 'pri-critical',
                     'High' => 'pri-high',
                     'Medium' => 'pri-medium',
                     'Low' => 'pri-low',
@@ -357,6 +477,23 @@
 
                 $recentHistory = $ticket->statusHistories->sortByDesc('changed_at')->take(3)->reverse();
 
+                // ── Draft "Service Details / Action Taken" from this tech's own Add Update
+                //    log — old_status === new_status === 'In Progress' is exactly how those
+                //    entries are marked (vs. the "ticket started" transition or others), so
+                //    they don't have to retype everything they already logged when resolving.
+                $progressUpdates = $ticket->statusHistories
+                    ->filter(fn($h) => $h->old_status === 'In Progress' && $h->new_status === 'In Progress')
+                    ->sortBy('changed_at');
+                $progressDraft = $progressUpdates
+                    ->map(fn($h) => '- ' . \Carbon\Carbon::parse($h->changed_at)->format('M d, g:i A') . ': ' . $h->notes)
+                    ->implode("\n");
+
+                // ── Notes left by Helpdesk (classify) and Supervisor (classify & assign) —
+                //    everything the tech needs to see before deciding to Acknowledge.
+                $sortedHistory = $ticket->statusHistories->sortByDesc('changed_at');
+                $helpdeskNote = $sortedHistory->first(fn($h) => $h->new_status === 'Awaiting Supervisor');
+                $supervisorNote = $sortedHistory->first(fn($h) => $h->new_status === 'Awaiting Support Specialist Acknowledgement');
+
                 // ── SLA countdown (In Progress only) ──
                 $slaSecondsLeft = $isInProgress ? $ticket->slaSecondsRemaining() : null;
                 if ($slaSecondsLeft !== null) {
@@ -375,6 +512,7 @@
             @endphp
 
             <div class="ticket-card {{ $cardClass }} p-3"
+                 id="ticket-{{ $ticket->id }}"
                  data-status="{{ $cardClass }}"
                  data-priority="{{ strtolower($ticket->ticket_type) }}">
 
@@ -403,6 +541,18 @@
                     @elseif($isEscalated)
                           <span class="badge-status badge-escalated">
                               <i class="bi bi-exclamation-triangle me-1"></i>Escalated
+                          </span>
+                    @elseif($ticket->status === 'Pending Supervisor Approval')
+                          <span class="badge-status" style="background:#fff4cc;color:#8a6d00">
+                              <i class="bi bi-hourglass-split me-1"></i>Pending Supervisor Approval
+                          </span>
+                    @elseif($ticket->status === 'Pending Closure')
+                          <span class="badge-status" style="background:#ffe8cc;color:#8a4d00">
+                              <i class="bi bi-hourglass-split me-1"></i>Pending Closure
+                          </span>
+                    @elseif($ticket->status === 'Awaiting Requestor')
+                          <span class="badge-status" style="background:#e6f0ff;color:#1a4d8f">
+                              <i class="bi bi-person-check me-1"></i>Awaiting Requestor Confirmation
                           </span>
                     @elseif($isClosed)
                           <span class="badge-status badge-resolved">
@@ -445,6 +595,48 @@
                 {{-- Title & desc --}}
                 <div class="ticket-title mb-1">{{ $ticket->subject }}</div>
                 <div class="ticket-desc mb-2">{{ Str::limit($ticket->concern, 140) }}</div>
+
+                {{-- Classification & assignment — everything the tech needs before
+                     acknowledging: what Supervisor classified it as, the workload class,
+                     and any notes Helpdesk/Supervisor left along the way. --}}
+                @if($ticket->subcategory_name)
+                    @php
+                        $respMin = $ticket->effectiveResponseTimeMinutes();
+                        $resMin  = $ticket->effectiveResolutionTimeMinutes();
+                        $fmtMin  = fn($m) => $m ? (intdiv($m, 60) > 0 ? intdiv($m, 60) . 'h ' . ($m % 60) . 'm' : $m . 'm') : null;
+                    @endphp
+                    <div class="mb-3 p-3" style="background:var(--ygl);border-radius:10px;border:1px solid var(--bd)">
+                        <div class="d-flex flex-wrap gap-3" style="font-size:12px">
+                            <span><strong>Category:</strong> {{ $ticket->slaCategory->name ?? '—' }}</span>
+                            <span><strong>Subtask:</strong> {{ $ticket->subcategory_name }}</span>
+                            @if($ticket->workloadClass)
+                                <span><strong>Workload Class:</strong> {{ $ticket->workloadClass->name }}</span>
+                            @endif
+                            @if($fmtMin($respMin))
+                                <span><i class="bi bi-hourglass-split me-1"></i><strong>Response Time:</strong> {{ $fmtMin($respMin) }}</span>
+                            @endif
+                            @if($fmtMin($resMin))
+                                <span><i class="bi bi-check-circle me-1"></i><strong>Resolution Time:</strong> {{ $fmtMin($resMin) }}</span>
+                            @endif
+                        </div>
+                        @if($helpdeskNote || $supervisorNote)
+                            <div class="mt-2 pt-2" style="border-top:1px solid var(--bd)">
+                                @if($helpdeskNote)
+                                    <div style="font-size:12px;margin-bottom:{{ $supervisorNote ? '4px' : '0' }}">
+                                        <i class="bi bi-headset me-1"></i><strong>Helpdesk:</strong>
+                                        {{ $helpdeskNote->notes }}
+                                    </div>
+                                @endif
+                                @if($supervisorNote)
+                                    <div style="font-size:12px">
+                                        <i class="bi bi-person-badge me-1"></i><strong>Supervisor:</strong>
+                                        {{ $supervisorNote->notes }}
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+                @endif
 
                 {{-- Timeline for In Progress tickets --}}
                 @if($isInProgress && $recentHistory->count() > 0)
@@ -506,10 +698,60 @@
                               <i class="bi bi-calendar3"></i>
                               Assigned {{ $ticket->updated_at->diffForHumans() }}
                           </span>
+                          @if($ticket->scheduled_start)
+                              @php
+                                  $respMin = $ticket->effectiveResponseTimeMinutes();
+                                  $responseDue = $respMin ? $ticket->scheduled_start->copy()->addMinutes($respMin) : null;
+                                  $resolutionDue = $ticket->scheduled_end;
+                              @endphp
+                              <span class="meta-item" style="background:var(--ygl);border-radius:20px;padding:4px 12px;font-weight:800">
+                                  <i class="bi bi-clock"></i>
+                                  Scheduled to start {{ $ticket->scheduled_start->timezone('Asia/Manila')->format('g:i A, M d') }}
+                                  @if($ticket->is_overtime)<span style="color:#e24b4a"> (Overtime)</span>@endif
+                              </span>
+                              @if($responseDue)
+                                  <span class="meta-item" style="background:#e6f0ff;color:#1a4d8f;border-radius:20px;padding:4px 12px;font-weight:800"
+                                        title="Estimated from the scheduled start time — the official SLA clock begins once you click Start">
+                                      <i class="bi bi-hourglass-split"></i>
+                                      Est. response by {{ $responseDue->timezone('Asia/Manila')->format('g:i A, M d') }}
+                                  </span>
+                              @endif
+                              @if($resolutionDue)
+                                  <span class="meta-item" style="background:#d4f0d4;color:#1a5a3a;border-radius:20px;padding:4px 12px;font-weight:800"
+                                        title="Estimated from the scheduled start time — the official SLA clock begins once you click Start">
+                                      <i class="bi bi-check-circle"></i>
+                                      Est. resolution by {{ $resolutionDue->timezone('Asia/Manila')->format('g:i A, M d') }}
+                                  </span>
+                              @endif
+                          @endif
+                    @elseif($isAwaitingClosure && $ticket->resolved_at)
+                          <span class="meta-item">
+                              <i class="bi bi-clock-history"></i>
+                              Resolved {{ $ticket->resolved_at->diffForHumans() }} — awaiting closure
+                          </span>
                     @elseif($isClosed && $ticket->resolved_at)
                           <span class="meta-item">
                               <i class="bi bi-clock-history"></i>
                               Closed {{ $ticket->resolved_at->diffForHumans() }}
+                          </span>
+                    @endif
+
+                    @if($ticket->status === 'Closed' && $ticket->started_at)
+                          <span class="meta-item">
+                              <i class="bi bi-play-circle"></i>
+                              Started {{ $ticket->started_at->format('M d, g:i A') }}
+                          </span>
+                    @endif
+                    @if($ticket->status === 'Closed' && $ticket->resolved_at)
+                          <span class="meta-item">
+                              <i class="bi bi-flag"></i>
+                              Resolved {{ $ticket->resolved_at->format('M d, g:i A') }}
+                          </span>
+                    @endif
+                    @if($ticket->status === 'Closed' && $ticket->actualResolutionTime())
+                          <span class="meta-item">
+                              <i class="bi bi-stopwatch"></i>
+                              Actual resolution time: {{ $ticket->actualResolutionTime() }}
                           </span>
                     @endif
 
@@ -521,6 +763,42 @@
                     @endif
                 </div>
 
+                {{-- Attachments (requestor's originals + your own resolution/update evidence) --}}
+                @if($ticket->attachments->isNotEmpty())
+                    <div class="mb-3">
+                        <div style="font-size:12px;font-weight:800;color:var(--tm);margin-bottom:6px">
+                            <i class="bi bi-paperclip me-1"></i>Attachments
+                        </div>
+                        <div class="d-flex flex-column gap-1">
+                            @foreach($ticket->attachments as $attachment)
+                                @php
+                                    $viewableMimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'text/plain'];
+                                    $isViewable = in_array($attachment->mime_type, $viewableMimes);
+                                @endphp
+                                <div class="d-flex align-items-center gap-2 p-2"
+                                     style="background:var(--ygl);border-radius:8px;font-size:12px">
+                                    <i class="bi bi-file-earmark-text" style="color:var(--tm)"></i>
+                                    <span style="font-weight:600;color:var(--gd)">{{ $attachment->original_name }}</span>
+                                    <span style="color:var(--tm)">({{ $attachment->humanSize() }})</span>
+                                    <div class="ms-auto d-flex gap-2">
+                                        @if($isViewable)
+                                            <a href="{{ route('attachments.view', $attachment) }}"
+                                               target="_blank" rel="noopener"
+                                               class="text-decoration-none" style="color:var(--gd);font-weight:700">
+                                                <i class="bi bi-eye me-1"></i>View
+                                            </a>
+                                        @endif
+                                        <a href="{{ route('attachments.download', $attachment) }}"
+                                           class="text-decoration-none" style="color:var(--tm);font-weight:700">
+                                            <i class="bi bi-download me-1"></i>Download
+                                        </a>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 {{-- Escalation banner --}}
                 @if($isEscalated)
                       <div class="esc-banner p-2 mb-3">
@@ -530,8 +808,29 @@
                       </div>
                 @endif
 
+                {{-- Awaiting closure banner --}}
+                @if($ticket->status === 'Pending Supervisor Approval')
+                      <div class="p-2 mb-3" style="background:#fff4cc;border-radius:8px;font-size:13px;color:#8a6d00">
+                          <i class="bi bi-hourglass-split me-1"></i>
+                          Resolved — awaiting Supervisor validation.
+                          No further action required from you on this ticket.
+                      </div>
+                @elseif($ticket->status === 'Pending Closure')
+                      <div class="p-2 mb-3" style="background:#ffe8cc;border-radius:8px;font-size:13px;color:#8a4d00">
+                          <i class="bi bi-hourglass-split me-1"></i>
+                          Validated by Supervisor — sent to Helpdesk for closure.
+                          No further action required from you on this ticket.
+                      </div>
+                @elseif($ticket->status === 'Awaiting Requestor')
+                      <div class="p-2 mb-3" style="background:#e6f0ff;border-radius:8px;font-size:13px;color:#1a4d8f">
+                          <i class="bi bi-person-check me-1"></i>
+                          Closed by Helpdesk — awaiting requestor confirmation before this fully closes.
+                          No further action required from you on this ticket.
+                      </div>
+                @endif
+
                 {{-- Action buttons --}}
-                <d  iv class="d-flex gap-2 flex-wrap">
+                <div class="d-flex gap-2 flex-wrap">
 
                     {{-- New: Acknowledge + Decline --}}
                     @if($isNew)
@@ -548,7 +847,7 @@
                     {{-- Acknowledged: Start Ticket + Decline --}}
                     @if($isAcknowledged)
                           <button class="btn-start"
-                                  onclick="openStartModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                  onclick="openStartModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', '{{ $ticket->ticket_type }}', '{{ $ticket->effectiveResponseTimeMinutes() }}', '{{ $ticket->effectiveResolutionTimeMinutes() }}')">
                               <i class="bi bi-play-circle me-1"></i>Start Ticket
                           </button>
                           <button class="btn-decline"
@@ -564,12 +863,17 @@
                             <i class="bi bi-pencil me-1"></i>Add Update
                         </button>
                         <button class="btn-resolve-t"
-                                onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                data-progress-draft="{{ $progressDraft }}"
+                                onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', '{{ $ticket->started_at?->toIso8601String() }}', this.dataset.progressDraft)">
                             <i class="bi bi-check-circle me-1"></i>Mark Resolved
                         </button>
                         <button class="btn-escalate-t"
                                 onclick="openEscModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-exclamation-triangle me-1"></i>Escalate
+                        </button>
+                        <button class="btn-escalate-t"
+                                onclick="openReclassifyModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-tags me-1"></i>Request Re-classification
                         </button>
                     @endif
 
@@ -585,8 +889,106 @@
                             @endif
                         </button>
                     @endif
+
+                    {{-- Closed: View Details (full history, since the timeline strip only shows for In Progress) --}}
+                    @if($ticket->status === 'Closed')
+                        <button type="button" class="btn-view-detail"
+                                data-bs-toggle="modal" data-bs-target="#detailModal-{{ $ticket->id }}">
+                            <i class="bi bi-eye me-1"></i>View Details
+                        </button>
+                        <button type="button" class="btn-service-report"
+                                onclick="openServiceReportPreview('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-file-earmark-pdf me-1"></i>Service Report
+                        </button>
+                    @endif
                 </div>
             </div>
+
+            {{-- Ticket detail modal (Closed tickets — full history, no longer shown in the timeline strip) --}}
+            @if($ticket->status === 'Closed')
+                <div class="modal fade" id="detailModal-{{ $ticket->id }}" tabindex="-1">
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                                <h5 class="mb-0">Ticket <em>#{{ $ticket->ticket_number }}</em></h5>
+                                <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                            </div>
+                            <div class="modal-body px-4 py-4">
+                                <div class="d-flex flex-wrap gap-3 mb-3">
+                                    <span class="badge-status badge-resolved">
+                                        <i class="bi bi-check-circle me-1"></i>Closed
+                                    </span>
+                                    <span class="badge-type">{{ $ticket->request_category }}</span>
+                                    <span class="meta-item">
+                                        <span class="priority-dot {{ $priorityClass }}"></span>
+                                        {{ $ticket->ticket_type }} priority
+                                    </span>
+                                </div>
+
+                                <div class="font-brand fw-900 mb-1" style="font-size:16px">{{ $ticket->subject }}</div>
+                                <div class="mb-3" style="font-size:13px;color:var(--tm)">{{ $ticket->concern }}</div>
+
+                                @if($ticket->request_details)
+                                    <div class="mb-3" style="font-size:13px;background:var(--ygl);padding:10px;border-radius:8px">
+                                        {{ $ticket->request_details }}
+                                    </div>
+                                @endif
+
+                                <div class="d-flex flex-wrap gap-3 mb-3" style="font-size:12px;color:var(--tm)">
+                                    @if($ticket->user)
+                                        <span><i class="bi bi-person me-1"></i>{{ $ticket->user->name }}</span>
+                                    @endif
+                                    @if($ticket->asset)
+                                        <span><i class="bi bi-laptop me-1"></i>{{ $ticket->asset }}</span>
+                                    @endif
+                                    @if($ticket->location)
+                                        <span><i class="bi bi-geo-alt me-1"></i>{{ $ticket->location }}</span>
+                                    @endif
+                                    @if($ticket->started_at)
+                                        <span><i class="bi bi-play-circle me-1"></i>Started {{ \Carbon\Carbon::parse($ticket->started_at)->format('M d, g:i A') }}</span>
+                                    @endif
+                                    @if($ticket->resolved_at)
+                                        <span><i class="bi bi-check-circle me-1"></i>Resolved {{ $ticket->resolved_at->format('M d, g:i A') }}</span>
+                                    @endif
+                                    @if($ticket->actualResolutionTime())
+                                        <span><i class="bi bi-stopwatch me-1"></i>Actual resolution time: {{ $ticket->actualResolutionTime() }}</span>
+                                    @endif
+                                </div>
+
+                                @if($ticket->attachments->isNotEmpty())
+                                    <div class="mb-3">
+                                        <div class="detail-lbl mb-2" style="font-size:12px;font-weight:800;color:var(--tm)">Attachments</div>
+                                        <div class="d-flex flex-column gap-1">
+                                            @foreach($ticket->attachments as $attachment)
+                                                <a href="{{ route('attachments.download', $attachment) }}"
+                                                   class="text-decoration-none" style="font-size:12px;color:var(--gd);font-weight:600">
+                                                    <i class="bi bi-paperclip me-1"></i>{{ $attachment->original_name }}
+                                                </a>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
+
+                                <div class="detail-lbl mb-2" style="font-size:12px;font-weight:800;color:var(--tm)">Full History</div>
+                                <div class="d-flex flex-column gap-2">
+                                    @foreach($ticket->statusHistories->sortBy('changed_at') as $history)
+                                        <div style="font-size:12px;border-left:2px solid var(--bd);padding-left:10px">
+                                            <div style="color:var(--tm);font-weight:700">
+                                                {{ \Carbon\Carbon::parse($history->changed_at)->format('M d, Y g:i A') }}
+                                                — {{ $history->changedBy->name ?? 'System' }}
+                                            </div>
+                                            <div>{{ $history->notes }}</div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                            <div class="modal-footer border-top px-4 py-3">
+                                <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
           @empty
             <div class="ticket-card p-5 text-center">
                 <div style="font-size:48px;opacity:.3">🛠️</div>
@@ -662,15 +1064,19 @@
                               Status will update to <strong>In Progress</strong> and the
                               SLA resolution timer begins now.
                           </div>
-                          <div class="mb-3">
-                              <label class="form-label">Estimated completion time</label>
-                              <select class="form-select" name="estimated_time" required>
-                                  <option value="Within 1 hour">Within 1 hour</option>
-                                  <option value="1 – 2 hours">1 – 2 hours</option>
-                                  <option value="Half day">Half day</option>
-                                  <option value="Full day">Full day</option>
-                                  <option value="Requires parts or escalation">Requires parts / escalation</option>
-                              </select>
+                          <div class="d-flex gap-2 flex-wrap mb-3">
+                              <div style="flex:1;min-width:100px;background:var(--ygl);border-radius:10px;padding:10px 12px;text-align:center">
+                                  <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.4px">Priority</div>
+                                  <div class="font-brand fw-900" id="startPriority" style="font-size:14px;color:var(--gd)">—</div>
+                              </div>
+                              <div style="flex:1;min-width:100px;background:var(--ygl);border-radius:10px;padding:10px 12px;text-align:center">
+                                  <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.4px">Response Time</div>
+                                  <div class="font-brand fw-900" id="startResponseTime" style="font-size:14px;color:var(--gd)">—</div>
+                              </div>
+                              <div style="flex:1;min-width:100px;background:var(--ygl);border-radius:10px;padding:10px 12px;text-align:center">
+                                  <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.4px">Resolution Time</div>
+                                  <div class="font-brand fw-900" id="startResolutionTime" style="font-size:14px;color:var(--gd)">—</div>
+                              </div>
                           </div>
                           <div>
                               <label class="form-label">Initial notes (optional)</label>
@@ -740,7 +1146,7 @@
                       <h5 class="mb-0">Add <em>Update</em></h5>
                       <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                   </div>
-                  <form method="POST" id="updateForm">
+                  <form method="POST" id="updateForm" enctype="multipart/form-data">
                       @csrf
                       <div class="modal-body px-4 py-4">
                           <p style="font-size:13px;color:var(--tm)" class="mb-3">
@@ -753,7 +1159,7 @@
                                         required
                                         placeholder="Describe the steps you've taken, findings, or current status…"></textarea>
                           </div>
-                          <div class="mb-1">
+                          <div class="mb-3">
                               <label class="form-label">Current work status</label>
                               <div class="status-opts">
                                   <div class="status-opt" data-val="Investigating">
@@ -781,6 +1187,15 @@
                               <input type="hidden" name="work_status" id="workStatusVal"
                                      value="Actively working">
                           </div>
+                          <div>
+                              <label class="form-label">Evidence files <span style="font-weight:400;color:var(--tm)">(optional)</span></label>
+                              <input type="file" class="form-control" id="uAttachments" name="attachments[]"
+                                     multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                              <div style="font-size:11px;color:var(--tm);margin-top:4px">
+                                  Up to 5 files, 10MB each. Screenshots or logs showing progress so far.
+                              </div>
+                              <div id="updateAttachmentList" class="d-flex flex-column gap-1 mt-2"></div>
+                          </div>
                       </div>
                       <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
                           <button type="button" class="btn-cancel-modal"
@@ -802,7 +1217,7 @@
                       <h5 class="mb-0">Mark as <em>Resolved</em></h5>
                       <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                   </div>
-                  <form method="POST" id="resolveForm">
+                  <form method="POST" id="resolveForm" enctype="multipart/form-data">
                       @csrf
                       <div class="modal-body px-4 py-4">
                           <div class="info-box-green p-3 mb-3">
@@ -814,21 +1229,64 @@
                           </div>
                           <div class="mb-3">
                               <label class="form-label">
-                                  Resolution summary <span class="text-danger">*</span>
+                                  Service Type <span class="text-danger">*</span>
+                              </label>
+                              <div class="d-flex gap-3 flex-wrap" style="font-size:13px;font-weight:600">
+                                  <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                      <input type="radio" name="service_type" value="Onsite" checked>Onsite
+                                  </label>
+                                  <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                      <input type="radio" name="service_type" value="Remote">Remote
+                                  </label>
+                                  <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                      <input type="radio" name="service_type" value="Preventive">Preventive
+                                  </label>
+                              </div>
+                          </div>
+                          <div class="mb-3">
+                              <label class="form-label">
+                                  Service Details / Action Taken <span class="text-danger">*</span>
+                                  <span id="resolveDraftHint" class="d-none" style="font-weight:400;color:var(--tm)">
+                                      — pre-filled from your Add Update log, edit as needed
+                                  </span>
                               </label>
                               <textarea class="form-control" name="resolution_notes"
                                         rows="3" required
                                         placeholder="Describe exactly what was done to resolve the issue…"></textarea>
                           </div>
-                          <div>
+                          <div class="mb-3">
+                              <label class="form-label">
+                                  Findings & Analysis <span style="font-weight:400;color:var(--tm)">(optional)</span>
+                              </label>
+                              <textarea class="form-control" name="findings"
+                                        rows="2"
+                                        placeholder="Root cause, diagnostics, what was found…"></textarea>
+                          </div>
+                          <div class="mb-3">
+                              <label class="form-label">
+                                  Other Observation / Recommendation <span style="font-weight:400;color:var(--tm)">(optional)</span>
+                              </label>
+                              <textarea class="form-control" name="recommendation"
+                                        rows="2"
+                                        placeholder="Follow-up suggestions, preventive advice…"></textarea>
+                          </div>
+                          <div class="mb-3">
                               <label class="form-label">Time spent</label>
-                              <select class="form-select" name="time_spent">
-                                  <option value="Less than 30 min">Less than 30 min</option>
-                                  <option value="30 – 60 min">30 – 60 min</option>
-                                  <option value="1 – 2 hours" selected>1 – 2 hours</option>
-                                  <option value="2 – 4 hours">2 – 4 hours</option>
-                                  <option value="More than 4 hours">More than 4 hours</option>
-                              </select>
+                              <div class="p-2 px-3 rounded d-flex align-items-center gap-2"
+                                   style="background:var(--ygl);font-weight:800;color:var(--gd)">
+                                  <i class="bi bi-stopwatch"></i>
+                                  <span id="resolveTimeSpent">—</span>
+                                  <span style="font-weight:600;font-size:11px;color:var(--tm)">(since you started this ticket)</span>
+                              </div>
+                          </div>
+                          <div>
+                              <label class="form-label">Supporting files <span style="font-weight:400;color:var(--tm)">(optional)</span></label>
+                              <input type="file" class="form-control" id="rAttachments" name="attachments[]"
+                                     multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                              <div style="font-size:11px;color:var(--tm);margin-top:4px">
+                                  Up to 5 files, 10MB each. Screenshots, logs, or documents that support the resolution.
+                              </div>
+                              <div id="resolveAttachmentList" class="d-flex flex-column gap-1 mt-2"></div>
                           </div>
                       </div>
                       <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
@@ -895,6 +1353,82 @@
           </div>
       </div>
 
+      {{-- Request Re-classification Modal --}}
+      <div class="modal fade" id="reclassifyModal" tabindex="-1">
+          <div class="modal-dialog modal-dialog-centered modal-lg">
+              <div class="modal-content">
+                  <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                      <h5 class="mb-0">Request Re-classification — <em id="rcTicketRef">#TKT-0000</em></h5>
+                      <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                  </div>
+                  <form method="POST" id="reclassifyForm">
+                      @csrf
+                      <input type="hidden" name="sla_rule_id" id="rcSlaRuleId">
+
+                      <div class="modal-body px-4 py-4">
+                          <div class="info-box-red p-3 mb-3">
+                              <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                              This ticket will be paused and sent to your Supervisor for approval. If
+                              approved, it re-enters the classify &amp; assign queue with your proposed
+                              category as the default. If rejected, it's returned to you unchanged.
+                          </div>
+
+                          <label class="form-label mb-2">Proposed Category</label>
+                          <div class="d-flex flex-wrap gap-2 mb-3" id="rcCategoryList"></div>
+
+                          <div id="rcSubWrap" class="d-none">
+                              <label class="form-label mb-2">Subcategory &amp; Priority</label>
+                              <div class="d-flex flex-column gap-2 mb-3" id="rcSubList"></div>
+                          </div>
+
+                          <div id="rcOverrideWrap" class="d-none mb-3">
+                              <label class="form-label mb-2">
+                                  SLA &amp; Priority
+                                  <span style="font-weight:400;color:var(--tm)">(defaults from the rule above — adjust if needed)</span>
+                              </label>
+                              <div class="d-flex gap-2 flex-wrap">
+                                  <div style="flex:1;min-width:110px">
+                                      <label class="form-label" style="font-size:11px">Priority</label>
+                                      <select class="form-select form-select-sm" name="priority" id="rcPriority">
+                                          <option value="Critical">Critical</option>
+                                          <option value="High">High</option>
+                                          <option value="Medium">Medium</option>
+                                          <option value="Low">Low</option>
+                                      </select>
+                                  </div>
+                                  <div style="flex:1;min-width:130px">
+                                      <label class="form-label" style="font-size:11px">Response Time (min)</label>
+                                      <input type="number" class="form-control form-control-sm" name="response_time_minutes"
+                                             id="rcResponseTime" min="5" max="43200">
+                                  </div>
+                                  <div style="flex:1;min-width:130px">
+                                      <label class="form-label" style="font-size:11px">Resolution Time (min)</label>
+                                      <input type="number" class="form-control form-control-sm" name="resolution_time_minutes"
+                                             id="rcResolutionTime" min="5" max="43200">
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div>
+                              <label class="form-label">
+                                  Reason for re-classification <span class="text-danger">*</span>
+                              </label>
+                              <textarea class="form-control" name="reason" rows="3" required
+                                        placeholder="Explain why this ticket is miscategorized…"></textarea>
+                          </div>
+                      </div>
+                      <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                          <button type="button" class="btn-cancel-modal"
+                                  data-bs-dismiss="modal">Cancel</button>
+                          <button type="submit" class="btn-confirm" style="background:#8b1a1a">
+                              <i class="bi bi-tags me-1"></i>Submit for Approval
+                          </button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      </div>
+
       {{-- Chat Modal --}}
       <div class="modal fade" id="techChatModal" tabindex="-1">
           <div class="modal-dialog modal-dialog-centered" style="max-width:480px">
@@ -938,6 +1472,8 @@
               </div>
           </div>
       </div>
+
+      <x-service-report-modal />
 @endsection
 
 @section('scripts')
@@ -1068,9 +1604,12 @@
             new bootstrap.Modal('#acknowledgeModal').show();
         };
 
-        window.openStartModal = function (ticketId, ticketNumber) {
+        window.openStartModal = function (ticketId, ticketNumber, priority, responseMinutes, resolutionMinutes) {
             $('#startRef').text('#' + ticketNumber);
             $('#startForm').attr('action', '/technician/tickets/' + ticketId + '/start');
+            $('#startPriority').text(priority || '—');
+            $('#startResponseTime').text(responseMinutes ? responseMinutes + 'm' : 'N/A');
+            $('#startResolutionTime').text(resolutionMinutes ? resolutionMinutes + 'm' : 'N/A');
             new bootstrap.Modal('#startModal').show();
         };
 
@@ -1086,20 +1625,181 @@
             $('.status-opt').removeClass('selected');
             $('.status-opt[data-val="Actively working"]').addClass('selected');
             $('#workStatusVal').val('Actively working');
+            $('#uAttachments').val('');
+            $('#updateAttachmentList').empty();
             new bootstrap.Modal('#updateModal').show();
         };
 
-        window.openResolveModal = function (ticketId, ticketNumber) {
+        /* ── Update modal attachment picker: client-side limits + preview list ── */
+        const UPDATE_MAX_ATTACHMENTS = 5;
+        const UPDATE_MAX_ATTACHMENT_MB = 10;
+
+        $('#uAttachments').on('change', function () {
+            const files = Array.from(this.files);
+            const list  = $('#updateAttachmentList').empty();
+
+            if (files.length > UPDATE_MAX_ATTACHMENTS) {
+                alert(`You can attach up to ${UPDATE_MAX_ATTACHMENTS} files. Only the first ${UPDATE_MAX_ATTACHMENTS} will be kept.`);
+            }
+
+            const oversize = files.find(f => f.size > UPDATE_MAX_ATTACHMENT_MB * 1024 * 1024);
+            if (oversize) {
+                alert(`"${oversize.name}" exceeds the ${UPDATE_MAX_ATTACHMENT_MB}MB limit and will be removed.`);
+            }
+
+            const kept = files
+                .filter(f => f.size <= UPDATE_MAX_ATTACHMENT_MB * 1024 * 1024)
+                .slice(0, UPDATE_MAX_ATTACHMENTS);
+
+            const dt = new DataTransfer();
+            kept.forEach(f => dt.items.add(f));
+            this.files = dt.files;
+
+            kept.forEach(f => {
+                const sizeKb = (f.size / 1024).toFixed(0);
+                list.append(
+                    `<div style="font-size:12px;color:var(--tm)"><i class="bi bi-paperclip me-1"></i>${$('<div>').text(f.name).html()} <span style="color:var(--tm)">(${sizeKb} KB)</span></div>`
+                );
+            });
+        });
+
+        let resolveTimeSpentTimer = null;
+
+        window.openResolveModal = function (ticketId, ticketNumber, startedAt, progressDraft) {
             $('#resolveRef').text('#' + ticketNumber);
             $('#resolveForm').attr('action', '/technician/tickets/' + ticketId + '/resolve');
+            $('#rAttachments').val('');
+            $('#resolveAttachmentList').empty();
+            // Pre-fill from the tech's own "Add Update" log — still fully editable,
+            // just saves retyping what they already reported while working the ticket.
+            $('#resolveForm textarea[name="resolution_notes"]').val(progressDraft || '');
+            $('#resolveDraftHint').toggleClass('d-none', !progressDraft);
+            $('#resolveForm textarea[name="findings"], #resolveForm textarea[name="recommendation"]').val('');
+            $('#resolveForm input[name="service_type"][value="Onsite"]').prop('checked', true);
+
+            clearInterval(resolveTimeSpentTimer);
+            const startedMs = startedAt ? new Date(startedAt).getTime() : null;
+
+            const renderTimeSpent = () => {
+                if (!startedMs) { $('#resolveTimeSpent').text('—'); return; }
+                const totalMinutes = Math.max(0, Math.floor((Date.now() - startedMs) / 60000));
+                const h = Math.floor(totalMinutes / 60);
+                const m = totalMinutes % 60;
+                $('#resolveTimeSpent').text(h > 0 ? `${h}h ${m}m` : `${m}m`);
+            };
+
+            renderTimeSpent();
+            resolveTimeSpentTimer = setInterval(renderTimeSpent, 1000);
+
             new bootstrap.Modal('#resolveModal').show();
         };
+
+        $('#resolveModal').on('hidden.bs.modal', function () {
+            clearInterval(resolveTimeSpentTimer);
+        });
+
+        /* ── Resolve modal attachment picker: client-side limits + preview list ── */
+        const RESOLVE_MAX_ATTACHMENTS = 5;
+        const RESOLVE_MAX_ATTACHMENT_MB = 10;
+
+        $('#rAttachments').on('change', function () {
+            const files = Array.from(this.files);
+            const list  = $('#resolveAttachmentList').empty();
+
+            if (files.length > RESOLVE_MAX_ATTACHMENTS) {
+                alert(`You can attach up to ${RESOLVE_MAX_ATTACHMENTS} files. Only the first ${RESOLVE_MAX_ATTACHMENTS} will be kept.`);
+            }
+
+            const oversize = files.find(f => f.size > RESOLVE_MAX_ATTACHMENT_MB * 1024 * 1024);
+            if (oversize) {
+                alert(`"${oversize.name}" exceeds the ${RESOLVE_MAX_ATTACHMENT_MB}MB limit and will be removed.`);
+            }
+
+            const kept = files
+                .filter(f => f.size <= RESOLVE_MAX_ATTACHMENT_MB * 1024 * 1024)
+                .slice(0, RESOLVE_MAX_ATTACHMENTS);
+
+            const dt = new DataTransfer();
+            kept.forEach(f => dt.items.add(f));
+            this.files = dt.files;
+
+            kept.forEach(f => {
+                const sizeKb = (f.size / 1024).toFixed(0);
+                list.append(
+                    `<div style="font-size:12px;color:var(--tm)"><i class="bi bi-paperclip me-1"></i>${$('<div>').text(f.name).html()} <span style="color:var(--tm)">(${sizeKb} KB)</span></div>`
+                );
+            });
+        });
 
         window.openEscModal = function (ticketId, ticketNumber) {
             $('#escRef').text('#' + ticketNumber);
             $('#escForm').attr('action', '/technician/tickets/' + ticketId + '/escalate');
             new bootstrap.Modal('#escModal').show();
         };
+
+        /* ── Request Re-classification modal ── */
+        const slaCategories = @json($slaCategoriesJson);
+
+        window.openReclassifyModal = function (ticketId, ticketNumber) {
+            $('#rcTicketRef').text('#' + ticketNumber);
+            $('#reclassifyForm').attr('action', '/technician/tickets/' + ticketId + '/request-reclassification');
+            $('#rcSlaRuleId').val('');
+            $('#rcSubWrap, #rcOverrideWrap').addClass('d-none');
+            $('#rcSubList').empty();
+            $('#rcResponseTime, #rcResolutionTime').val('');
+            $('#reclassifyForm textarea[name="reason"]').val('');
+            $('#rcCategoryList .cat-main-opt').removeClass('selected');
+
+            const $catList = $('#rcCategoryList').empty();
+            slaCategories.forEach(cat => {
+                $catList.append(`<div class="cat-main-opt" data-cat-id="${cat.id}">${cat.name}</div>`);
+            });
+
+            new bootstrap.Modal('#reclassifyModal').show();
+        };
+
+        $(document).on('click', '#rcCategoryList .cat-main-opt', function () {
+            $('#rcCategoryList .cat-main-opt').removeClass('selected');
+            $(this).addClass('selected');
+
+            const catId = $(this).data('cat-id');
+            const cat = slaCategories.find(c => c.id === catId);
+            const $subList = $('#rcSubList').empty();
+
+            if (!cat || !cat.subs.length) {
+                $subList.append(`<div style="font-size:12px;color:var(--tm)">No SLA rules defined for this category yet.</div>`);
+            } else {
+                cat.subs.forEach(sub => {
+                    const priColor = sub.priority === 'Critical' ? '#8b0000' : (sub.priority === 'High' ? '#e24b4a' : (sub.priority === 'Medium' ? '#f5c842' : '#4a7c4a'));
+                    $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}"
+                         data-priority="${sub.priority}" data-response="${sub.response}" data-resolution="${sub.resolution}">
+                        <div class="sub-check"></div>
+                        <span style="flex:1">${sub.name}</span>
+                        <span style="font-size:10px;font-weight:800;color:${priColor}">${sub.priority} · ${sub.resolution}m SLA</span>
+                    </div>`);
+                });
+            }
+            $('#rcSubWrap').removeClass('d-none');
+            $('#rcOverrideWrap').addClass('d-none');
+        });
+
+        $(document).on('click', '#rcSubList .cat-sub-opt', function () {
+            $('#rcSubList .cat-sub-opt').removeClass('selected');
+            $(this).addClass('selected');
+            $('#rcSlaRuleId').val($(this).data('rule-id'));
+
+            $('#rcPriority').val($(this).data('priority'));
+            $('#rcResponseTime').val($(this).data('response'));
+            $('#rcResolutionTime').val($(this).data('resolution'));
+            $('#rcOverrideWrap').removeClass('d-none');
+        });
+
+        $('#reclassifyForm').on('submit', function (e) {
+            if (!$('#rcSlaRuleId').val()) {
+                e.preventDefault();
+                alert('Please select a subcategory.');
+            }
+        });
 
         $('#techChatModal').on('hidden.bs.modal', function () {
             clearInterval(techChatPollInterval);

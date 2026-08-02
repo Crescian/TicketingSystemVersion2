@@ -5,7 +5,7 @@
 @section('nav-role-badge')
     <span class="role-badge"><i class="bi bi-headset me-1"></i>Supervisor</span>
     <a href="{{ route('portal.users.index') }}" style="text-decoration:none">
-      <span class="role-badge-admin">
+      <span class="role-badge">
           <i class="bi bi-shield-fill me-1"></i>Settings
       </span>
     </a>
@@ -54,12 +54,6 @@
     </div>
 @endsection
 
-@section('hero-cta')
-    <button class="btn-new" data-bs-toggle="modal" data-bs-target="#ticketModal">
-        <i class="bi bi-plus-lg me-1"></i> New Ticket
-    </button>
-@endsection
-
 @section('styles')
 
 
@@ -83,6 +77,8 @@
     .btn-takeover:hover { background:#f8c8c8; }
     .btn-resolve  { background:#e8f5ee; color:#1a5a3a; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:6px 14px; border-radius:20px; border:1.5px solid #a8ddc0; cursor:pointer; transition:all .2s; }
     .btn-resolve:hover  { background:#c8ead8; }
+    .btn-service-report { background:#e8f5ee; color:#1a5a3a; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:6px 14px; border-radius:20px; border:1.5px solid #a8ddc0; cursor:pointer; transition:all .2s; }
+    .btn-service-report:hover { background:#c8ead8; }
 
     .tech-select-option { border:1.5px solid var(--bd); border-radius:12px; padding:12px 14px; cursor:pointer; transition:all .2s; background:var(--cr); }
     .tech-select-option:hover { border-color:var(--gl); background:var(--ygl); }
@@ -360,10 +356,11 @@
                     default                                                         => '● Awaiting Admin Supervisor'
                 };
                 $priorityClass = match($ticket->ticket_type) {
-                    'High'   => 'pri-high',
-                    'Medium' => 'pri-medium',
-                    'Low'    => 'pri-low',
-                    default  => ''
+                    'Critical' => 'pri-critical',
+                    'High'     => 'pri-high',
+                    'Medium'   => 'pri-medium',
+                    'Low'      => 'pri-low',
+                    default    => ''
                 };
                 $techInitials = $ticket->assignedTo
                     ? strtoupper(substr($ticket->assignedTo->name, 0, 1)) .
@@ -511,7 +508,7 @@
                             <i class="bi bi-arrow-up-circle me-1"></i>Escalate to Manager
                         </button>
                     @endif
-                {{-- Pending Supervisor Approval: Validate Resolution --}}
+                {{-- Pending Supervisor Approval: Validate Resolution / Request Revision --}}
                     @if($ticket->status === 'Pending Admin Supervisor Approval')
                         @if($ticket->validated_at)
                             <span class="resolve-info px-3 py-2">
@@ -521,6 +518,10 @@
                             <button class="btn-resolve"
                                     onclick="openValidateModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                                 <i class="bi bi-check-circle me-1"></i>Validate Resolution
+                            </button>
+                            <button class="btn-takeover"
+                                    onclick="openAdminRevisionModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>Request Revision
                             </button>
                         @endif
                     @endif
@@ -534,6 +535,14 @@
                             @if($unread > 0)
                                 <span class="chat-count-badge" id="badge-{{ $ticket->id }}">{{ $unread }}</span>
                             @endif
+                        </button>
+                    @endif
+
+                    {{-- Closed: printable service report --}}
+                    @if($ticket->status === 'Closed')
+                        <button type="button" class="btn-service-report"
+                                onclick="openServiceReportPreview('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-file-earmark-pdf me-1"></i>Service Report
                         </button>
                     @endif
 
@@ -714,6 +723,43 @@
             </div>
         </div>
     </div>
+
+    {{-- Request Revision modal --}}
+    <div class="modal fade" id="adminRevisionModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Request <em>Revision</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="adminRevisionForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="p-3 mb-3 rounded" style="background:#eee;color:#555;font-size:13px">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>
+                            Ticket <strong id="adminRevisionRef"></strong> — this sends the resolution back to the
+                            IT Admin instead of validating it. It reopens as Admin In Progress with your reason attached.
+                        </div>
+                        <div>
+                            <label class="form-label">
+                                What needs to be revised? <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" name="revision_notes"
+                                      rows="3" required
+                                      placeholder="Be specific — this is what the IT Admin will see…"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Send Back for Revision
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {{-- Escalate to Manager Modal --}}
     <div class="modal fade" id="escManagerModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -1039,6 +1085,8 @@
             </div>
         </div>
     </div>
+
+    <x-service-report-modal />
 @endsection
 
 @section('scripts')
@@ -1184,7 +1232,7 @@
             $subList.append(`<div style="font-size:12px;color:var(--tm)">No SLA rules defined for this category yet.</div>`);
         } else {
             cat.subs.forEach(sub => {
-                const priColor = sub.priority === 'High' ? '#e24b4a' : (sub.priority === 'Medium' ? '#f5c842' : '#4a7c4a');
+                const priColor = sub.priority === 'Critical' ? '#8b0000' : (sub.priority === 'High' ? '#e24b4a' : (sub.priority === 'Medium' ? '#f5c842' : '#4a7c4a'));
                 $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}">
                     <div class="sub-check"></div>
                     <span style="flex:1">${sub.name}</span>
@@ -1486,6 +1534,13 @@ function showStep(n) {
         $('#validateRef').text('#' + ticketNumber);
         $('#validateForm').attr('action', '/supervisor/tickets/' + ticketId + '/validate-resolution');
         new bootstrap.Modal('#validateModal').show();
+    };
+
+    window.openAdminRevisionModal = function (ticketId, ticketNumber) {
+        $('#adminRevisionRef').text('#' + ticketNumber);
+        $('#adminRevisionForm').attr('action', '/supervisor/tickets/' + ticketId + '/request-revision');
+        $('#adminRevisionForm textarea[name="revision_notes"]').val('');
+        new bootstrap.Modal('#adminRevisionModal').show();
     };
 
     window.openEscManagerModal = function (ticketId, ticketNumber) {

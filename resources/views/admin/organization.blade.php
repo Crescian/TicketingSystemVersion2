@@ -56,6 +56,16 @@
                 </a>
             </li>
             <li class="list-group-item">
+                <a class="nav-link" href="{{ route('portal.holidays.index') }}">
+                    <i class="bi bi-calendar-x"></i>Holidays
+                </a>
+            </li>
+            <li class="list-group-item">
+                <a class="nav-link" href="{{ route('portal.leaves.index') }}">
+                    <i class="bi bi-calendar-minus"></i>Leave
+                </a>
+            </li>
+            <li class="list-group-item">
                 <a href="{{ route('portal.audit-log') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
                     <i class="bi bi-journal-text me-1"></i>Audit Log
                 </a>

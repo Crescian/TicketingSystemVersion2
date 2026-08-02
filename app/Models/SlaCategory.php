@@ -17,7 +17,7 @@ class SlaCategory extends Model
     public function rules()
     {
         return $this->hasMany(SlaRule::class, 'sla_category_id')
-                    ->orderByRaw("CASE priority WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 WHEN 'Low' THEN 3 END")
+                    ->orderByRaw("CASE priority WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 WHEN 'Low' THEN 4 END")
                     ->orderBy('subcategory_name');
     }
 

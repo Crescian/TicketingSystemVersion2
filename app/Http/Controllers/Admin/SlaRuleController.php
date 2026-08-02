@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SlaCategory;
 use App\Models\SlaRule;
 use App\Models\Tickets;
+use App\Models\WorkloadClass;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -22,13 +23,16 @@ class SlaRuleController extends Controller
         $slaRate      = $totalTickets > 0 ? round((($totalTickets - $breachedAll) / $totalTickets) * 100) : 100;
 
         $priorityCounts = [
-            'High'   => Tickets::where('ticket_type', 'High')->whereNotIn('status', ['Resolved','Cancelled'])->count(),
-            'Medium' => Tickets::where('ticket_type', 'Medium')->whereNotIn('status', ['Resolved','Cancelled'])->count(),
-            'Low'    => Tickets::where('ticket_type', 'Low')->whereNotIn('status', ['Resolved','Cancelled'])->count(),
+            'Critical' => Tickets::where('ticket_type', 'Critical')->whereNotIn('status', ['Resolved','Cancelled'])->count(),
+            'High'     => Tickets::where('ticket_type', 'High')->whereNotIn('status', ['Resolved','Cancelled'])->count(),
+            'Medium'   => Tickets::where('ticket_type', 'Medium')->whereNotIn('status', ['Resolved','Cancelled'])->count(),
+            'Low'      => Tickets::where('ticket_type', 'Low')->whereNotIn('status', ['Resolved','Cancelled'])->count(),
         ];
 
+        $workloadClasses = WorkloadClass::orderBy('sort_order')->orderBy('name')->get();
+
         return view('admin.sla-rules', compact(
-            'categories', 'slaRate', 'totalTickets', 'breachedAll', 'priorityCounts'
+            'categories', 'slaRate', 'totalTickets', 'breachedAll', 'priorityCounts', 'workloadClasses'
         ));
     }
 
@@ -78,7 +82,7 @@ class SlaRuleController extends Controller
         $request->validate([
             'sla_category_id'        => 'required|exists:sla_categories,id',
             'subcategory_name'        => 'required|string|max:255',
-            'priority'                => 'required|in:High,Medium,Low',
+            'priority'                => 'required|in:Critical,High,Medium,Low',
             'response_time_minutes'   => 'required|numeric|min:5|max:43200',
             'resolution_time_minutes' => 'required|numeric|min:5|max:43200',
             'description'             => 'nullable|string|max:500',
@@ -103,7 +107,7 @@ class SlaRuleController extends Controller
         $request->validate([
             'sla_category_id'        => 'required|exists:sla_categories,id',
             'subcategory_name'        => 'required|string|max:255',
-            'priority'                => 'required|in:High,Medium,Low',
+            'priority'                => 'required|in:Critical,High,Medium,Low',
             'response_time_minutes'   => 'required|numeric|min:5|max:43200',
             'resolution_time_minutes' => 'required|numeric|min:5|max:43200',
             'description'             => 'nullable|string|max:500',

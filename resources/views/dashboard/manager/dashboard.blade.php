@@ -38,6 +38,8 @@
     .btn-acknowledge:hover { border-color:var(--gl); }
     .btn-resolve  { background:#e8f5ee; color:#1a5a3a; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:6px 14px; border-radius:20px; border:1.5px solid #a8ddc0; cursor:pointer; transition:all .2s; }
     .btn-resolve:hover  { background:#c8ead8; }
+    .btn-service-report { background:#e8f5ee; color:#1a5a3a; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:6px 14px; border-radius:20px; border:1.5px solid #a8ddc0; cursor:pointer; transition:all .2s; }
+    .btn-service-report:hover { background:#c8ead8; }
     .resolve-info { background:var(--ygl); border-radius:10px; font-size:13px; color:var(--gd); }
 
     .esc-level { background:#fde8e8; color:#8b1a1a; font-size:11px; font-weight:800; border-radius:20px; padding:3px 10px; display:inline-flex; align-items:center; }
@@ -180,10 +182,11 @@
                     default                 => '● ' . $ticket->status
                 };
                 $priorityClass = match($ticket->ticket_type) {
-                    'High'   => 'pri-high',
-                    'Medium' => 'pri-medium',
-                    'Low'    => 'pri-low',
-                    default  => ''
+                    'Critical' => 'pri-critical',
+                    'High'     => 'pri-high',
+                    'Medium'   => 'pri-medium',
+                    'Low'      => 'pri-low',
+                    default    => ''
                 };
             @endphp
 
@@ -276,6 +279,13 @@
                             <i class="bi bi-check-circle me-1"></i>Resolve
                         </button>
                     @endif
+
+                    @if($ticket->status === 'Closed')
+                        <button type="button" class="btn-service-report"
+                                onclick="openServiceReportPreview('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-file-earmark-pdf me-1"></i>Service Report
+                        </button>
+                    @endif
                 </div>
             </div>
         @empty
@@ -333,6 +343,7 @@
         </div>
     </div>
 
+    <x-service-report-modal />
 @endsection
 
 @section('scripts')

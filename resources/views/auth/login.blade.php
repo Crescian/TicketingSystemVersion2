@@ -40,7 +40,7 @@
               <div class="role-title">Customer (Employee)</div>
               <div class="role-desc">Submit and track your IT support requests</div>
             </div>
-            <i class="bi bi-arrow-right role-arrow"></i>
+            
           </div>
           <div class="role-card">
             <div class="role-icon helpdesk"><i class="bi bi-headset"></i></div>
@@ -48,7 +48,7 @@
               <div class="role-title">Helpdesk</div>
               <div class="role-desc">Manage the queue, assign technicians</div>
             </div>
-            <i class="bi bi-arrow-right role-arrow"></i>
+            
           </div>
           <div class="role-card">
             <div class="role-icon tech"><i class="bi bi-tools"></i></div>
@@ -56,7 +56,7 @@
               <div class="role-title">IT Support Specialist</div>
               <div class="role-desc">Accept, work on, and resolve tickets</div>
             </div>
-            <i class="bi bi-arrow-right role-arrow"></i>
+            
           </div>
           <div class="role-card">
             <div class="role-icon admin"><i class="bi bi-shield-fill"></i></div>
@@ -64,12 +64,12 @@
               <div class="role-title">IT Admin</div>
               <div class="role-desc">Handle escalations, full system oversight</div>
             </div>
-            <i class="bi bi-arrow-right role-arrow"></i>
+            
           </div>
         </div>
       </div>
 
-      <div class="left-footer">© 2026 LGICT Internal Support System. All rights reserved. Developed by CML</div>
+      <div class="left-footer">© 2026 ONEICT Internal Support System. All rights reserved. Developed by CML</div>
     </div>
 
     {{-- ══ RIGHT PANEL ══ --}}
@@ -179,6 +179,13 @@
             style="color:var(--gl);font-weight:700">icthelpdesk@leoniogroup.com</a>
         </p>
 
+                {{-- Return to Landing --}}
+        <!-- <div class="text-center mt-3">
+            <a href="http://usermgmt.development.com/" style="font-size:12.5px;font-weight:700;color:var(--tm);text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:color .2s;"
+            onmouseover="this.style.color='var(--nl)'" onmouseout="this.style.color='var(--tm)'">
+                <i class="bi bi-arrow-left"></i> Return to Home
+            </a>
+        </div> -->
       </div>
       <div class="right-footer">LGICT Support System v2.5 &nbsp;·&nbsp; Secure internal access</div>
     </div>

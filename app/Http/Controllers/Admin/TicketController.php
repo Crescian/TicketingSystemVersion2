@@ -30,10 +30,11 @@ class TicketController extends Controller
                 WHEN status = 'Closed'                                  THEN 4
                 ELSE 5 END")
             ->orderByRaw("CASE
-                WHEN ticket_type = 'High'   THEN 1
-                WHEN ticket_type = 'Medium' THEN 2
-                WHEN ticket_type = 'Low'    THEN 3
-                ELSE 4 END");
+                WHEN ticket_type = 'Critical' THEN 1
+                WHEN ticket_type = 'High'     THEN 2
+                WHEN ticket_type = 'Medium'   THEN 3
+                WHEN ticket_type = 'Low'      THEN 4
+                ELSE 5 END");
 
         // "active" = everything still actionable by this admin before it's closed
         $activeStatuses = [
@@ -253,6 +254,7 @@ class TicketController extends Controller
         $ticket->update([
             'status' => 'Pending Admin Supervisor Approval',
             'resolved_at' => now(),
+            'resolved_by' => Auth::id(),
         ]);
 
         TicketStatusHistories::create([

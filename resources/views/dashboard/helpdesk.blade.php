@@ -5,7 +5,7 @@
 @section('nav-role-badge')
     <span class="role-badge"><i class="bi bi-headset me-1"></i>Helpdesk</span>
     <a href="{{ route('portal.users.index') }}" style="text-decoration:none">
-      <span class="role-badge-admin">
+      <span class="role-badge">
           <i class="bi bi-shield-fill me-1"></i>Settings
       </span>
     </a>
@@ -52,7 +52,7 @@
 
 @section('hero-cta')
     <button class="btn-new" data-bs-toggle="modal" data-bs-target="#ticketModal">
-        <i class="bi bi-plus-lg me-1"></i> New Ticket
+        <i class="bi bi-plus-lg me-1"></i> New Request
     </button>
 @endsection
 
@@ -66,6 +66,33 @@
         transition: background .2s, transform .15s; white-space: nowrap;
     }
     .btn-new:hover { background: var(--ygd); transform: translateY(-2px); }
+
+    /* ── Pending-closure attention banner ── */
+    .awaiting-banner {
+        display: flex; align-items: center; gap: 14px;
+        background: linear-gradient(135deg, #ff9f43, #ff7a1a);
+        border-radius: 14px; padding: 14px 20px; margin-bottom: 16px;
+        box-shadow: 0 4px 14px rgba(255, 122, 26, .35);
+        color: #fff; text-decoration: none;
+        animation: awaitingPulse 2.2s ease-in-out infinite;
+    }
+    .awaiting-banner:hover { color: #fff; filter: brightness(1.05); }
+    .awaiting-banner .aw-icon {
+        width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+        background: rgba(255,255,255,.25);
+        display: flex; align-items: center; justify-content: center; font-size: 20px;
+    }
+    .awaiting-banner .aw-title { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 15px; }
+    .awaiting-banner .aw-sub { font-size: 12.5px; opacity: .9; font-weight: 600; }
+    .awaiting-banner .aw-cta {
+        margin-left: auto; background: #fff; color: #ff7a1a;
+        font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 13px;
+        padding: 8px 18px; border-radius: 50px; white-space: nowrap;
+    }
+    @keyframes awaitingPulse {
+        0%, 100% { box-shadow: 0 4px 14px rgba(255, 122, 26, .35); }
+        50%      { box-shadow: 0 4px 22px rgba(255, 122, 26, .65); }
+    }
 
    /* ── Modal: step wizard ── */
 /* ── Compact Step Wizard ── */
@@ -255,6 +282,8 @@
     .btn-escalate:hover { background:#f8c8c8; }
     .btn-resolve  { background:#e8f5ee; color:#1a5a3a; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:6px 14px; border-radius:20px; border:1.5px solid #a8ddc0; cursor:pointer; transition:all .2s; }
     .btn-resolve:hover  { background:#c8ead8; }
+    .btn-service-report { background:#e8f5ee; color:#1a5a3a; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:6px 14px; border-radius:20px; border:1.5px solid #a8ddc0; cursor:pointer; transition:all .2s; }
+    .btn-service-report:hover { background:#c8ead8; }
     .tech-select-option { border:1.5px solid var(--bd); border-radius:12px; padding:12px 14px; cursor:pointer; transition:all .2s; background:var(--cr); }
     .tech-select-option:hover { border-color:var(--gl); background:var(--ygl); }
     .tech-select-option.selected { border-color:var(--gd); background:var(--ygl); box-shadow:0 0 0 2px var(--yg); }
@@ -370,6 +399,13 @@
                     <span class="badge-count">{{ $counts['new_request'] }}</span>
                 </a>
             </li>
+            <li class="list-group-item {{ $status === 'l1-in-progress' ? 'active' : '' }}">
+                <a href="{{ route('helpdesk.dashboard', ['status' => 'l1-in-progress']) }}"
+                   class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-headset me-2"></i>L1 In Progress</span>
+                    <span class="badge-count">{{ $counts['l1_in_progress'] }}</span>
+                </a>
+            </li>
             <li class="list-group-item {{ $status === 'awaiting-supervisor' ? 'active' : '' }}">
                 <a href="{{ route('helpdesk.dashboard', ['status' => 'awaiting-supervisor']) }}"
                    class="d-flex justify-content-between align-items-center text-decoration-none">
@@ -412,6 +448,13 @@
                     <span class="badge-count">{{ $counts['closed'] }}</span>
                 </a>
             </li>
+            <li class="list-group-item {{ $status === 'cancelled' ? 'active' : '' }}">
+                <a href="{{ route('helpdesk.dashboard', ['status' => 'cancelled']) }}"
+                   class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-x-circle me-2"></i>Cancelled</span>
+                    <span class="badge-count">{{ $counts['cancelled'] }}</span>
+                </a>
+            </li>
         </ul>
     </div>
 
@@ -428,10 +471,10 @@
                     <div class="tech-av-lg">{{ $initials }}</div>
                     <div>
                         <div class="tech-name">{{ $tech->name }}</div>
-                        <div class="tech-load">{{ $tech->active_tickets }} active ticket{{ $tech->active_tickets !== 1 ? 's' : '' }}</div>
+                        <div class="tech-load">{{ $tech->free_time_label }}</div>
                     </div>
                     <div class="avail-dot {{ $tech->availability }}"
-                         title="{{ ucfirst($tech->availability) }}"></div>
+                         title="{{ match($tech->schedule_status) { 'overtime' => 'Overtime', 'on_leave' => 'On approved leave', default => ucfirst($tech->availability) } }}"></div>
                 </div>
             @empty
                 <div class="p-3" style="font-size:13px;color:var(--tm)">
@@ -442,7 +485,7 @@
         <div class="p-2 px-3" style="font-size:11px;color:var(--tm);border-top:1px solid var(--bd)">
             <span class="me-3"><span class="avail-dot free d-inline-block me-1"></span>Available</span>
             <span class="me-3"><span class="avail-dot busy d-inline-block me-1"></span>Busy</span>
-            <span><span class="avail-dot full d-inline-block me-1"></span>Full</span>
+            <span><span class="avail-dot full d-inline-block me-1"></span>Overtime</span>
         </div>
     </div>
 
@@ -450,6 +493,24 @@
 
 {{-- ══ MAIN CONTENT ══ --}}
 @section('content')
+
+    {{-- Pending-closure attention banner — validated tickets need Helpdesk to Close
+         & Notify, so this stays up (not dismissible) for as long as any ticket is
+         sitting in that state. Mirrors the Employee dashboard's "Awaiting You" banner. --}}
+    @if($counts['pending_closure'] > 0)
+        <a href="{{ route('helpdesk.dashboard', ['status' => 'pending-closure']) }}"
+           class="awaiting-banner">
+            <span class="aw-icon"><i class="bi bi-exclamation-lg"></i></span>
+            <span>
+                <div class="aw-title">
+                    {{ $counts['pending_closure'] }}
+                    {{ Str::plural('ticket', $counts['pending_closure']) }} pending closure
+                </div>
+                <div class="aw-sub">Validated by Supervisor — Close &amp; Notify to finish these out.</div>
+            </span>
+            <span class="aw-cta">Review Now <i class="bi bi-arrow-right ms-1"></i></span>
+        </a>
+    @endif
 
     {{-- Alerts --}}
     @if(session('success'))
@@ -471,9 +532,9 @@
             @php
                 $labels = [
                     'active' => 'Active',
-                    'new-request' => 'New Request', 'awaiting-supervisor' => 'Awating Supervisor',
+                    'new-request' => 'New Request', 'l1-in-progress' => 'L1 In Progress', 'awaiting-supervisor' => 'Awating Supervisor',
                     'in-progress' => 'In Progress', 'escalated' => 'Escalated', 'pending-closure' => 'Pending Closure', 'awaiting-requestor' => 'Awaiting Requestor',
-                    'closed' => 'Closed',
+                    'closed' => 'Closed', 'cancelled' => 'Cancelled',
                 ];
             @endphp
             {{ $labels[$status] ?? 'All Tickets' }}
@@ -501,12 +562,14 @@
             $tabs = [
                 'active'              => ['label' => 'Active',              'count' => $counts['active']],
                 'new-request'         => ['label' => 'New Request',         'count' => $counts['new_request']],
+                'l1-in-progress'      => ['label' => 'L1 In Progress',      'count' => $counts['l1_in_progress']],
                 'awaiting-supervisor'  => ['label' => 'Awaiting Supervisor',  'count' => $counts['awaiting_supervisor']],
                 'in-progress' => ['label' => 'In Progress', 'count' => $counts['in_progress']],
                 'escalated'   => ['label' => 'Escalated',   'count' => $counts['escalated']],
                 'pending-closure'   => ['label' => 'Pending Closure',   'count' => $counts['pending_closure']],
                 'awaiting-requestor'   => ['label' => 'Awaiting Requestor',   'count' => $counts['awaiting_requestor']],
                 'closed'    => ['label' => 'Closed',    'count' => $counts['closed']],
+                'cancelled' => ['label' => 'Cancelled', 'count' => $counts['cancelled']],
             ];
         @endphp
         @foreach($tabs as $key => $tab)
@@ -522,9 +585,15 @@
 
         @forelse($tickets as $ticket)
             @php
-                $isUnassigned = $ticket->status === 'New Request' && !$ticket->assigned_to;
+                $needsAck      = is_null($ticket->date_acknowledged) && $ticket->status === 'New Request';
+                $canStartL1    = !is_null($ticket->date_acknowledged) && $ticket->status === 'New Request';
+                $needsClassify = (!is_null($ticket->date_acknowledged) && $ticket->status === 'New Request')
+                                 || $ticket->status === 'L1 In Progress';
+                $canCancel     = in_array($ticket->status, ['New Request', 'L1 In Progress']);
+
                 $cardClass = match(true) {
-                    $isUnassigned               => 'unassigned',
+                    $needsAck                          => 'unassigned',
+                    $ticket->status === 'L1 In Progress' => 'l1-in-progress',
                     $ticket->status === 'New Request' => 'new-request',
                     $ticket->status === 'Awaiting Supervisor' => 'awaiting-supervisor',
                     $ticket->status === 'In Progress' => 'in-progress',
@@ -532,10 +601,12 @@
                     $ticket->status === 'Pending Closure'   => 'pending-closure',
                     $ticket->status === 'Awaiting Requestor'   => 'awaiting-requestor',
                     $ticket->status === 'Closed'   => 'closed',
+                    $ticket->status === 'Cancelled'   => 'closed',
                     default                           => 'new-request'
                 };
                 $badgeClass = match(true) {
-                    $isUnassigned               => 'badge-unassigned',
+                    $needsAck                          => 'badge-unassigned',
+                    $ticket->status === 'L1 In Progress' => 'badge-in-progress',
                     $ticket->status === 'New Request' => 'badge-new-request',
                     $ticket->status === 'Awaiting Supervisor' => 'badge-awaiting-supervisor',
                     $ticket->status === 'In Progress' => 'badge-in-progress',
@@ -543,10 +614,12 @@
                     $ticket->status === 'Pending Closure'   => 'badge-pending-closure',
                     $ticket->status === 'Awaiting Requestor'   => 'badge-awaiting-requestor',
                     $ticket->status === 'Closed'   => 'badge-closed',
+                    $ticket->status === 'Cancelled'   => 'badge-closed',
                     default                           => 'badge-new-request'
                 };
                 $badgeLabel = match(true) {
-                    $isUnassigned               => '<i class="bi bi-inbox me-1"></i>Unassigned',
+                    $needsAck                          => '<i class="bi bi-inbox me-1"></i>Unassigned',
+                    $ticket->status === 'L1 In Progress' => '<i class="bi bi-headset me-1"></i>L1 In Progress',
                     $ticket->status === 'New Request' => '<i class="bi bi-plus-circle me-1"></i>New Request',
                     $ticket->status === 'Awaiting Supervisor' => '<i class="bi bi-hourglass-split me-1"></i>Awaiting Supervisor',
                     $ticket->status === 'In Progress' => '<i class="bi bi-gear-fill me-1"></i>In Progress',
@@ -554,13 +627,15 @@
                     $ticket->status === 'Pending Closure'    => '<i class="bi bi-clock-history me-1"></i>Pending Closure',
                     $ticket->status === 'Awaiting Requestor'    => '<i class="bi bi-person-check me-1"></i>Awaiting Requestor',
                     $ticket->status === 'Closed'    => '<i class="bi bi-check-circle-fill me-1"></i>Closed',
+                    $ticket->status === 'Cancelled'    => '<i class="bi bi-x-circle-fill me-1"></i>Cancelled',
                     default                           => '● New Request'
                 };
                 $priorityClass = match($ticket->ticket_type) {
-                    'High'   => 'pri-high',
-                    'Medium' => 'pri-medium',
-                    'Low'    => 'pri-low',
-                    default  => ''
+                    'Critical' => 'pri-critical',
+                    'High'     => 'pri-high',
+                    'Medium'   => 'pri-medium',
+                    'Low'      => 'pri-low',
+                    default    => ''
                 };
                 $techInitials = $ticket->assignedTo
                     ? strtoupper(substr($ticket->assignedTo->name, 0, 1)) .
@@ -687,15 +762,47 @@
                 {{-- Action buttons --}}
                 <div class="d-flex gap-2 flex-wrap">
 
-                    {{-- Unassigned: Acknowledge + Assign --}}
-                    @if($isUnassigned)
-                        <form method="POST"
-                              action="{{ route('helpdesk.tickets.acknowledge', $ticket) }}">
+                    {{-- Not yet acknowledged --}}
+                    @if($needsAck)
+                        <form method="POST" action="{{ route('helpdesk.tickets.acknowledge', $ticket) }}">
                             @csrf
                             <button type="submit" class="btn-acknowledge">
                                 <i class="bi bi-eye me-1"></i>Acknowledge
                             </button>
                         </form>
+                    @endif
+
+                    {{-- Acknowledged, L1 not started yet (optional step) --}}
+                    @if($canStartL1)
+                        <form method="POST" action="{{ route('helpdesk.tickets.start-l1', $ticket) }}">
+                            @csrf
+                            <button type="submit" class="btn-acknowledge">
+                                <i class="bi bi-headset me-1"></i>Start L1
+                            </button>
+                        </form>
+                    @endif
+
+                    {{-- Acknowledged (with or without L1 started) --}}
+                    @if($needsClassify)
+                        <button type="button" class="btn-assign"
+                                onclick="openClassifyModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-tags me-1"></i>Classify
+                        </button>
+                        <button type="button" class="btn-resolve"
+                                onclick="openHelpdeskResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-check-circle me-1"></i>Resolve
+                        </button>
+                    @endif
+
+                    {{-- Cancel: available any time before classification --}}
+                    @if($canCancel)
+                        <button type="button" class="btn-escalate"
+                                onclick="openCancelModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-x-circle me-1"></i>Cancel
+                        </button>
+                    @endif
+
+                    @if($needsAck || $canStartL1 || $needsClassify)
                         {{-- ── Chat button ── --}}
                         <button class="btn-chat"
                                 onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
@@ -705,10 +812,6 @@
                                 <span class="chat-count-badge" id="badge-{{ $ticket->id }}">{{ $unread }}</span>
                             @endif
                         </button>
-                        {{-- <button class="btn-assign"
-                                onclick="openAssignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', false)">
-                            <i class="bi bi-person-plus me-1"></i>Assign Technician
-                        </button> --}}
                     @endif
 
                     @if($ticket->status === 'Awaiting Supervisor')
@@ -721,20 +824,8 @@
                             @endif
                         </button>
                     @endif
-                    {{-- In Progress: Reassign + Escalate + Resolve + Message --}}
+                    {{-- In Progress: Message --}}
                     @if($ticket->status === 'In Progress')
-                        {{-- <button class="btn-reassign"
-                                onclick="openAssignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', true)">
-                            <i class="bi bi-arrow-left-right me-1"></i>Reassign
-                        </button>
-                        <button class="btn-escalate"
-                                onclick="openEscalateModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-exclamation-triangle me-1"></i>Escalate
-                        </button>
-                        <button class="btn-resolve"
-                                onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-check-circle me-1"></i>Mark Resolved
-                        </button> --}}
                         {{-- ── Chat button ── --}}
                         <button class="btn-chat"
                                 onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
@@ -746,16 +837,8 @@
                         </button>
                     @endif
 
-                    {{-- Escalated: Reassign + Resolve + Message --}}
+                    {{-- Escalated: Message --}}
                     @if($ticket->status === 'Escalated')
-                        {{-- <button class="btn-reassign"
-                                onclick="openAssignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', true)">
-                            <i class="bi bi-person-plus me-1"></i>Reassign to New Tech
-                        </button>
-                        <button class="btn-resolve"
-                                onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-check-circle me-1"></i>Mark Resolved
-                        </button> --}}
                         {{-- ── Chat button ── --}}
                         <button class="btn-chat"
                                 onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
@@ -794,6 +877,13 @@
                             @if($unread > 0)
                                 <span class="chat-count-badge" id="badge-{{ $ticket->id }}">{{ $unread }}</span>
                             @endif
+                        </button>
+                    @endif
+
+                    @if($ticket->status === 'Closed')
+                        <button type="button" class="btn-service-report"
+                                onclick="openServiceReportPreview('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-file-earmark-pdf me-1"></i>Service Report
                         </button>
                     @endif
                 </div>
@@ -966,7 +1056,7 @@
                                         placeholder="What happened, when it started…"></textarea>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Additional details <span class="text-danger">*</span></label>
+                                <label class="form-label">Additional details</label>
                                 <textarea class="form-control" id="mDetails"
                                         name="request_details" rows="2"
                                         placeholder="Error messages, steps to reproduce…"></textarea>
@@ -1071,6 +1161,195 @@
             </div>
         </div>
     </div>
+    {{-- Acknowledge & Classify modal --}}
+    <div class="modal fade" id="classifyModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Classify — <em id="acTicketRef">#TKT-0000</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="classifyForm">
+                    @csrf
+                    <input type="hidden" name="sla_rule_id" id="acSlaRuleId">
+
+                    <div class="modal-body px-4 py-4">
+                        <div class="mb-3 p-2 px-3 rounded"
+                             style="background:var(--ygl);font-size:13px;color:var(--gd)">
+                            Pick the category that best matches the requester's concern. The Supervisor
+                            can still review and change this before assigning a technician.
+                        </div>
+
+                        <label class="form-label mb-2">Category</label>
+                        <div class="d-flex flex-wrap gap-2 mb-3" id="acCategoryList"></div>
+
+                        <div id="acSubWrap" class="d-none">
+                            <label class="form-label mb-2">Subcategory & Priority</label>
+                            <div class="d-flex flex-column gap-2 mb-3" id="acSubList"></div>
+                        </div>
+
+                        <div id="acOverrideWrap" class="d-none mb-3">
+                            <label class="form-label mb-2">
+                                SLA & Priority
+                                <span style="font-weight:400;color:var(--tm)">(defaults from the rule above — adjust if needed)</span>
+                            </label>
+
+                            <div class="mb-2">
+                                <label class="form-label" style="font-size:11px">
+                                    Workload Class
+                                    <span style="font-weight:400;color:var(--tm)">(optional — overrides response/resolution time below)</span>
+                                </label>
+                                <select class="form-select form-select-sm" name="workload_class_id" id="acWorkloadClass">
+                                    <option value="">— None —</option>
+                                    @foreach($workloadClasses as $wc)
+                                        <option value="{{ $wc->id }}"
+                                                data-response="{{ $wc->response_minutes }}"
+                                                data-resolution="{{ $wc->resolution_minutes }}"
+                                                data-manual="{{ $wc->requires_manual_resolution ? '1' : '0' }}">
+                                            {{ $wc->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <div id="acWorkloadManualHint" class="d-none" style="font-size:11px;color:var(--tm);font-weight:600;margin-top:4px">
+                                    <i class="bi bi-info-circle me-1"></i>This class has no fixed resolution target — enter the agreed resolution time below.
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2 flex-wrap">
+                                <div style="flex:1;min-width:110px">
+                                    <label class="form-label" style="font-size:11px">Priority</label>
+                                    <select class="form-select form-select-sm" name="priority" id="acPriority">
+                                        <option value="Critical">Critical</option>
+                                        <option value="High">High</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="Low">Low</option>
+                                    </select>
+                                </div>
+                                <div style="flex:1;min-width:130px">
+                                    <label class="form-label" style="font-size:11px">Response Time (min)</label>
+                                    <input type="number" class="form-control form-control-sm" name="response_time_minutes"
+                                           id="acResponseTime" min="5" max="43200">
+                                </div>
+                                <div style="flex:1;min-width:130px">
+                                    <label class="form-label" style="font-size:11px">Resolution Time (min)</label>
+                                    <input type="number" class="form-control form-control-sm" name="resolution_time_minutes"
+                                           id="acResolutionTime" min="5" max="43200">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <label class="form-label">Notes (optional)</label>
+                            <textarea class="form-control" name="notes" rows="2"
+                                      placeholder="Context for the Supervisor…"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm">
+                            <i class="bi bi-check-lg me-1"></i>Confirm Classification
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Helpdesk Resolve modal (L1 quick fix — resolved without escalation) --}}
+    <div class="modal fade" id="helpdeskResolveModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Resolve — <em id="hdResolveRef">#TKT-0000</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="helpdeskResolveForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="info-box-green p-3 mb-3">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Resolving this ticket directly — for quick fixes that don't
+                            need Supervisor/Technician involvement. Sends it straight to Close &amp; Notify.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Service Type <span class="text-danger">*</span></label>
+                            <div class="d-flex gap-3 flex-wrap" style="font-size:13px;font-weight:600">
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="service_type" value="Onsite">Onsite
+                                </label>
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="service_type" value="Remote" checked>Remote
+                                </label>
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="service_type" value="Preventive">Preventive
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Service Details / Action Taken <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="resolution_notes" rows="3" required
+                                      placeholder="Describe exactly what was done to resolve the issue…"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Findings &amp; Analysis <span style="font-weight:400;color:var(--tm)">(optional)</span></label>
+                            <textarea class="form-control" name="findings" rows="2"
+                                      placeholder="Root cause, diagnostics, what was found…"></textarea>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Other Observation / Recommendation <span style="font-weight:400;color:var(--tm)">(optional)</span></label>
+                            <textarea class="form-control" name="recommendation" rows="2"
+                                      placeholder="Follow-up suggestions, preventive advice…"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm">
+                            <i class="bi bi-check-circle me-1"></i>Confirm Resolution
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Cancel Ticket modal --}}
+    <div class="modal fade" id="cancelTicketModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Cancel Ticket — <em id="cancelTicketRef">#TKT-0000</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="cancelTicketForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="esc-banner p-2 mb-3">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            This will cancel the ticket before classification. This cannot be undone from here.
+                        </div>
+                        <div>
+                            <label class="form-label">
+                                Reason for cancellation <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" name="reason" rows="3" required
+                                      placeholder="e.g. duplicate request, spam, resolved by employee directly…"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Back</button>
+                        <button type="submit" class="btn-confirm" style="background:#8b1a1a">
+                            <i class="bi bi-x-circle me-1"></i>Confirm Cancellation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {{-- Assign / Reassign modal --}}
     {{-- <div class="modal fade" id="assignModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -1194,50 +1473,6 @@
         </div>
     </div> --}}
 
-    {{-- Resolve modal --}}
-    {{-- <div class="modal fade" id="resolveModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Mark as <em>Resolved</em></h5>
-                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
-                </div>
-                <form method="POST" id="resolveForm">
-                    @csrf
-                    <div class="modal-body px-4 py-4">
-                        <div class="resolve-info p-3 mb-3">
-                            <i class="bi bi-check-circle me-1"></i>
-                            Ticket <strong id="resolveRef"></strong> —
-                            Confirm resolution and notify the customer.
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">
-                                Resolution summary <span class="text-danger">*</span>
-                            </label>
-                            <textarea class="form-control" name="resolution_notes"
-                                      rows="3" required
-                                      placeholder="Describe how the issue was resolved…"></textarea>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox"
-                                   id="notifyCustomer" checked>
-                            <label class="form-check-label" for="notifyCustomer"
-                                   style="font-size:13px;font-weight:600">
-                                Notify customer by email that ticket is resolved
-                            </label>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
-                        <button type="button" class="btn-cancel-modal"
-                                data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn-confirm">
-                            <i class="bi bi-check-circle me-1"></i>Mark as Resolved
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div> --}}
     {{-- Chat Modal --}}
     <div class="modal fade" id="chatModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered" style="max-width:480px">
@@ -1283,6 +1518,8 @@
             </div>
         </div>
     </div>
+
+    <x-service-report-modal />
 @endsection
 
 @section('scripts')
@@ -1505,12 +1742,116 @@ $(function () {
         new bootstrap.Modal('#escalateModal').show();
     };
 
-    /* ── Resolve modal ── */
-    window.openResolveModal = function (ticketId, ticketNumber) {
-        $('#resolveRef').text('#' + ticketNumber);
-        $('#resolveForm').attr('action', '/helpdesk/tickets/' + ticketId + '/resolve');
-        new bootstrap.Modal('#resolveModal').show();
+    /* ── Classify modal ── */
+    window.openClassifyModal = function (ticketId, ticketNumber) {
+        $('#acTicketRef').text('#' + ticketNumber);
+        $('#classifyForm').attr('action', '/helpdesk/tickets/' + ticketId + '/classify');
+        $('#acSlaRuleId').val('');
+        $('#acSubWrap, #acOverrideWrap').addClass('d-none');
+        $('#acSubList').empty();
+        $('#acResponseTime, #acResolutionTime').val('');
+        $('#acWorkloadClass').val('');
+        $('#acWorkloadManualHint').addClass('d-none');
+        $('#acCategoryList .cat-main-opt').removeClass('selected');
+
+        const $catList = $('#acCategoryList').empty();
+        slaCategories.forEach(cat => {
+            $catList.append(`<div class="cat-main-opt" data-cat-id="${cat.id}">${cat.name}</div>`);
+        });
+
+        new bootstrap.Modal('#classifyModal').show();
     };
+
+    /* ── Helpdesk Resolve modal (L1 quick fix) ── */
+    window.openHelpdeskResolveModal = function (ticketId, ticketNumber) {
+        $('#hdResolveRef').text('#' + ticketNumber);
+        $('#helpdeskResolveForm').attr('action', '/helpdesk/tickets/' + ticketId + '/resolve');
+        $('#helpdeskResolveForm textarea[name="resolution_notes"], #helpdeskResolveForm textarea[name="findings"], #helpdeskResolveForm textarea[name="recommendation"]').val('');
+        $('#helpdeskResolveForm input[name="service_type"][value="Remote"]').prop('checked', true);
+        new bootstrap.Modal('#helpdeskResolveModal').show();
+    };
+
+    /* ── Cancel Ticket modal ── */
+    window.openCancelModal = function (ticketId, ticketNumber) {
+        $('#cancelTicketRef').text('#' + ticketNumber);
+        $('#cancelTicketForm').attr('action', '/helpdesk/tickets/' + ticketId + '/cancel');
+        $('#cancelTicketForm textarea[name="reason"]').val('');
+        new bootstrap.Modal('#cancelTicketModal').show();
+    };
+
+    $(document).on('click', '#acCategoryList .cat-main-opt', function () {
+        $('#acCategoryList .cat-main-opt').removeClass('selected');
+        $(this).addClass('selected');
+
+        const catId = $(this).data('cat-id');
+        const cat = slaCategories.find(c => c.id === catId);
+        const $subList = $('#acSubList').empty();
+
+        if (!cat || !cat.subs.length) {
+            $subList.append(`<div style="font-size:12px;color:var(--tm)">No SLA rules defined for this category yet.</div>`);
+        } else {
+            cat.subs.forEach(sub => {
+                const priColor = sub.priority === 'Critical' ? '#8b0000' : (sub.priority === 'High' ? '#e24b4a' : (sub.priority === 'Medium' ? '#f5c842' : '#4a7c4a'));
+                $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}"
+                     data-priority="${sub.priority}" data-response="${sub.response}" data-resolution="${sub.resolution}">
+                    <div class="sub-check"></div>
+                    <span style="flex:1">${sub.name}</span>
+                    <span style="font-size:10px;font-weight:800;color:${priColor}">${sub.priority} · ${sub.resolution}m SLA</span>
+                </div>`);
+            });
+        }
+        $('#acSubWrap').removeClass('d-none');
+        $('#acOverrideWrap').addClass('d-none');
+    });
+
+    $(document).on('click', '#acSubList .cat-sub-opt', function () {
+        $('#acSubList .cat-sub-opt').removeClass('selected');
+        $(this).addClass('selected');
+        $('#acSlaRuleId').val($(this).data('rule-id'));
+
+        // Prefill the override fields with the rule's defaults — Helpdesk can still edit them.
+        $('#acPriority').val($(this).data('priority'));
+        $('#acResponseTime').val($(this).data('response'));
+        $('#acResolutionTime').val($(this).data('resolution'));
+        $('#acOverrideWrap').removeClass('d-none');
+    });
+
+    /* ── Workload class — auto-fills response/resolution, requires manual entry
+           for classes with no fixed resolution target (Project/Planned, Vendor). ── */
+    $(document).on('change', '#acWorkloadClass', function () {
+        const $opt = $(this).find(':selected');
+        const isManual = $opt.data('manual') === 1 || $opt.data('manual') === '1';
+
+        if (!$(this).val()) {
+            $('#acWorkloadManualHint').addClass('d-none');
+            $('#acResolutionTime').prop('readonly', false);
+            return;
+        }
+
+        $('#acResponseTime').val($opt.data('response'));
+
+        if (isManual) {
+            $('#acResolutionTime').val('').prop('readonly', false).trigger('focus');
+            $('#acWorkloadManualHint').removeClass('d-none');
+        } else {
+            $('#acResolutionTime').val($opt.data('resolution')).prop('readonly', false);
+            $('#acWorkloadManualHint').addClass('d-none');
+        }
+    });
+
+    $('#classifyForm').on('submit', function (e) {
+        if (!$('#acSlaRuleId').val()) {
+            e.preventDefault();
+            alert('Please select a subcategory.');
+            return;
+        }
+        const $wc = $('#acWorkloadClass').find(':selected');
+        const wcManual = $wc.data('manual') === 1 || $wc.data('manual') === '1';
+        if ($('#acWorkloadClass').val() && wcManual && !$('#acResolutionTime').val()) {
+            e.preventDefault();
+            alert(`The "${$wc.text().trim()}" workload class has no fixed resolution target — enter the agreed resolution time in minutes.`);
+        }
+    });
 
     /* ── Validate assign ── */
     $('#assignForm').on('submit', function (e) {

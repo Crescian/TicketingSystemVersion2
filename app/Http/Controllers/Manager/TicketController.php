@@ -114,6 +114,7 @@ class TicketController extends Controller
         $ticket->update([
             'status' => 'Pending Closure',
             'resolved_at' => now(),
+            'resolved_by' => Auth::id(),
         ]);
 
         TicketStatusHistories::create([

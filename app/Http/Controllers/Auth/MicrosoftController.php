@@ -59,6 +59,12 @@ class MicrosoftController extends Controller
                 $user->save();
             }
 
+            Log::info('Microsoft SSO: matched existing user', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'role' => $user->role?->role_name,
+            ]);
+
             return $user;
         }
 
@@ -75,6 +81,11 @@ class MicrosoftController extends Controller
         ]);
         $user->email_verified_at = now();
         $user->save();
+
+        Log::info('Microsoft SSO: auto-created new user', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+        ]);
 
         return $user;
     }
