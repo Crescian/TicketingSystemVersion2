@@ -18,12 +18,14 @@ class SlaRule extends Model
         'resolution_time_minutes',
         'is_active',
         'description',
+        'helpdesk_resolvable',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'response_time_minutes' => 'float',
         'resolution_time_minutes' => 'float',
+        'helpdesk_resolvable' => 'boolean',
     ];
 
     public function category()
@@ -46,22 +48,5 @@ class SlaRule extends Model
         $d = intval($days);
         $h = intval(($days - $d) * 24);
         return $d . 'd' . ($h > 0 ? ' ' . $h . 'h' : '');
-    }
-
-    public function isBreached(Tickets $ticket): bool
-    {
-        if (in_array($ticket->status, ['Resolved', 'Cancelled']))
-            return false;
-        $minutesOpen = $ticket->created_at->diffInMinutes(now());
-        return $minutesOpen >= $this->resolution_time_minutes;
-    }
-
-    public function isAtRisk(Tickets $ticket): bool
-    {
-        if (in_array($ticket->status, ['Resolved', 'Cancelled']))
-            return false;
-        $minutesOpen = $ticket->created_at->diffInMinutes(now());
-        return $minutesOpen >= ($this->resolution_time_minutes * 0.75)
-            && $minutesOpen < $this->resolution_time_minutes;
     }
 }

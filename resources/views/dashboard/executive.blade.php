@@ -5,6 +5,190 @@
 @section('avatar-initials', 'CE')
 @section('nav-username', 'C. Evangelista')
 
+@section('styles')
+    .rt-btn {
+        background: rgba(200, 230, 60, .12);
+        color: var(--ex-yg);
+        border: 1px solid rgba(200, 230, 60, .25);
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 800;
+        padding: 5px 14px;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .rt-btn:hover {
+        background: rgba(200, 230, 60, .22);
+    }
+
+    .esc-badge.success {
+        background: rgba(63, 185, 80, .15);
+        color: var(--ex-green);
+        border: 1px solid rgba(63, 185, 80, .2);
+    }
+
+    .esc-badge.muted {
+        background: rgba(125, 133, 144, .15);
+        color: var(--ex-muted);
+        border: 1px solid rgba(125, 133, 144, .2);
+    }
+
+    /* ── Dark-themed modal (Bootstrap defaults are light) ── */
+    #timelineModal .modal-content {
+        background: var(--ex-card);
+        border: 1px solid var(--ex-bd);
+        border-radius: 16px;
+        color: var(--ex-txt);
+    }
+
+    #timelineModal .modal-header,
+    #timelineModal .modal-footer {
+        border-color: var(--ex-bd);
+    }
+
+    #timelineModal .btn-close {
+        filter: invert(1) grayscale(100%) brightness(200%);
+    }
+
+    .tl-item {
+        display: flex;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(48, 54, 61, .6);
+    }
+
+    .tl-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .tl-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--ex-yg);
+        flex-shrink: 0;
+        margin-top: 5px;
+    }
+
+    .tl-time {
+        font-size: 11px;
+        color: var(--ex-muted);
+        font-weight: 700;
+    }
+
+    .tl-status {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--ex-txt);
+        margin: 2px 0;
+    }
+
+    .tl-notes {
+        font-size: 12px;
+        color: var(--ex-muted);
+    }
+
+    /* ── Presence (online/offline) ── */
+    .presence-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        display: inline-block;
+    }
+
+    .presence-dot.online {
+        background: var(--ex-green);
+        box-shadow: 0 0 0 0 rgba(63, 185, 80, .6);
+        animation: presence-pulse 2s infinite;
+    }
+
+    .presence-dot.offline {
+        background: var(--ex-muted);
+    }
+
+    @keyframes presence-pulse {
+        0% { box-shadow: 0 0 0 0 rgba(63, 185, 80, .5); }
+        70% { box-shadow: 0 0 0 5px rgba(63, 185, 80, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(63, 185, 80, 0); }
+    }
+
+    .presence-label {
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .presence-label.online { color: var(--ex-green); }
+    .presence-label.offline { color: var(--ex-muted); }
+
+    /* ── Search + filter controls (All Active Tickets) ── */
+    .ex-search-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--ex-card2);
+        border: 1px solid var(--ex-bd);
+        border-radius: 20px;
+        padding: 7px 14px;
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .ex-search-wrap input {
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--ex-txt);
+        font-size: 12px;
+        width: 100%;
+    }
+
+    .ex-search-wrap input::placeholder { color: var(--ex-muted); }
+    .ex-search-wrap i { color: var(--ex-muted); font-size: 12px; }
+
+    .ex-filter-select {
+        background: var(--ex-card2);
+        border: 1px solid var(--ex-bd);
+        border-radius: 20px;
+        padding: 7px 14px;
+        color: var(--ex-txt);
+        font-size: 12px;
+        font-weight: 700;
+        outline: none;
+    }
+
+    .ex-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 12px;
+    }
+
+    .ex-pg-btn {
+        background: var(--ex-card2);
+        color: var(--ex-txt);
+        border: 1px solid var(--ex-bd);
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 800;
+        padding: 5px 14px;
+        cursor: pointer;
+    }
+
+    .ex-pg-btn:hover:not(:disabled) { border-color: var(--ex-yg); }
+    .ex-pg-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .ex-pg-status {
+        font-size: 11px;
+        color: var(--ex-muted);
+        font-weight: 700;
+        white-space: nowrap;
+    }
+@endsection
+
 {{-- ══ MAIN CONTENT ══ --}}
 @section('content')
 
@@ -18,9 +202,13 @@
                 <div class="greeting-title">
                     {{ strtoupper($greeting) }}, <em>{{ strtoupper(explode(' ', Auth::user()->name)[0]) }}.</em>
                 </div>
-                <div class="greeting-sub">
-                    Here's your IT Support overview for the last 30 days — {{ now()->format('F Y') }}.
+                <div class="greeting-sub" id="greetingSub">
+                    Here's your IT Support overview for {{ $rangeLabel }}.
                 </div>
+                <a href="{{ route('executive.tickets.index') }}"
+                   style="display:inline-flex;align-items:center;gap:6px;margin-top:14px;background:var(--ex-yg);color:#161611;font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;padding:9px 20px;border-radius:50px;text-decoration:none">
+                    <i class="bi bi-inbox-fill"></i> View Support Request Queue
+                </a>
             </div>
             <div class="d-flex gap-3 flex-wrap align-items-center">
                 <div style="text-align:center">
@@ -65,7 +253,7 @@
         <div class="kpi-card yg">
             <div class="kpi-icon yg"><i class="bi bi-ticket-perforated"></i></div>
             <div class="kpi-value" data-kpi="totalTickets">{{ $totalTickets }}</div>
-            <div class="kpi-label">Total Tickets</div>
+            <div class="kpi-label">Total Support Requests</div>
             <span class="kpi-trend {{ $ticketChange >= 0 ? 'up' : 'down' }}" data-kpi="ticketTrend">
                 <i class="bi bi-arrow-{{ $ticketChange >= 0 ? 'up' : 'down' }}-short"></i>
                 {{ $ticketChange >= 0 ? '+' : '' }}{{ $ticketChange }}%
@@ -120,8 +308,8 @@
             <div class="chart-card h-100">
                 <div class="d-flex justify-content-between align-items-start mb-1">
                     <div>
-                        <div class="chart-title">Ticket Volume Trend</div>
-                        <div class="chart-sub">Daily tickets opened vs. resolved — last 30 days</div>
+                        <div class="chart-title">Support Request Volume Trend</div>
+                        <div class="chart-sub" id="volumeChartSub">Support requests opened vs. resolved — {{ $rangeLabel }}</div>
                     </div>
                     <div class="d-flex gap-3" style="font-size:12px;font-weight:700;color:var(--ex-muted)">
                         <span><span
@@ -137,7 +325,7 @@
         <div class="col-lg-4">
             <div class="chart-card h-100">
                 <div class="chart-title">SLA Compliance</div>
-                <div class="chart-sub">By priority level — this month</div>
+                <div class="chart-sub" id="slaChartSub">By priority level — {{ $rangeLabel }}</div>
                 <div class="sla-gauge-wrap mt-2">
                     <div class="gauge-item">
                         <div class="gauge-ring">
@@ -180,7 +368,7 @@
 
         <div class="col-lg-4">
             <div class="chart-card h-100">
-                <div class="chart-title">Tickets by Category</div>
+                <div class="chart-title">Support Requests by Category</div>
                 <div class="chart-sub">Distribution across all request types</div>
                 <div class="chart-wrap d-flex align-items-center gap-4 mt-2">
                     <canvas id="categoryChart" width="160" height="160" style="flex-shrink:0"></canvas>
@@ -216,10 +404,10 @@
 
         <div class="col-lg-4">
             <div class="chart-card h-100">
-                <div class="chart-title">Tickets by Department</div>
-                <div class="chart-sub">Volume this month — color = severity</div>
+                <div class="chart-title">Support Requests by Department</div>
+                <div class="chart-sub" id="deptChartSub">Volume — {{ $rangeLabel }} — color = severity</div>
                 {{-- ── Tickets by Department ── --}}
-                <div class="dept-grid mt-3">
+                <div class="dept-grid mt-3" id="deptGrid">
                     @foreach($byDepartment as $dept)
                         @php
                             $heat = $dept->total >= 35 ? 'hot' : ($dept->total >= 20 ? 'warm' : 'cool');
@@ -227,7 +415,7 @@
                         <div class="dept-cell {{ $heat }}">
                             <div class="dept-name">{{ $dept->department_name }}</div>
                             <div class="dept-count {{ $heat }}">{{ $dept->total }}</div>
-                            <div class="dept-label">tickets</div>
+                            <div class="dept-label">support requests</div>
                         </div>
                     @endforeach
                 </div>
@@ -261,7 +449,7 @@
         <div class="col-lg-5">
             <div class="chart-card h-100">
                 <div class="chart-title">Technician Performance</div>
-                <div class="chart-sub">Ranked by tickets resolved — this month</div>
+                <div class="chart-sub" id="leaderboardSub">Ranked by support requests resolved — {{ $rangeLabel }}</div>
                 <table class="lb-table mt-3">
                     <thead>
                         <tr>
@@ -324,36 +512,33 @@
                 {{-- Month-over-month comparison --}}
                 <div class="col-12">
                     <div class="chart-card">
-                        <div class="chart-title">Month-over-Month Comparison</div>
-                        <div class="chart-sub">February vs. March 2026</div>
+                        <div class="chart-title">Period Comparison</div>
+                        <div class="chart-sub" id="periodCompareSub">{{ $prevPeriodLabel }} vs. {{ $curPeriodLabel }}</div>
                         <div class="comparison-strip mt-3" id="momStrip">
                             <div class="cmp-col">
-                                <div class="cmp-period" data-mom="lastMonth">{{ $lastStart->format('M Y') }}</div>
+                                <div class="cmp-period" data-mom="lastMonth">Previous Period</div>
                                 <div class="cmp-val" data-mom="lastTotal">{{ $lastTotalTickets }}</div>
-                                <div class="cmp-diff" style="color:var(--ex-muted)">Total tickets</div>
+                                <div class="cmp-diff" style="color:var(--ex-muted)">Total support requests</div>
                             </div>
                             <div class="cmp-col">
-                                <div class="cmp-period" data-mom="curMonth">{{ now()->format('M Y') }}</div>
+                                <div class="cmp-period" data-mom="curMonth">Current Period</div>
                                 <div class="cmp-val" data-mom="curTotal">{{ $totalTickets }}</div>
                                 <div class="cmp-diff {{ $totalTickets > $lastTotalTickets ? 'worse' : 'better' }}"
                                     data-mom="totalDiff">
                                     {{ $totalTickets > $lastTotalTickets ? '+' : '' }}{{ $totalTickets - $lastTotalTickets }}
-                                    tickets
+                                    support requests
                                     {{ $totalTickets > $lastTotalTickets ? '↑' : '↓' }}
                                 </div>
                             </div>
                             <div class="cmp-col">
-                                <div class="cmp-period" data-mom="lastResolvePeriod">Avg Resolve
-                                    {{ $lastStart->format('M') }}
-                                </div>
+                                <div class="cmp-period" data-mom="lastResolvePeriod">Previous Period</div>
                                 <div class="cmp-val" data-mom="lastAvgTime">
                                     {{ $lastAvgTime ? number_format($lastAvgTime, 1) . 'h' : 'N/A' }}
                                 </div>
                                 <div class="cmp-diff" style="color:var(--ex-muted)">Resolution time</div>
                             </div>
                             <div class="cmp-col">
-                                <div class="cmp-period" data-mom="curResolvePeriod">Avg Resolve {{ now()->format('M') }}
-                                </div>
+                                <div class="cmp-period" data-mom="curResolvePeriod">Current Period</div>
                                 <div class="cmp-val" data-mom="curAvgTime">
                                     {{ $avgResolutionTime ? number_format($avgResolutionTime, 1) . 'h' : 'N/A' }}
                                 </div>
@@ -367,13 +552,12 @@
                                 @endif
                             </div>
                             <div class="cmp-col">
-                                <div class="cmp-period" data-mom="lastEscPeriod">Escalations {{ $lastStart->format('M') }}
-                                </div>
+                                <div class="cmp-period" data-mom="lastEscPeriod">Previous Period</div>
                                 <div class="cmp-val" data-mom="lastEsc">{{ $lastEscalations }}</div>
                                 <div class="cmp-diff" style="color:var(--ex-muted)">Escalations</div>
                             </div>
                             <div class="cmp-col">
-                                <div class="cmp-period" data-mom="curEscPeriod">Escalations {{ now()->format('M') }}</div>
+                                <div class="cmp-period" data-mom="curEscPeriod">Current Period</div>
                                 <div class="cmp-val" data-mom="curEsc">{{ $escalations }}</div>
                                 <div class="cmp-diff {{ $escalations > $lastEscalations ? 'worse' : 'better' }}"
                                     data-mom="escDiff">
@@ -391,7 +575,7 @@
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <div>
                                     <div class="chart-title">Escalations Requiring Attention</div>
-                                    <div class="chart-sub">Critical or SLA-breached tickets this month</div>
+                                    <div class="chart-sub">Critical or SLA-breached support requests this month</div>
                                 </div>
                                 <span id="criticalBadge"
                                     style="background:rgba(248,81,73,.12);color:var(--ex-red);font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;border:1px solid rgba(248,81,73,.2)">
@@ -441,8 +625,8 @@
 
             <div class="col-lg-8">
                 <div class="chart-card">
-                    <div class="chart-title">Weekly Ticket Breakdown</div>
-                    <div class="chart-sub">Tickets by status per week — last 4 weeks</div>
+                    <div class="chart-title">Weekly Support Request Breakdown</div>
+                    <div class="chart-sub" id="weeklyChartSub">Support requests by status per week — {{ $rangeLabel }}</div>
                     <div class="chart-wrap mt-2"><canvas id="weeklyChart" height="100"></canvas></div>
                 </div>
             </div>
@@ -450,7 +634,7 @@
             <div class="col-lg-4">
                 <div class="chart-card h-100">
                     <div class="chart-title">Customer Satisfaction</div>
-                    <div class="chart-sub">Rating breakdown this month</div>
+                    <div class="chart-sub" id="csatChartSub">Rating breakdown — {{ $rangeLabel }}</div>
                     <div class="text-center my-3">
                         <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:56px;line-height:1;color:var(--ex-yg)"
                             data-csat="avgRating">
@@ -485,6 +669,227 @@
 
         </div>
 
+        {{-- ── Row 6: IT Team Status ── --}}
+        <div class="row g-3 mb-2">
+            <div class="col-12">
+                <div class="chart-card">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div>
+                            <div class="chart-title">IT Team Status</div>
+                            <div class="chart-sub">Presence and workload for every active support-tier member</div>
+                        </div>
+                        <span id="itTeamOnlineBadge"
+                            style="background:rgba(63,185,80,.12);color:var(--ex-green);font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;border:1px solid rgba(63,185,80,.2)">
+                            {{ $itTeamStatus->where('online', true)->count() }} online
+                        </span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="lb-table mt-3">
+                            <thead>
+                                <tr>
+                                    <th>Member</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Active Support Requests</th>
+                                    <th style="text-align:right">Availability</th>
+                                </tr>
+                            </thead>
+                            <tbody id="itTeamBody">
+                                @forelse($itTeamStatus as $member)
+                                    @php
+                                        $initials = collect(explode(' ', $member->name))
+                                            ->map(fn($w) => strtoupper($w[0] ?? ''))->take(2)->join('');
+                                        $availBadge = match ($member->availability) {
+                                            'free' => 'success',
+                                            'busy' => 'open',
+                                            default => 'breach',
+                                        };
+                                        $availLabel = ucfirst($member->availability);
+                                    @endphp
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="lb-av">{{ $initials }}</div>
+                                                <div class="lb-name">{{ $member->name }}</div>
+                                            </div>
+                                        </td>
+                                        <td class="lb-role">{{ $member->role?->role_name ?? 'N/A' }}</td>
+                                        <td>
+                                            <span class="d-inline-flex align-items-center gap-2">
+                                                <span class="presence-dot {{ $member->online ? 'online' : 'offline' }}"></span>
+                                                <span class="presence-label {{ $member->online ? 'online' : 'offline' }}">
+                                                    {{ $member->online ? 'Online' : 'Offline' }}
+                                                </span>
+                                            </span>
+                                        </td>
+                                        <td style="font-size:13px;font-weight:700;color:var(--ex-txt)">
+                                            {{ $member->active_tickets }}
+                                        </td>
+                                        <td style="text-align:right">
+                                            <span class="esc-badge {{ $availBadge }}">{{ $availLabel }}</span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" style="text-align:center;color:var(--ex-muted);padding:20px">
+                                            No IT team members found.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- ── Row 7: All Active Tickets ── --}}
+        <div class="row g-3 mb-2">
+            <div class="col-12">
+                <div class="chart-card">
+                    <div class="d-flex justify-content-between align-items-start mb-1 flex-wrap gap-2">
+                        <div>
+                            <div class="chart-title">All Active Support Requests</div>
+                            <div class="chart-sub">Every open support request across the organization — click Timeline for the full history</div>
+                        </div>
+                        <a href="{{ route('executive.tickets.index') }}"
+                           style="font-size:12px;font-weight:800;color:var(--ex-yg);text-decoration:none">
+                            View Support Request Queue <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mt-3 mb-2">
+                        <div class="ex-search-wrap">
+                            <i class="bi bi-search"></i>
+                            <input type="text" id="activeTicketsSearch"
+                                   placeholder="Search support request #, subject, or requester…" autocomplete="off">
+                        </div>
+                        <select class="ex-filter-select" id="activeTicketsStatus">
+                            <option value="">All Statuses</option>
+                            @foreach($activeTicketStatuses as $st)
+                                <option value="{{ $st }}">{{ $st }}</option>
+                            @endforeach
+                        </select>
+                        <select class="ex-filter-select" id="activeTicketsPriority">
+                            <option value="">All Priorities</option>
+                            <option value="Critical">Critical</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="lb-table mt-1">
+                            <thead>
+                                <tr>
+                                    <th>Support Request</th>
+                                    <th>Requester</th>
+                                    <th>Status</th>
+                                    <th>Priority</th>
+                                    <th>Opened</th>
+                                    <th style="text-align:right">Timeline</th>
+                                </tr>
+                            </thead>
+                            <tbody id="activeTicketsBody">
+                                @forelse($activeTickets as $ticket)
+                                    @php
+                                        $statusLower = strtolower($ticket->status ?? '');
+                                        $badgeClass = match (true) {
+                                            str_contains($statusLower, 'escalated') => 'breach',
+                                            str_contains($statusLower, 'awaiting') || str_contains($statusLower, 'pending') => 'open',
+                                            str_contains($statusLower, 'progress') => 'admin',
+                                            default => 'muted',
+                                        };
+                                        $priorityColor = match ($ticket->ticket_type) {
+                                            'Critical' => 'var(--ex-critical)',
+                                            'High' => 'var(--ex-red)',
+                                            'Medium' => 'var(--ex-amber)',
+                                            'Low' => 'var(--ex-green)',
+                                            default => 'var(--ex-muted)',
+                                        };
+                                    @endphp
+                                    <tr>
+                                        <td>
+                                            <div style="font-weight:800;font-size:13px;color:var(--ex-txt)">
+                                                #{{ $ticket->ticket_number }}
+                                            </div>
+                                            <div style="font-size:12px;color:var(--ex-muted)">
+                                                {{ Str::limit($ticket->subject, 40) }}
+                                            </div>
+                                        </td>
+                                        <td style="font-size:12px;color:var(--ex-muted)">
+                                            {{ $ticket->user->name ?? 'Unknown' }}
+                                        </td>
+                                        <td>
+                                            <span class="esc-badge {{ $badgeClass }}">{{ $ticket->status }}</span>
+                                        </td>
+                                        <td>
+                                            <span style="font-size:12px;font-weight:700;color:{{ $priorityColor }}">
+                                                {{ $ticket->ticket_type ?? 'N/A' }}
+                                            </span>
+                                        </td>
+                                        <td style="font-size:12px;color:var(--ex-muted)">
+                                            {{ $ticket->created_at?->diffForHumans() }}
+                                        </td>
+                                        <td style="text-align:right">
+                                            <button type="button" class="rt-btn"
+                                                    onclick="openTimelineModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                                <i class="bi bi-clock-history me-1"></i>Timeline
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" style="text-align:center;color:var(--ex-muted);padding:20px">
+                                            No active tickets.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="ex-pagination" id="activeTicketsPagination">
+                        <span class="ex-pg-status" id="activeTicketsStatusText">
+                            Page {{ $activeTickets->currentPage() }} of {{ $activeTickets->lastPage() }}
+                            ({{ $activeTickets->total() }} total)
+                        </span>
+                        <button type="button" class="ex-pg-btn" id="activeTicketsPrev"
+                                {{ $activeTickets->onFirstPage() ? 'disabled' : '' }}>
+                            <i class="bi bi-chevron-left"></i> Prev
+                        </button>
+                        <button type="button" class="ex-pg-btn" id="activeTicketsNext"
+                                {{ $activeTickets->hasMorePages() ? '' : 'disabled' }}>
+                            Next <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+@endsection
+
+{{-- ══ MODALS ══ --}}
+@section('modals')
+    <div class="modal fade" id="timelineModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="mb-0">Support Request Timeline — <em id="timelineRef" style="color:var(--ex-yg)"></em></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body px-4 py-3" style="max-height:60vh;overflow-y:auto">
+                    <div id="timelineBody">
+                        <div class="text-center py-4" style="color:var(--ex-muted)">
+                            <div class="spinner-border spinner-border-sm me-2"></div>
+                            Loading timeline…
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="rt-btn" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
     {{-- ══ CHART SCRIPTS ══ --}}
@@ -558,7 +963,7 @@
                             labels: data.byCategory.map(c => c.request_category),
                             datasets: [{ data: data.byCategory.map(c => c.total), backgroundColor: catColors.slice(0, data.byCategory.length), borderWidth: 0, borderRadius: 4, spacing: 2 }]
                         },
-                        options: { cutout: '65%', responsive: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + c.label + ': ' + c.raw + ' tickets' } } } }
+                        options: { cutout: '65%', responsive: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + c.label + ': ' + c.raw + ' support requests' } } } }
                     });
 
                     /* ── Resolution time bar ── */
@@ -660,7 +1065,7 @@
                     const totalDiffEl = document.querySelector('[data-mom="totalDiff"]');
                     if (totalDiffEl) {
                         const diff = data.totalTickets - (data.lastTotalTickets ?? 0);
-                        totalDiffEl.textContent = `${diff > 0 ? '+' : ''}${diff} tickets ${diff > 0 ? '↑' : '↓'}`;
+                        totalDiffEl.textContent = `${diff > 0 ? '+' : ''}${diff} support requests ${diff > 0 ? '↑' : '↓'}`;
                         totalDiffEl.className = `cmp-diff ${diff > 0 ? 'worse' : 'better'}`;
                     }
 
@@ -765,6 +1170,80 @@
                             if (pctEl) pctEl.textContent = pct + '%';
                         });
                     }
+
+                    // ── Range-aware section labels
+                    if (data.rangeLabel) {
+                        const subs = {
+                            greetingSub: `Here's your IT Support overview for ${data.rangeLabel}.`,
+                            volumeChartSub: `Support requests opened vs. resolved — ${data.rangeLabel}`,
+                            slaChartSub: `By priority level — ${data.rangeLabel}`,
+                            deptChartSub: `Volume — ${data.rangeLabel} — color = severity`,
+                            leaderboardSub: `Ranked by support requests resolved — ${data.rangeLabel}`,
+                            weeklyChartSub: `Support requests by status per week — ${data.rangeLabel}`,
+                            csatChartSub: `Rating breakdown — ${data.rangeLabel}`,
+                        };
+                        Object.entries(subs).forEach(([id, text]) => {
+                            const el = document.getElementById(id);
+                            if (el) el.textContent = text;
+                        });
+                    }
+                    if (data.prevPeriodLabel && data.curPeriodLabel) {
+                        const cmpSub = document.getElementById('periodCompareSub');
+                        if (cmpSub) cmpSub.textContent = `${data.prevPeriodLabel} vs. ${data.curPeriodLabel}`;
+                    }
+
+                    // ── Tickets by Department heatmap
+                    const deptGrid = document.getElementById('deptGrid');
+                    if (deptGrid && data.byDepartment) {
+                        deptGrid.innerHTML = data.byDepartment.map(dept => {
+                            const heat = dept.total >= 35 ? 'hot' : (dept.total >= 20 ? 'warm' : 'cool');
+                            return `
+                                <div class="dept-cell ${heat}">
+                                    <div class="dept-name">${escHtml(dept.department_name)}</div>
+                                    <div class="dept-count ${heat}">${dept.total}</div>
+                                    <div class="dept-label">support requests</div>
+                                </div>`;
+                        }).join('') || '<div style="color:var(--ex-muted);font-size:12px;grid-column:1/-1">No data for this period.</div>';
+                    }
+
+                    // ── IT Team Status
+                    const itTeamBody = document.getElementById('itTeamBody');
+                    if (itTeamBody && data.itTeamStatus) {
+                        const onlineBadge = document.getElementById('itTeamOnlineBadge');
+                        const onlineCount = data.itTeamStatus.filter(m => m.online).length;
+                        if (onlineBadge) onlineBadge.textContent = `${onlineCount} online`;
+
+                        if (!data.itTeamStatus.length) {
+                            itTeamBody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--ex-muted);padding:20px">No IT team members found.</td></tr>`;
+                        } else {
+                            itTeamBody.innerHTML = data.itTeamStatus.map(member => {
+                                const initials = (member.name || '').split(' ').filter(Boolean)
+                                    .map(w => w[0].toUpperCase()).slice(0, 2).join('');
+                                const availability = member.availability || 'full';
+                                const availBadge = availability === 'free' ? 'success' : (availability === 'busy' ? 'open' : 'breach');
+                                const availLabel = availability.charAt(0).toUpperCase() + availability.slice(1);
+                                const presenceClass = member.online ? 'online' : 'offline';
+                                return `
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="lb-av">${initials}</div>
+                                                <div class="lb-name">${escHtml(member.name)}</div>
+                                            </div>
+                                        </td>
+                                        <td class="lb-role">${escHtml(member.role?.role_name ?? 'N/A')}</td>
+                                        <td>
+                                            <span class="d-inline-flex align-items-center gap-2">
+                                                <span class="presence-dot ${presenceClass}"></span>
+                                                <span class="presence-label ${presenceClass}">${member.online ? 'Online' : 'Offline'}</span>
+                                            </span>
+                                        </td>
+                                        <td style="font-size:13px;font-weight:700;color:var(--ex-txt)">${member.active_tickets ?? 0}</td>
+                                        <td style="text-align:right"><span class="esc-badge ${availBadge}">${availLabel}</span></td>
+                                    </tr>`;
+                            }).join('');
+                        }
+                    }
                 }
 
                 // ── Helper: time ago
@@ -783,11 +1262,95 @@
                         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                 }
 
-                /* ══ FETCH FRESH DATA FROM API ══ */
+                /* ══ ALL ACTIVE TICKETS — search/filter/paginate (AJAX, no page reload) ══ */
+                let activeTicketsPage = 1;
+                let activeTicketsTimer = null;
+
+                function activeTicketsBadgeClass(status) {
+                    const s = (status || '').toLowerCase();
+                    if (s.includes('escalated')) return 'breach';
+                    if (s.includes('awaiting') || s.includes('pending')) return 'open';
+                    if (s.includes('progress')) return 'admin';
+                    return 'muted';
+                }
+
+                function priorityColor(priority) {
+                    return priority === 'Critical' ? 'var(--ex-critical)'
+                        : priority === 'High' ? 'var(--ex-red)'
+                            : priority === 'Medium' ? 'var(--ex-amber)'
+                                : priority === 'Low' ? 'var(--ex-green)'
+                                    : 'var(--ex-muted)';
+                }
+
+                function renderActiveTickets(data) {
+                    const body = document.getElementById('activeTicketsBody');
+                    if (!body) return;
+
+                    if (!data.tickets.length) {
+                        body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--ex-muted);padding:20px">No active support requests match your filters.</td></tr>`;
+                    } else {
+                        body.innerHTML = data.tickets.map(t => `
+                            <tr>
+                                <td>
+                                    <div style="font-weight:800;font-size:13px;color:var(--ex-txt)">#${escHtml(t.ticket_number)}</div>
+                                    <div style="font-size:12px;color:var(--ex-muted)">${escHtml((t.subject || '').slice(0, 40))}</div>
+                                </td>
+                                <td style="font-size:12px;color:var(--ex-muted)">${escHtml(t.requester_name)}</td>
+                                <td><span class="esc-badge ${activeTicketsBadgeClass(t.status)}">${escHtml(t.status)}</span></td>
+                                <td><span style="font-size:12px;font-weight:700;color:${priorityColor(t.priority)}">${escHtml(t.priority || 'N/A')}</span></td>
+                                <td style="font-size:12px;color:var(--ex-muted)">${timeAgo(t.created_at)}</td>
+                                <td style="text-align:right">
+                                    <button type="button" class="rt-btn" onclick="openTimelineModal('${t.id}', '${escHtml(t.ticket_number)}')">
+                                        <i class="bi bi-clock-history me-1"></i>Timeline
+                                    </button>
+                                </td>
+                            </tr>`).join('');
+                    }
+
+                    const statusText = document.getElementById('activeTicketsStatusText');
+                    if (statusText) {
+                        statusText.textContent = `Page ${data.pagination.current_page} of ${data.pagination.last_page} (${data.pagination.total} total)`;
+                    }
+                    const prevBtn = document.getElementById('activeTicketsPrev');
+                    const nextBtn = document.getElementById('activeTicketsNext');
+                    if (prevBtn) prevBtn.disabled = data.pagination.current_page <= 1;
+                    if (nextBtn) nextBtn.disabled = data.pagination.current_page >= data.pagination.last_page;
+
+                    activeTicketsPage = data.pagination.current_page;
+                }
+
+                function fetchActiveTickets(page) {
+                    const params = new URLSearchParams({
+                        page: page || activeTicketsPage,
+                        search: document.getElementById('activeTicketsSearch')?.value || '',
+                        status: document.getElementById('activeTicketsStatus')?.value || '',
+                        priority: document.getElementById('activeTicketsPriority')?.value || '',
+                    });
+
+                    fetch('{{ route('executive.dashboard.active-tickets') }}?' + params.toString(), {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                    })
+                        .then(r => r.json())
+                        .then(renderActiveTickets)
+                        .catch(() => { });
+                }
+
+                document.getElementById('activeTicketsSearch')?.addEventListener('input', function () {
+                    clearTimeout(activeTicketsTimer);
+                    activeTicketsTimer = setTimeout(() => fetchActiveTickets(1), 400);
+                });
+                document.getElementById('activeTicketsStatus')?.addEventListener('change', () => fetchActiveTickets(1));
+                document.getElementById('activeTicketsPriority')?.addEventListener('change', () => fetchActiveTickets(1));
+                document.getElementById('activeTicketsPrev')?.addEventListener('click', () => fetchActiveTickets(activeTicketsPage - 1));
+                document.getElementById('activeTicketsNext')?.addEventListener('click', () => fetchActiveTickets(activeTicketsPage + 1));
+
+                /* ══ FETCH FRESH DATA FROM API — driven by the selected date range ══ */
+                let currentRange = '{{ $range }}';
+
                 function fetchExecutiveData() {
                     if (document.hidden) return; // Don't fetch if tab is hidden
 
-                    fetch('/executive/dashboard/data', {
+                    fetch('/executive/dashboard/data?range=' + encodeURIComponent(currentRange), {
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest',
                             'Accept': 'application/json',
@@ -800,9 +1363,16 @@
                         .then(data => {
                             updateKPIs(data);
                             initCharts(data);
+                            fetchActiveTickets(activeTicketsPage);
                         })
                         .catch(() => { }); // Silent fail
                 }
+
+                // ── Date-range buttons (7D/30D/90D/YTD) — event fired by layouts/executive.blade.php
+                $(document).on('rangeChange', function (e, range) {
+                    currentRange = range;
+                    fetchExecutiveData();
+                });
 
                 /* ══ INIT ON PAGE LOAD with existing PHP data ══ */
                 initCharts({
@@ -827,6 +1397,52 @@
                         refreshTimer = setInterval(fetchExecutiveData, 30000);
                     }
                 });
+
+                /* ══ Ticket timeline modal ══ */
+                window.openTimelineModal = function (ticketId, ticketNumber) {
+                    $('#timelineRef').text('#' + ticketNumber);
+                    $('#timelineBody').html(`
+                        <div class="text-center py-4" style="color:var(--ex-muted)">
+                            <div class="spinner-border spinner-border-sm me-2"></div>
+                            Loading timeline…
+                        </div>
+                    `);
+                    new bootstrap.Modal('#timelineModal').show();
+
+                    fetch('{{ url('/executive/tickets') }}/' + ticketId + '/history')
+                        .then(r => r.json())
+                        .then(data => {
+                            const histories = data.status_histories || [];
+                            if (!histories.length) {
+                                $('#timelineBody').html('<div style="color:var(--ex-muted);font-size:13px">No history available.</div>');
+                                return;
+                            }
+                            let html = '';
+                            histories
+                                .slice()
+                                .sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at))
+                                .forEach(h => {
+                                    const date = new Date(h.changed_at).toLocaleString('en-PH', {
+                                        month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
+                                    });
+                                    const by = h.changed_by?.name ?? 'System';
+                                    html += `
+                                        <div class="tl-item">
+                                            <div class="tl-dot"></div>
+                                            <div>
+                                                <div class="tl-time">${date} · ${by}</div>
+                                                <div class="tl-status">${h.old_status ?? '—'} → ${h.new_status}</div>
+                                                <div class="tl-notes">${h.notes ?? ''}</div>
+                                            </div>
+                                        </div>
+                                    `;
+                                });
+                            $('#timelineBody').html(html);
+                        })
+                        .catch(() => {
+                            $('#timelineBody').html('<div style="color:var(--ex-red)">Failed to load timeline.</div>');
+                        });
+                };
 
             });
         </script>

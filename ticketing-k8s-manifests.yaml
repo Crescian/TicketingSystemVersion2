@@ -1,0 +1,290 @@
+# =============================================================
+# TICKETING STACK — Kubernetes manifests
+# =============================================================
+# BEFORE APPLYING:
+# 1. Build the app image (from your existing Dockerfile, no changes needed):
+#      cd /home/cmlinux/projects/TicketingSystemVersion2
+#      docker build -f docker/php/Dockerfile -t ticketing-app:v2 .
+#
+# 2. Create the Secret yourself (do NOT put real secrets in a yaml file):
+#      kubectl create secret generic ticketing-secret \
+#        --from-literal=APP_KEY='base64:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=' \
+#        --from-literal=DB_PASSWORD='xxxxxxx' \
+#        --from-literal=REDIS_PASSWORD='xxxxxxx' \
+#        --from-literal=AZURE_CLIENT_ID='xxxxxxx' \
+#        --from-literal=AZURE_CLIENT_SECRET='xxxxxxx'
+#
+# 3. Then apply everything in this file:
+#      kubectl apply -f ticketing-k8s-manifests.yaml
+# =============================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ticketing-config
+data:
+  APP_NAME: "Ticketing"
+  APP_ENV: "production"
+  APP_DEBUG: "false"
+  APP_URL: "https://lg-ticketing.leoniogroup.com"
+  DB_CONNECTION: "pgsql"
+  DB_HOST: "ticketing-pgsql"
+  DB_PORT: "5432"
+  DB_DATABASE: "ticketing_system"
+  DB_USERNAME: "postgres"
+  SESSION_DRIVER: "database"
+  QUEUE_CONNECTION: "database"
+  CACHE_STORE: "database"
+  REDIS_CLIENT: "phpredis"
+  REDIS_HOST: "ticketing-redis"
+  REDIS_PORT: "6379"
+  AZURE_REDIRECT_URI: "https://lg-ticketing.leoniogroup.com/auth/microsoft/callback"
+  # Fill in your real tenant ID here (not sensitive on its own, but your call):
+  AZURE_TENANT_ID: "REPLACE_ME"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ticketing-nginx-config
+data:
+  default.conf: |
+    server {
+        listen 80;
+        root /var/www/html/public;
+        index index.php;
+
+        gzip on;
+        gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
+        gzip_min_length 1024;
+
+        location / {
+            try_files $uri $uri/ /index.php?$query_string;
+        }
+
+        location ~ \.php$ {
+            fastcgi_pass 127.0.0.1:9000;
+            include fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME /var/www/html/public$fastcgi_script_name;
+            fastcgi_buffer_size 128k;
+            fastcgi_buffers 4 256k;
+            fastcgi_busy_buffers_size 256k;
+            fastcgi_read_timeout 300;
+            fastcgi_connect_timeout 300;
+        }
+    }
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ticketing-pgdata
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ticketing-pgsql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ticketing-pgsql
+  template:
+    metadata:
+      labels:
+        app: ticketing-pgsql
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16.3
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: "ticketing_system"
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ticketing-secret
+                  key: DB_PASSWORD
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: pgdata
+          persistentVolumeClaim:
+            claimName: ticketing-pgdata
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticketing-pgsql
+spec:
+  selector:
+    app: ticketing-pgsql
+  ports:
+    - port: 5432
+      targetPort: 5432
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ticketing-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ticketing-redis
+  template:
+    metadata:
+      labels:
+        app: ticketing-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:latest
+          command: ["sh", "-c", "redis-server --appendonly yes --requirepass $REDIS_PASSWORD"]
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ticketing-secret
+                  key: REDIS_PASSWORD
+          ports:
+            - containerPort: 6379
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticketing-redis
+spec:
+  selector:
+    app: ticketing-redis
+  ports:
+    - port: 6379
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ticketing-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ticketing-app
+  template:
+    metadata:
+      labels:
+        app: ticketing-app
+    spec:
+      initContainers:
+        - name: copy-code
+          image: ticketing-app:v2
+          command: ["sh", "-c", "cp -r /var/www/html/. /shared/"]
+          volumeMounts:
+            - name: app-code
+              mountPath: /shared
+      containers:
+        - name: php-fpm
+          image: ticketing-app:v2
+          ports:
+            - containerPort: 9000
+          volumeMounts:
+            - name: app-code
+              mountPath: /var/www/html
+          envFrom:
+            - configMapRef:
+                name: ticketing-config
+            - secretRef:
+                name: ticketing-secret
+        - name: nginx
+          image: nginx:stable-alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: app-code
+              mountPath: /var/www/html
+              readOnly: true
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: app-code
+          emptyDir: {}
+        - name: nginx-config
+          configMap:
+            name: ticketing-nginx-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticketing-app
+spec:
+  selector:
+    app: ticketing-app
+  ports:
+    - port: 80
+      targetPort: 80
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ticketing-queue-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ticketing-queue-worker
+  template:
+    metadata:
+      labels:
+        app: ticketing-queue-worker
+    spec:
+      containers:
+        - name: queue-worker
+          image: ticketing-app:v2
+          command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=90"]
+          envFrom:
+            - configMapRef:
+                name: ticketing-config
+            - secretRef:
+                name: ticketing-secret
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ticketing-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    # Uncomment once cert-manager is installed, for automatic Let's Encrypt certs:
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  # tls:
+  #   - hosts:
+  #       - lg-ticketing.leoniogroup.com
+  #     secretName: ticketing-tls
+  rules:
+    - host: lg-ticketing.leoniogroup.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ticketing-app
+                port:
+                  number: 80

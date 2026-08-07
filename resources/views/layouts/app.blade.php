@@ -22,7 +22,7 @@
                         if (permission === 'granted') {
                             showBrowserNotif(
                                 '🔔 Notifications enabled!',
-                                'You will now receive updates for your tickets.'
+                                'You will now receive updates for your support requests.'
                             );
                         }
                     });
@@ -150,6 +150,25 @@
             color: var(--yg);
         }
 
+        .btn-back-dashboard {
+            display: inline-flex;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 800;
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1.5px solid var(--bd);
+            color: var(--tm);
+            text-decoration: none;
+            transition: all .2s;
+        }
+
+        .btn-back-dashboard:hover {
+            border-color: var(--gl);
+            color: var(--gd);
+            background: var(--ygl);
+        }
+
         /* Avatar chip — colour overridden per view */
         .avatar-chip {
             width: 34px;
@@ -230,6 +249,10 @@
 
         .stat-pill.danger .num {
             color: #ffaaaa;
+        }
+
+        .stat-pill.info .num {
+            color: #7fc4ff;
         }
 
         /* ── Sidebar shared styles ── */
@@ -394,6 +417,10 @@
             display: inline-block;
         }
 
+        .pri-critical {
+            background: #8b0000;
+        }
+
         .pri-high {
             background: #e24b4a;
         }
@@ -476,6 +503,16 @@
             color: #7a5a00;
         }
 
+        .badge-pending-closure {
+            background: #ffe8cc;
+            color: #8a4d00;
+        }
+
+        .badge-awaiting-requestor {
+            background: #e6f0ff;
+            color: #1a4d8f;
+        }
+
         /* Ticket left border colours */
         .ticket-card.open::before {
             background: var(--gl);
@@ -504,6 +541,14 @@
 
         .ticket-card.accepted::before {
             background: #f5c842;
+        }
+
+        .ticket-card.pending-closure::before {
+            background: #f0a030;
+        }
+
+        .ticket-card.awaiting-requestor::before {
+            background: #3a7fd5;
         }
 
         /* ── Search & sort ── */
@@ -757,6 +802,19 @@
             animation-delay: .34s;
         }
 
+        /* Admin role badge — red gradient */
+        .role-badge-admin {
+            background: linear-gradient(135deg, var(--rd), #c0392b);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 14px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            box-shadow: 0 2px 8px rgba(139, 26, 26, .3);
+        }
+
         /* ── Page-specific styles injected per view ── */
         @yield('styles')
     </style>
@@ -779,16 +837,13 @@
     {{-- ── NAVBAR ── --}}
     <nav class="navbar sticky-top px-4">
         <div class="container-fluid px-0">
-            <a class="navbar-brand" href="{{ 
-                match (Auth::user()->role?->role_name) {
-        'Helpdesk' => route('helpdesk.dashboard'),
-        'IT Support Specialist' => route('technician.dashboard'),
-        'IT Admin' => route('admin.dashboard'),
-        'Manager' => route('executive.dashboard'),
-        default => route('employee.tickets.index'),
-    }
-            }}">LG<span>ICTicketingSystem</span></a>
+            <a class="navbar-brand" href="{{ route(Auth::user()->dashboardRoute()) }}">Support Request<span> System</span></a>
             <div class="ms-auto d-flex align-items-center gap-2">
+                @if(!Route::is(Auth::user()->dashboardRoute()))
+                    <a href="{{ route(Auth::user()->dashboardRoute()) }}" class="btn-back-dashboard">
+                        <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+                    </a>
+                @endif
                 @yield('nav-role-badge')
                 <a href="{{ route('profile') }}"
                     class="d-flex align-items-center gap-2 text-decoration-none text-reset">
@@ -844,8 +899,8 @@
     <script>
         /* ── Shared: tab + sidebar filter ── */
         function setFilter(val, labelMap) {
-            const label = labelMap || { all: 'All Tickets' };
-            $('#listTitle').text(label[val] || 'All Tickets');
+            const label = labelMap || { all: 'All Support Requests' };
+            $('#listTitle').text(label[val] || 'All Support Requests');
             $('.tab-pill').removeClass('active').filter('[data-filter="' + val + '"]').addClass('active');
             $('#sideNav .list-group-item').removeClass('active').filter('[data-filter="' + val + '"]').addClass('active');
             $('#ticketList .ticket-card').each(function () {

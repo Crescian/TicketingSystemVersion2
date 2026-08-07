@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'My Support Tickets — LGICT')
+@section('title', 'My Support Requests — LGICT')
 
 {{-- ── Nav ── --}}
 @section('nav-role-badge')
@@ -13,58 +13,185 @@
 
 {{-- ── Hero ── --}}
 @section('hero-title')
-    <h1>MY <em>SUPPORT</em><br>TICKETS</h1>
+    <h1>MY <em>SUPPORT</em><br>REQUESTS</h1>
 @endsection
 @section('hero-subtitle', 'Track your requests and get IT help fast.')
 
 @section('hero-stats')
     <div class="d-flex gap-2 flex-wrap">
         <div class="stat-pill">
-            <span class="num" id="cnt-open">{{ $counts['open'] }}</span>
-            <span class="lbl">Open</span>
+            <span class="num" id="cnt-open">{{ $counts['pending_acknowledgement'] }}</span>
+            <span class="lbl">Pending Ack.</span>
+        </div>
+        <div class="stat-pill">
+            <span class="num" id="cnt-class">{{ $counts['classification_assignment'] }}</span>
+            <span class="lbl">Classification</span>
         </div>
         <div class="stat-pill warn">
             <span class="num" id="cnt-prog">{{ $counts['in_progress'] }}</span>
             <span class="lbl">In Progress</span>
         </div>
-        <div class="stat-pill">
-            <span class="num" id="cnt-esc">{{ $counts['escalated'] }}</span>
-            <span class="lbl">Escalated</span>
+        <div class="stat-pill info">
+            <span class="num" id="cnt-await">{{ $counts['awaiting_requestor'] }}</span>
+            <span class="lbl">Awaiting You</span>
         </div>
         <div class="stat-pill">
-            <span class="num" id="cnt-done">{{ $counts['resolved'] }}</span>
-            <span class="lbl">Resolved</span>
+            <span class="num" id="cnt-done">{{ $counts['closed'] }}</span>
+            <span class="lbl">Closed</span>
         </div>
     </div>
 @endsection
 
 @section('hero-cta')
-    <button class="btn-new" data-bs-toggle="modal" data-bs-target="#ticketModal">
-        <i class="bi bi-plus-lg me-1"></i> New Ticket
+    <button class="btn-news" data-bs-toggle="modal" data-bs-target="#ticketModal">
+        <i class="bi bi-plus-lg me-1"></i> New Request
     </button>
 @endsection
 
 {{-- ── Page-specific styles ── --}}
 @section('styles')
     /* ── Employee: New Ticket button ── */
-    .btn-new {
+    .btn-news {
         background: var(--yg); color: var(--gd);
         font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 15px;
         padding: 13px 28px; border-radius: 50px; border: none;
         transition: background .2s, transform .15s; white-space: nowrap;
     }
-    .btn-new:hover { background: var(--ygd); transform: translateY(-2px); }
+    .btn-news:hover { background: var(--ygd); transform: translateY(-2px); }
 
-    /* ── Modal: step wizard ── */
-    .step-ind { display: flex; align-items: center; }
-    .step-item { display: flex; align-items: center; gap: 8px; flex: 1; }
-    .step-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 13px; background: var(--bd); color: var(--tm); flex-shrink: 0; transition: all .3s; }
-    .step-item.active .step-num { background: var(--gd); color: var(--yg); }
-    .step-item.done   .step-num { background: var(--yg); color: var(--gd); }
-    .step-lbl { font-size: 12px; font-weight: 700; color: var(--tm); white-space: nowrap; }
-    .step-item.active .step-lbl { color: var(--gd); }
-    .step-line { flex: 1; height: 2px; background: var(--bd); margin: 0 8px; transition: background .3s; }
-    .step-line.done { background: var(--yg); }
+    /* ── Onboarding modal ── */
+    .onboard-icon {
+        width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+        background: var(--ygl); color: var(--gd);
+        display: flex; align-items: center; justify-content: center; font-size: 15px;
+    }
+
+    /* ── Available IT panel ── */
+    .it-avail-row { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:10px; }
+    .it-avail-row:hover { background:var(--ygl); }
+    .it-avail-av { width:30px; height:30px; border-radius:50%; flex-shrink:0; background:var(--gd); color:var(--yg); font-family:'Nunito',sans-serif; font-weight:800; font-size:11px; display:flex; align-items:center; justify-content:center; }
+    .it-avail-info { display:flex; flex-direction:column; flex:1; min-width:0; }
+    .it-avail-name { font-family:'Nunito',sans-serif; font-weight:800; font-size:12.5px; color:var(--gd); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .it-avail-role { font-size:10.5px; color:var(--tm); font-weight:600; }
+    .it-avail-status { display:flex; align-items:center; gap:5px; font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.3px; flex-shrink:0; }
+    .it-avail-status.online  { color:#1a7a3a; }
+    .it-avail-status.offline { color:var(--tm); }
+    .it-avail-dot { width:8px; height:8px; border-radius:50%; background:#b8b8a8; }
+    .it-avail-status.online .it-avail-dot { background:#2ecc71; box-shadow:0 0 0 0 rgba(46,204,113,.6); animation:itAvailPulse 2s infinite; }
+    @keyframes itAvailPulse {
+        0%   { box-shadow:0 0 0 0 rgba(46,204,113,.5); }
+        70%  { box-shadow:0 0 0 5px rgba(46,204,113,0); }
+        100% { box-shadow:0 0 0 0 rgba(46,204,113,0); }
+    }
+    .it-avail-empty { font-size:12.5px; color:var(--tm); padding:6px 8px; }
+
+    /* ── Awaiting-you attention banner ── */
+    .awaiting-banner {
+        display: flex; align-items: center; gap: 14px;
+        background: linear-gradient(135deg, #ff9f43, #ff7a1a);
+        border-radius: 14px; padding: 14px 20px; margin-bottom: 16px;
+        box-shadow: 0 4px 14px rgba(255, 122, 26, .35);
+        color: #fff; text-decoration: none;
+        animation: awaitingPulse 2.2s ease-in-out infinite;
+    }
+    .awaiting-banner:hover { color: #fff; filter: brightness(1.05); }
+    .awaiting-banner .aw-icon {
+        width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+        background: rgba(255,255,255,.25);
+        display: flex; align-items: center; justify-content: center; font-size: 20px;
+    }
+    .awaiting-banner .aw-title { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 15px; }
+    .awaiting-banner .aw-sub { font-size: 12.5px; opacity: .9; font-weight: 600; }
+    .awaiting-banner .aw-cta {
+        margin-left: auto; background: #fff; color: #ff7a1a;
+        font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 13px;
+        padding: 8px 18px; border-radius: 50px; white-space: nowrap;
+    }
+    @keyframes awaitingPulse {
+        0%, 100% { box-shadow: 0 4px 14px rgba(255, 122, 26, .35); }
+        50%      { box-shadow: 0 4px 22px rgba(255, 122, 26, .65); }
+    }
+
+    /* ── Ticket card: lifecycle tracker ── */
+    .progress-strip { display:flex; align-items:center; margin-bottom:14px; }
+    .ps-step { flex:1; text-align:center; }
+    .ps-dot { width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 4px; font-size:11px; font-weight:900; font-family:'Nunito',sans-serif; border:2px solid var(--bd); background:#fff; color:var(--tm); transition:all .3s; }
+    .ps-dot.done   { background:var(--gd); color:var(--yg); border-color:var(--gd); }
+    .ps-dot.active { background:var(--yg); color:var(--gd); border-color:var(--yg); }
+    .ps-dot.failed { background:#e24b4a; color:#fff; border-color:#e24b4a; }
+    .ps-lbl { font-size:9px; font-weight:700; color:var(--tm); text-transform:uppercase; letter-spacing:.3px; }
+    .ps-lbl.done   { color:var(--gd); }
+    .ps-lbl.active { color:var(--gd); font-weight:800; }
+    .ps-lbl.failed { color:#e24b4a; font-weight:800; }
+    .ps-line { flex:1; height:2px; background:var(--bd); transition:background .3s; }
+    .ps-line.done  { background:var(--gd); }
+
+     /* ── Modal: step wizard ── */
+/* ── Compact Step Wizard ── */
+.step-ind{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    max-width:420px;
+    margin:0 auto 1.25rem;
+}
+
+.step-item{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex:0 0 auto;
+}
+
+.step-num{
+    width:28px;
+    height:28px;
+    border-radius:50%;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    font-size:14px;
+    font-weight:800;
+
+    background:var(--bd);
+    color:var(--tm);
+
+    transition:.25s;
+}
+
+.step-item.active .step-num{
+    background:var(--gd);
+    color:var(--yg);
+}
+
+.step-item.done .step-num{
+    background:var(--yg);
+    color:var(--gd);
+}
+
+.step-lbl{
+    font-size:12px;
+    font-weight:700;
+    color:var(--tm);
+}
+
+.step-item.active .step-lbl{
+    color:var(--gd);
+}
+
+.step-line{
+    width:110px;
+    height:2px;
+    background:var(--bd);
+    border-radius:999px;
+    margin:0 14px;
+}
+
+.step-line.done{
+    background:var(--yg);
+}
 
     /* Device grid */
     .device-opt { border: 1.5px solid var(--bd); border-radius: 12px; padding: 14px 8px; text-align: center; cursor: pointer; transition: all .2s; background: var(--cr); user-select: none; }
@@ -106,10 +233,19 @@
     /* View details button */
     .btn-view-detail { background: none; border: 1.5px solid var(--bd); color: var(--tm); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; padding: 7px 18px; border-radius: 50px; transition: all .2s; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
     .btn-view-detail:hover { border-color: var(--gl); color: var(--gd); }
+    /* ── Service Report button (same green as resolve actions system-wide) ── */
+    .btn-service-report { background:#e8f5ee; color:#1a5a3a; font-family:'Nunito',sans-serif; font-weight:800; font-size:13px; padding:7px 18px; border-radius:50px; border:1.5px solid #a8ddc0; cursor:pointer; transition:all .2s; text-decoration:none; display:inline-flex; align-items:center; gap:4px; }
+    .btn-service-report:hover { background:#c8ead8; }
     /* ── Chat button ── */
     .btn-chat { background:#e8eeff; color:#2a4ab0; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #b8c8ff; cursor:pointer; transition:all .2s; display:inline-flex; align-items:center; gap:5px; }
     .btn-chat:hover { background:#d0dcff; border-color:#8898dd; }
     .chat-count-badge { background:#e24b4a; color:#fff; font-size:10px; font-weight:900; border-radius:20px; padding:1px 6px; font-family:'Nunito',sans-serif; min-width:18px; text-align:center; }
+    .btn-acknowledge { background:#e0f5e0; color:#1e6b1e; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #a8dba8; cursor:pointer; transition:all .2s; display:inline-flex; align-items:center; gap:5px; }
+    .btn-acknowledge:hover { background:#c8ecc8; border-color:#7fc97f; }
+    .btn-rate { background:#fff4cc; color:#7a5a00; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #f5c842; cursor:pointer; transition:all .2s; display:inline-flex; align-items:center; gap:5px; }
+    .btn-rate:hover { background:#ffe999; border-color:#e0b020; }
+
+    .rated-chip { background:#fff9e6; color:#7a5a00; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #f5c842; display:inline-flex; align-items:center; gap:4px; }
 
     /* ── Star rating ── */
     .star-rating { display:flex; flex-direction:row-reverse; gap:4px; justify-content:flex-end; }
@@ -197,42 +333,97 @@
     border-color: var(--gd);
     color: var(--yg);
   }
+
+  .pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+  .pagination li {
+    margin: 2px;
+  }
+  .pagination .page-link {
+    border-radius: 8px !important;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  @media (max-width: 768px) {
+    .pagination {
+        font-size: 12px;
+    }
+    .pagination .page-link {
+        padding: 4px 8px;
+    }
+  }
 @endsection
 
 {{-- ══ SIDEBAR ══ --}}
 @section('sidebar')
+    {{-- Available IT — who's online right now, from Helpdesk + IT Support
+         Specialist. Refreshed every 30s via /employee/it-team/presence. --}}
+    <div class="sidebar-card mb-3">
+        <div class="sidebar-head">Available IT</div>
+        <div class="p-2 d-flex flex-column gap-1" id="itTeamList">
+            @forelse($itTeam as $member)
+                @php
+                    $mParts = explode(' ', $member->name);
+                    $mInitials = strtoupper(substr($mParts[0], 0, 1)) .
+                                 strtoupper(substr($mParts[count($mParts) - 1], 0, 1));
+                @endphp
+                <div class="it-avail-row">
+                    <span class="it-avail-av">{{ $mInitials }}</span>
+                    <span class="it-avail-info">
+                        <span class="it-avail-name">{{ $member->name }}</span>
+                        <span class="it-avail-role">{{ $member->role?->role_name ?? 'N/A' }}</span>
+                    </span>
+                    <span class="it-avail-status {{ $member->online ? 'online' : 'offline' }}">
+                        <span class="it-avail-dot"></span>{{ $member->online ? 'Online' : 'Offline' }}
+                    </span>
+                </div>
+            @empty
+                <div class="it-avail-empty">No IT staff on record.</div>
+            @endforelse
+        </div>
+    </div>
+
     {{-- Nav menu --}}
     <div class="sidebar-card mb-3">
-        <div class="sidebar-head">My Tickets</div>
+        <div class="sidebar-head">My Support Requests</div>
         <ul class="list-group sidebar-menu rounded-0" id="sideNav">
             <li class="list-group-item {{ $status === 'all' ? 'active' : '' }}">
                 <a href="{{ route('employee.tickets.index', ['status' => 'all']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
-                    <span><i class="bi bi-grid me-2"></i>All tickets</span>
+                    <span><i class="bi bi-grid me-2"></i>All support requests</span>
                     <span class="badge-count">{{ $counts['all'] }}</span>
                 </a>
             </li>
-            <li class="list-group-item {{ $status === 'open' ? 'active' : '' }}">
-                <a href="{{ route('employee.tickets.index', ['status' => 'open']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
-                    <span><i class="bi bi-circle me-2"></i>Open</span>
-                    <span class="badge-count">{{ $counts['open'] }}</span>
+            <li class="list-group-item {{ $status === 'pending_acknowledgement' ? 'active' : '' }}">
+                <a href="{{ route('employee.tickets.index', ['status' => 'pending_acknowledgement']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
+                    <span><i class="bi bi-circle me-2"></i>Pending Acknowledgement</span>
+                    <span class="badge-count">{{ $counts['pending_acknowledgement'] }}</span>
                 </a>
             </li>
-            <li class="list-group-item {{ $status === 'in progress' ? 'active' : '' }}">
-                <a href="{{ route('employee.tickets.index', ['status' => 'in progress']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
+            <li class="list-group-item {{ $status === 'classification_assignment' ? 'active' : '' }}">
+                <a href="{{ route('employee.tickets.index', ['status' => 'classification_assignment']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
+                    <span><i class="bi bi-diagram-3 me-2"></i>Classification &amp; Assignment</span>
+                    <span class="badge-count">{{ $counts['classification_assignment'] }}</span>
+                </a>
+            </li>
+            <li class="list-group-item {{ $status === 'in_progress' ? 'active' : '' }}">
+                <a href="{{ route('employee.tickets.index', ['status' => 'in_progress']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
                     <span><i class="bi bi-arrow-repeat me-2"></i>In progress</span>
                     <span class="badge-count">{{ $counts['in_progress'] }}</span>
                 </a>
             </li>
-            <li class="list-group-item {{ $status === 'escalated' ? 'active' : '' }}">
-                <a href="{{ route('employee.tickets.index', ['status' => 'escalated']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
-                    <span><i class="bi bi-exclamation-triangle me-2"></i>Escalated</span>
-                    <span class="badge-count">{{ $counts['escalated'] }}</span>
+            <li class="list-group-item {{ $status === 'awaiting_requestor' ? 'active' : '' }}">
+                <a href="{{ route('employee.tickets.index', ['status' => 'awaiting_requestor']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
+                    <span><i class="bi bi-hourglass-split me-2"></i>Awaiting you</span>
+                    <span class="badge-count">{{ $counts['awaiting_requestor'] }}</span>
                 </a>
             </li>
-            <li class="list-group-item {{ $status === 'resolved' ? 'active' : '' }}">
-                <a href="{{ route('employee.tickets.index', ['status' => 'resolved']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
-                    <span><i class="bi bi-check-circle me-2"></i>Resolved</span>
-                    <span class="badge-count">{{ $counts['resolved'] }}</span>
+            <li class="list-group-item {{ $status === 'closed' ? 'active' : '' }}">
+                <a href="{{ route('employee.tickets.index', ['status' => 'closed']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
+                    <span><i class="bi bi-check-circle me-2"></i>Closed</span>
+                    <span class="badge-count">{{ $counts['closed'] }}</span>
                 </a>
             </li>
         </ul>
@@ -247,9 +438,9 @@
                 <label class="form-label mb-1">Category</label>
                 <select class="form-select form-select-sm" name="category">
                     <option value="">All categories</option>
-                    @foreach(['Hardware','Software','Network','Account','Other'] as $cat)
-                        <option value="{{ $cat }}" {{ request('category') === $cat ? 'selected' : '' }}>
-                            {{ $cat }}
+                    @foreach($slaCategories as $cat)
+                        <option value="{{ $cat->id }}" {{ request('category') === $cat->id ? 'selected' : '' }}>
+                            {{ $cat->name }}
                         </option>
                     @endforeach
                 </select>
@@ -259,10 +450,15 @@
                 <input type="date" class="form-control form-control-sm"
                        name="from_date" value="{{ request('from_date') }}">
             </div>
+            <div>
+                <label class="form-label mb-1">To date</label>
+                <input type="date" class="form-control form-control-sm"
+                       name="to_date" value="{{ request('to_date') }}">
+            </div>
             <button type="submit" class="btn btn-filter w-100 mt-1">
                 Apply filters
             </button>
-            @if(request('category') || request('from_date'))
+            @if(request('category') || request('from_date') || request('to_date'))
                 <a href="{{ route('employee.tickets.index', ['status' => $status]) }}"
                    class="btn btn-sm btn-outline-secondary w-100">
                     Clear filters
@@ -274,6 +470,24 @@
 
 {{-- ══ MAIN CONTENT ══ --}}
 @section('content')
+
+    {{-- Awaiting-you attention banner — resolved tickets need the employee to
+         acknowledge before they can close, so this stays up (not dismissible)
+         for as long as any ticket is sitting in that state. --}}
+    @if($counts['awaiting_requestor'] > 0)
+        <a href="{{ route('employee.tickets.index', ['status' => 'awaiting_requestor']) }}"
+           class="awaiting-banner">
+            <span class="aw-icon"><i class="bi bi-exclamation-lg"></i></span>
+            <span>
+                <div class="aw-title">
+                    {{ $counts['awaiting_requestor'] }}
+                    {{ Str::plural('support request', $counts['awaiting_requestor']) }} awaiting your acknowledgment
+                </div>
+                <div class="aw-sub">Confirm the resolution so we can close {{ $counts['awaiting_requestor'] === 1 ? 'it' : 'them' }} out.</div>
+            </span>
+            <span class="aw-cta">Review Now <i class="bi bi-arrow-right ms-1"></i></span>
+        </a>
+    @endif
 
     {{-- Success / Error alerts --}}
     @if(session('success'))
@@ -294,15 +508,16 @@
         <span class="font-brand fw-900" style="font-size:22px" id="listTitle">
             @php
                 $labels = [
-                    'all'         => 'All Tickets',
-                    'open'        => 'Open Tickets',
-                    'in progress' => 'In Progress',
-                    'escalated'   => 'Escalated',
-                    'resolved'    => 'Resolved',
-                    'cancelled'   => 'Cancelled',
+                    'all'                        => 'All Support Requests',
+                    'pending_acknowledgement'    => 'Pending Acknowledgement',
+                    'classification_assignment'  => 'Classification & Assignment',
+                    'in_progress'                => 'In Progress',
+                    'awaiting_requestor'         => 'Awaiting Your Acknowledgment',
+                    'closed'                     => 'Closed',
+                    'cancelled'                  => 'Cancelled',
                 ];
             @endphp
-            {{ $labels[$status] ?? 'All Tickets' }}
+            {{ $labels[$status] ?? 'All Support Requests' }}
         </span>
         <form method="GET" action="{{ route('employee.tickets.index') }}"
               class="d-flex gap-2" id="searchForm">
@@ -310,7 +525,7 @@
             <div class="search-wrap">
                 <i class="bi bi-search" style="color:var(--tm)"></i>
                 <input type="text" name="search" id="searchInput"
-                       placeholder="Search tickets…"
+                       placeholder="Search support requests…"
                        value="{{ $search }}" autocomplete="off">
             </div>
             <select class="sort-select" name="sort" onchange="this.form.submit()">
@@ -325,12 +540,13 @@
     <div class="d-flex flex-wrap gap-2 mb-3" id="tabRow">
         @php
             $tabs = [
-                'all'         => ['label' => 'All',         'count' => $counts['all']],
-                'open'        => ['label' => 'Open',        'count' => $counts['open']],
-                'in progress' => ['label' => 'In Progress', 'count' => $counts['in_progress']],
-                'escalated'   => ['label' => 'Escalated',   'count' => $counts['escalated']],
-                'resolved'    => ['label' => 'Resolved',    'count' => $counts['resolved']],
-                'cancelled'   => ['label' => 'Cancelled',   'count' => $counts['cancelled']],
+                'all'                        => ['label' => 'All',                    'count' => $counts['all']],
+                'pending_acknowledgement'    => ['label' => 'Pending Acknowledgement', 'count' => $counts['pending_acknowledgement']],
+                'classification_assignment'  => ['label' => 'Classification',         'count' => $counts['classification_assignment']],
+                'in_progress'                => ['label' => 'In Progress',            'count' => $counts['in_progress']],
+                'awaiting_requestor'         => ['label' => 'Awaiting You',           'count' => $counts['awaiting_requestor']],
+                'closed'                     => ['label' => 'Closed',                 'count' => $counts['closed']],
+                'cancelled'                  => ['label' => 'Cancelled',              'count' => $counts['cancelled']],
             ];
         @endphp
         @foreach($tabs as $key => $tab)
@@ -347,32 +563,116 @@
         @forelse($tickets as $ticket)
             @php
                 $statusClass = match($ticket->status) {
-                    'Open'        => 'open',
-                    'In Progress' => 'in-progress',
-                    'Escalated'   => 'escalated',
-                    'Resolved'    => 'resolved',
-                    'Cancelled'   => 'cancelled',
-                    default       => ''
+                    'Open'                => 'open',
+                    'In Progress'         => 'in-progress',
+                    'Escalated'           => 'escalated',
+                    'Awaiting Requestor'  => 'awaiting-requestor',
+                    'Closed'              => 'closed',
+                    'Cancelled'           => 'cancelled',
+                    default               => ''
                 };
                 $badgeClass = match($ticket->status) {
-                    'Open'        => 'badge-open',
-                    'In Progress' => 'badge-in-progress',
-                    'Escalated'   => 'badge-escalated',
-                    'Resolved'    => 'badge-resolved',
-                    'Cancelled'   => 'badge-cancelled',
-                    default       => ''
+                    'Open'                => 'badge-open',
+                    'In Progress'         => 'badge-in-progress',
+                    'Escalated'           => 'badge-escalated',
+                    'Awaiting Requestor'  => 'badge-awaiting',
+                    'Closed'              => 'badge-closed',
+                    'Cancelled'           => 'badge-cancelled',
+                    default               => ''
                 };
                 $badgeIcon = match($ticket->status) {
-                    'Open'        => '●',
-                    'In Progress' => '⟳',
-                    'Escalated'   => '⚠',
-                    'Resolved'    => '✓',
-                    'Cancelled'   => '✕',
-                    default       => ''
+                    'Open'                => '●',
+                    'In Progress'         => '⟳',
+                    'Escalated'           => '⚠',
+                    'Awaiting Requestor'  => '⏳',
+                    'Closed'              => '✓',
+                    'Cancelled'           => '✕',
+                    default               => ''
                 };
                 $initials = $ticket->assignedTo
                     ? strtoupper(substr($ticket->assignedTo->name, 0, 1)) . strtoupper(substr($ticket->assignedTo->name, strpos($ticket->assignedTo->name, ' ') + 1, 1))
                     : '—';
+
+                // ── Full lifecycle tracker: Submitted -> Acknowledged -> Classified & Assigned ->
+                // In Progress -> Done Service Support -> Preparing Service Report ->
+                // Awaiting Your Confirmation -> Closed. Collapses the many internal handoff
+                // statuses (supervisor classification, technician acknowledgement, admin
+                // validation, etc.) into the 8 phases that actually matter to the requestor.
+                $isCancelled = $ticket->status === 'Cancelled';
+                $isClosedT   = $ticket->status === 'Closed';
+                $isAwaitingRequestorT = $ticket->status === 'Awaiting Requestor';
+                // ── Split out of what used to be a single combined "Resolved" step — the
+                //    technician finishing their work (Pending Supervisor Approval) and the
+                //    supervisor finalizing the paperwork (Pending Closure) are visibly
+                //    different waits from the requestor's side, so each gets its own step.
+                $isDoneServiceSupport = $ticket->status === 'Pending Supervisor Approval';
+                $isPreparingReport    = in_array($ticket->status, ['Pending Closure', 'Resolved']);
+                $isResolvedPhase = $isDoneServiceSupport || $isPreparingReport;
+                // ── Everything from "assigned, waiting on the technician to start" through
+                //    active work — mirrors the 'in_progress' phase filter in
+                //    TicketsController@index (minus the resolved-phase tail, which gets its
+                //    own "Resolved" step below) so the "In Progress" tab and this step never
+                //    disagree about which tickets belong to this phase.
+                $isInProgressPhase = in_array($ticket->status, [
+                    'Awaiting Support Specialist Acknowledgement', 'Awaiting Start SLA',
+                    'Awaiting Admin Classification', 'Awaiting Admin Supervisor', 'Awaiting Administrator Acknowledgement',
+                    'Awaiting Administrator SLA Start', 'Awaiting Manager',
+                    'In Progress', 'Admin In Progress', 'Manager In Progress', 'Escalated', 'Pending Reclassification',
+                ]);
+                // ── Waiting on Helpdesk/Supervisor (ICT Support Specialist) to classify the
+                //    ticket and assign it to a technician — mirrors the 'classification_assignment'
+                //    phase filter in TicketsController@index so the "Classification" tab and this
+                //    step never disagree about which tickets belong to this phase.
+                $isAwaitingClassification = ($ticket->status === 'New Request' && !is_null($ticket->date_acknowledged))
+                    || in_array($ticket->status, ['L1 In Progress', 'Awaiting Supervisor']);
+                $isAcknowledged = !is_null($ticket->date_acknowledged);
+
+                $tStep2 = $isAcknowledged ? 'done' : 'active'; // Acknowledged by Helpdesk
+                $tStep3 = match(true) {
+                    $isAwaitingClassification => 'active',
+                    $isInProgressPhase || $isResolvedPhase || $isAwaitingRequestorT || $isClosedT => 'done',
+                    default => ''
+                };
+                $tStep4 = match(true) {
+                    $isInProgressPhase => 'active',
+                    $isResolvedPhase || $isAwaitingRequestorT || $isClosedT => 'done',
+                    default => ''
+                };
+                $tStep5 = match(true) {
+                    $isDoneServiceSupport => 'active',
+                    $isPreparingReport || $isAwaitingRequestorT || $isClosedT => 'done',
+                    default => ''
+                };
+                $tStep6 = match(true) {
+                    $isPreparingReport => 'active',
+                    $isAwaitingRequestorT || $isClosedT => 'done',
+                    default => ''
+                };
+                // ── Ticket is resolved and needs the requestor to acknowledge it before it
+                //    can close — its own step so it's clear the ball is in the employee's
+                //    court, rather than reading as part of the "Closed" step itself.
+                $tStep7 = match(true) {
+                    $isAwaitingRequestorT => 'active',
+                    $isClosedT => 'done',
+                    default => ''
+                };
+                $tStep8 = match(true) {
+                    $isClosedT => 'done',
+                    default => ''
+                };
+                $tLine1 = $tStep2 !== '' ? 'done' : '';
+                $tLine2 = $tStep3 !== '' ? 'done' : '';
+                $tLine3 = $tStep4 !== '' ? 'done' : '';
+                $tLine4 = $tStep5 !== '' ? 'done' : '';
+                $tLine5 = $tStep6 !== '' ? 'done' : '';
+                $tLine6 = $tStep7 !== '' ? 'done' : '';
+                $tLine7 = $tStep8 !== '' ? 'done' : '';
+
+                // ── Ticket was investigated but couldn't be technically fixed — jumps
+                //    straight from Escalated to Pending Closure (never Pending Supervisor
+                //    Approval), so the failure marker belongs on "Preparing Service Report",
+                //    the step whose status it actually reaches.
+                $isUnresolved = $ticket->cannot_resolve && $tStep6 !== '';
             @endphp
 
             <div class="ticket-card {{ $statusClass }} p-3"
@@ -386,10 +686,11 @@
                         <span class="badge-type">{{ $ticket->request_category }}</span>
                         @php
                             $priColor = match($ticket->ticket_type) {
-                                'High'   => '#e24b4a',
-                                'Medium' => '#f5c842',
-                                'Low'    => '#4a7c4a',
-                                default  => 'var(--tm)'
+                                'Critical' => '#8b0000',
+                                'High'     => '#e24b4a',
+                                'Medium'   => '#f5c842',
+                                'Low'      => '#4a7c4a',
+                                default    => 'var(--tm)'
                             };
                         @endphp
                         <span class="meta-item" style="color:{{ $priColor }};font-weight:700">
@@ -400,6 +701,103 @@
                         {{ $badgeIcon }} {{ $ticket->status }}
                     </span>
                 </div>
+
+                {{-- Lifecycle tracker --}}
+                @if(!$isCancelled)
+                    <div class="progress-strip mb-3">
+                        <div class="ps-step">
+                            <div class="ps-dot done"><i class="bi bi-check"></i></div>
+                            <div class="ps-lbl done">Submitted</div>
+                        </div>
+                        <div class="ps-line {{ $tLine1 }}"></div>
+                        <div class="ps-step">
+                            <div class="ps-dot {{ $tStep2 }}">
+                                @if($tStep2 === 'done') <i class="bi bi-check"></i> @else 2 @endif
+                            </div>
+                            <div class="ps-lbl {{ $tStep2 }}">Acknowledged</div>
+                        </div>
+                        <div class="ps-line {{ $tLine2 }}"></div>
+                        <div class="ps-step">
+                            <div class="ps-dot {{ $tStep3 }}">
+                                @if($tStep3 === 'done') <i class="bi bi-check"></i> @else 3 @endif
+                            </div>
+                            <div class="ps-lbl {{ $tStep3 }}">Classified &amp; Assigned</div>
+                        </div>
+                        <div class="ps-line {{ $tLine3 }}"></div>
+                        <div class="ps-step">
+                            <div class="ps-dot {{ $tStep4 }}">
+                                @if($tStep4 === 'done') <i class="bi bi-check"></i> @else 4 @endif
+                            </div>
+                            <div class="ps-lbl {{ $tStep4 }}">In Progress</div>
+                        </div>
+                        <div class="ps-line {{ $tLine4 }}"></div>
+                        <div class="ps-step">
+                            <div class="ps-dot {{ $tStep5 }}">
+                                @if($tStep5 === 'done') <i class="bi bi-check"></i> @else 5 @endif
+                            </div>
+                            <div class="ps-lbl {{ $tStep5 }}">Done Service Support</div>
+                        </div>
+                        <div class="ps-line {{ $tLine5 }}"></div>
+                        <div class="ps-step">
+                            @if($isUnresolved)
+                                <div class="ps-dot failed"><i class="bi bi-x-lg"></i></div>
+                                <div class="ps-lbl failed">Unresolved</div>
+                            @else
+                                <div class="ps-dot {{ $tStep6 }}">
+                                    @if($tStep6 === 'done') <i class="bi bi-check"></i> @else 6 @endif
+                                </div>
+                                <div class="ps-lbl {{ $tStep6 }}">Preparing Service Report</div>
+                            @endif
+                        </div>
+                        <div class="ps-line {{ $tLine6 }}"></div>
+                        <div class="ps-step">
+                            <div class="ps-dot {{ $tStep7 }}">
+                                @if($tStep7 === 'done') <i class="bi bi-check"></i> @else 7 @endif
+                            </div>
+                            <div class="ps-lbl {{ $tStep7 }}">Awaiting Your Confirmation</div>
+                        </div>
+                        <div class="ps-line {{ $tLine7 }}"></div>
+                        <div class="ps-step">
+                            <div class="ps-dot {{ $tStep8 }}">
+                                @if($tStep8 === 'done') <i class="bi bi-check"></i> @else 8 @endif
+                            </div>
+                            <div class="ps-lbl {{ $tStep8 }}">Closed</div>
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Classification & assignment — shown once Helpdesk/Supervisor have
+                     classified the ticket and assigned it to an ICT Support Specialist. --}}
+                @if($ticket->subcategory_name)
+                    <div class="mb-3 p-2 d-flex flex-wrap gap-3"
+                         style="background:var(--ygl);border-radius:10px;border:1px solid var(--gl);font-size:12px">
+                        <span><strong>Category:</strong> {{ $ticket->slaCategory->name ?? '—' }}</span>
+                        <span><strong>Subtask:</strong> {{ $ticket->subcategory_name }}</span>
+                        @if($ticket->assignedTo)
+                            <span><strong>ICT Support Specialist:</strong> {{ $ticket->assignedTo->name }}</span>
+                        @endif
+                    </div>
+                @endif
+
+                {{-- Cannot Resolve findings (visible once the ticket is marked Unresolved) --}}
+                @if($ticket->cannot_resolve)
+                    <div class="mb-3 p-3" style="background:#fde8e8;border-radius:12px;border:1px solid #f0c0c0">
+                        <div style="font-size:11px;font-weight:800;color:#8b1a1a;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">
+                            <i class="bi bi-x-octagon me-1"></i>Findings &amp; Analysis
+                        </div>
+                        <div style="font-size:13px;color:#8b1a1a;margin-bottom:{{ $ticket->cannot_resolve_recommendation ? '10px' : '0' }}">
+                            {{ $ticket->cannot_resolve_findings }}
+                        </div>
+                        @if($ticket->cannot_resolve_recommendation)
+                            <div style="font-size:11px;font-weight:800;color:#8b1a1a;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">
+                                Recommendation
+                            </div>
+                            <div style="font-size:13px;color:#8b1a1a">
+                                {{ $ticket->cannot_resolve_recommendation }}
+                            </div>
+                        @endif
+                    </div>
+                @endif
 
                 {{-- Title & description --}}
                 <div class="ticket-title mb-1">{{ $ticket->subject }}</div>
@@ -423,15 +821,30 @@
                             <i class="bi bi-geo-alt"></i> {{ $ticket->location }}
                         </span>
                     @endif
-                    @if($ticket->status === 'Resolved' && $ticket->resolved_at)
-                        <span class="meta-item" style="color:var(--gm)">
-                            <i class="bi bi-clock-history"></i>
-                            Resolved {{ $ticket->resolved_at->diffForHumans() }}
-                        </span>
-                    @else
-                        <span class="meta-item">
+
+                    @if($ticket->expected_start_label ?? null)
+                        <span class="meta-item" style="background:var(--ygl);border-radius:20px;padding:4px 12px;font-weight:800">
                             <i class="bi bi-clock"></i>
-                            {{ $ticket->created_at->diffForHumans() }}
+                            {{ $ticket->expected_start_label === 'Being worked on now' ? $ticket->expected_start_label : 'Expected to start: ' . $ticket->expected_start_label }}
+                        </span>
+                    @endif
+
+                    @if($ticket->status === 'Closed' && $ticket->started_at)
+                        <span class="meta-item">
+                            <i class="bi bi-play-circle"></i>
+                            Started {{ $ticket->started_at->format('M d, g:i A') }}
+                        </span>
+                    @endif
+                    @if($ticket->status === 'Closed' && $ticket->resolved_at)
+                        <span class="meta-item">
+                            <i class="bi bi-flag"></i>
+                            Resolved {{ $ticket->resolved_at->format('M d, g:i A') }}
+                        </span>
+                    @endif
+                    @if($ticket->status === 'Closed' && $ticket->actualResolutionTime())
+                        <span class="meta-item">
+                            <i class="bi bi-stopwatch"></i>
+                            Actual resolution time: {{ $ticket->actualResolutionTime() }}
                         </span>
                     @endif
 
@@ -467,7 +880,14 @@
                         <i class="bi bi-eye me-1"></i>View Details
                     </a>
 
-                    @if(in_array($ticket->status, ['Open', 'In Progress']))
+                    @if($ticket->status === 'Closed')
+                        <button type="button" class="btn-service-report"
+                                onclick="openServiceReportPreview('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-file-earmark-pdf me-1"></i>Service Report
+                        </button>
+                    @endif
+
+                    @if($ticket->status === 'New Request' && is_null($ticket->date_acknowledged))
                         <button class="btn-cancel-ticket"
                                 onclick="confirmCancel('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-x-circle me-1"></i>Cancel
@@ -492,14 +912,23 @@
                         </button>
                     @endif
 
+                    @if($ticket->status === 'Awaiting Requestor')
+                        <form method="POST" action="{{ route('employee.tickets.acknowledge', $ticket) }}" class="d-inline">
+                            @csrf
+                            @method('PATCH')
+                            <button type="submit" class="btn-acknowledge">
+                                <i class="bi bi-check2-circle me-1"></i>Acknowledge & Close
+                            </button>
+                        </form>
+                    @endif
                     {{-- ── Rate & Feedback (resolved only, not yet rated) ── --}}
-                    @if($ticket->status === 'Resolved' && !$ticket->feedback)
-                        <button class="btn-resolve" style="background:#fff4cc;color:#7a5a00;border:1.5px solid #f5c842"
+                    @if($ticket->status === 'Closed' && !$ticket->feedback)
+                        <button class="btn-rate"
                                 onclick="openFeedbackModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-star me-1"></i>Rate & Feedback
                         </button>
-                    @elseif($ticket->status === 'Resolved' && $ticket->feedback)
-                        <span class="meta-item" style="color:#f5c842;font-weight:700">
+                    @elseif($ticket->status === 'Closed' && $ticket->feedback)
+                        <span class="rated-chip">
                             @for($i = 1; $i <= 5; $i++)
                                 <i class="bi bi-star{{ $i <= $ticket->feedback->rating ? '-fill' : '' }}"></i>
                             @endfor
@@ -514,20 +943,15 @@
                 <div style="font-size:48px;opacity:.3">🎫</div>
                 <div class="mt-3 font-brand fw-900"
                      style="font-size:18px;color:var(--tm)">
-                    No tickets found.
+                    No support requests found.
                 </div>
                 <div style="font-size:13px;color:var(--tm);margin-top:4px">
                     @if($status !== 'all')
-                        You have no {{ $status }} tickets.
+                        You have no {{ $status }} support requests.
                     @else
-                        You haven't submitted any tickets yet.
+                        You haven't submitted any support requests yet.
                     @endif
                 </div>
-                <button class="btn-new mt-3"
-                        data-bs-toggle="modal"
-                        data-bs-target="#ticketModal">
-                    <i class="bi bi-plus-lg me-1"></i> Submit Your First Ticket
-                </button>
             </div>
         @endforelse
 
@@ -535,7 +959,7 @@
 
     {{-- Pagination --}}
     @if($tickets->hasPages())
-        <div class="mt-4">{{ $tickets->links() }}</div>
+        <div class="mt-4">{{ $tickets->onEachSide(1)->links('pagination::bootstrap-5') }}</div>
     @endif
 
 @endsection
@@ -543,18 +967,69 @@
 {{-- ══ NEW TICKET MODAL ══ --}}
 @section('modals')
 
+    {{-- Welcome / Onboarding Modal — one-time, shown until the employee
+         dismisses it (users.onboarded_at gets stamped, see
+         TicketsController::completeOnboarding()). --}}
+    @if($showOnboarding)
+        <div class="modal fade" id="onboardingModal" tabindex="-1" data-bs-backdrop="static">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0">Welcome to the New <em>IT Support System</em></h5>
+                        <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                    </div>
+                    <div class="modal-body px-4 py-4">
+                        <p style="font-size:13px;color:var(--tm);margin-bottom:18px">
+                            This replaces email/walk-in IT requests — here's what's different:
+                        </p>
+                        <div class="d-flex flex-column gap-3">
+                            <div class="d-flex align-items-start gap-3">
+                                <div class="onboard-icon"><i class="bi bi-stopwatch"></i></div>
+                                <div>
+                                    <div style="font-weight:800;font-size:13px">Know what to expect</div>
+                                    <div style="font-size:12px;color:var(--tm)">Every support request gets a response and resolution target the moment it's submitted.</div>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-start gap-3">
+                                <div class="onboard-icon"><i class="bi bi-activity"></i></div>
+                                <div>
+                                    <div style="font-weight:800;font-size:13px">Track it live</div>
+                                    <div style="font-size:12px;color:var(--tm)">Watch your support request move from submitted, to assigned, to resolved — right from this dashboard.</div>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-start gap-3">
+                                <div class="onboard-icon"><i class="bi bi-chat-dots"></i></div>
+                                <div>
+                                    <div style="font-weight:800;font-size:13px">Message your specialist</div>
+                                    <div style="font-size:12px;color:var(--tm)">No more back-and-forth emails — chat directly on the support request and get notified the moment it changes.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3">
+                        <button type="button" class="btn-submit-ticket w-100" data-bs-dismiss="modal">
+                            Got it, let's go
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Submit Ticket Modal --}}
     <div class="modal fade" id="ticketModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">New <em>Support</em> Ticket</h5>
+                    <h5 class="mb-0">New <em>Support</em> Request</h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
-                <form method="POST" action="{{ route('employee.tickets.store') }}" id="ticketForm">
+                <form method="POST" action="{{ route('employee.tickets.store') }}" id="ticketForm" enctype="multipart/form-data">
                     @csrf
-                    <input type="hidden" name="ticket_type"      id="hTicketType"   value="Medium">
-                    <input type="hidden" name="request_category" id="hCategory"     value="">
+                    {{-- No priority/category fields here — this form has no picker for either.
+                         Every self-filed ticket is created at a fixed baseline priority
+                         server-side (TicketsController::DEFAULT_PRIORITY); Helpdesk/Supervisor
+                         assign the real category and priority during classification. --}}
                     <input type="hidden" name="asset"            id="hAsset"        value="">
                     <input type="hidden" name="location"         id="hLocation"     value="">
 
@@ -564,86 +1039,74 @@
                         <div class="step-ind mb-4">
                             <div class="step-item active" id="si1">
                                 <div class="step-num">1</div>
-                                <span class="step-lbl">Issue type</span>
+                                <span class="step-lbl">Issue Type</span>
                             </div>
+
                             <div class="step-line" id="sl1"></div>
+
                             <div class="step-item" id="si2">
                                 <div class="step-num">2</div>
-                                <span class="step-lbl">Details</span>
-                            </div>
-                            <div class="step-line" id="sl2"></div>
-                            <div class="step-item" id="si3">
-                                <div class="step-num">3</div>
                                 <span class="step-lbl">Review</span>
                             </div>
                         </div>
 
-                        {{-- Step 1: Issue type --}}
-                        <div class="form-step" id="fs1">
+                        {{-- Step 1 (Details) — fs2 --}}
+                        <div class="form-step" id="fs2">
 
-                            {{-- Main Category Selection --}}
-                            <div class="mb-4">
-                                <label class="form-label">
-                                    Select category <span class="text-danger">*</span>
-                                </label>
-                                <div class="row g-2" id="mainCategoryGrid">
-                                    @forelse($slaCategories as $slaCat)
-                                        <div class="{{ $slaCategories->count() <= 2 ? 'col-12' : 'col-6' }}">
-                                            <div class="cat-main-opt"
-                                                data-cat="{{ $slaCat->name }}"
-                                                data-cat-id="{{ $slaCat->id }}">
-                                                <span class="cat-icon">
-                                                    <i class="bi {{ $slaCat->icon ?? 'bi-tag' }}"
-                                                    style="font-size:28px;color:{{ $slaCat->color ?? 'var(--gd)' }}"></i>
-                                                </span>
-                                                <span class="cat-lbl">{{ $slaCat->name }}</span>
-                                            </div>
-                                        </div>
-                                    @empty
-                                        {{-- Fallback if no SLA categories defined yet --}}
-                                        @foreach(['Hardware' => ['🖥️','bi-laptop'], 'Software' => ['💿','bi-code-square'], 'Network' => ['🌐','bi-wifi'], 'Access Request' => ['🔐','bi-shield-lock']] as $name => $icons)
-                                            <div class="col-6">
-                                                <div class="cat-main-opt" data-cat="{{ $name }}">
-                                                    <span class="cat-icon">{{ $icons[0] }}</span>
-                                                    <span class="cat-lbl">{{ $name }}</span>
-                                                </div>
-                                            </div>
-                                        @endforeach
-                                    @endforelse
+                            {{-- Ticket Number (read-only, auto-generated) — hidden on the employee
+                                 modal per request; purely decorative, no form field involved. --}}
+                            <div class="mb-3 p-3 rounded d-flex align-items-center gap-3 d-none"
+                                style="background:var(--ygl);border:1.5px solid var(--bd)">
+                                <div>
+                                    <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">
+                                        Support Request Number
+                                    </div>
+                                    <div class="font-brand fw-900" style="font-size:18px;color:var(--gd);letter-spacing:1px">
+                                        Auto-generated on submit
+                                    </div>
+                                </div>
+                                <i class="bi bi-ticket-perforated ms-auto" style="font-size:28px;opacity:.2;color:var(--gd)"></i>
+                            </div>
+
+                            {{-- Requestor (auto-filled, read-only) — hidden on the employee modal;
+                                 the users_id hidden input still submits the value. --}}
+                            <div class="mb-3 d-none">
+                                <label class="form-label">Requestor</label>
+                                <input type="text" class="form-control" value="{{ $requestor->name }}" readonly
+                                    style="background:var(--ygl);color:var(--gd);font-weight:700">
+                            </div>
+                            <input type="hidden" id="users_id" name="users_id" value="{{ $requestor->id }}">
+
+                            {{-- Auto-filled fields — hidden on the employee modal; inputs still
+                                 render (display:none) so their name/value still submit with the form. --}}
+                            <div class="row g-3 mb-3 d-none">
+                                <div class="col-12">
+                                    <label class="form-label">Position</label>
+                                    <input type="text" class="form-control" id="mPosition" name="position"
+                                        value="{{ $requestor->position }}" readonly
+                                        style="background:var(--ygl);color:var(--gd);font-weight:700">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Business Unit</label>
+                                    <input type="text" class="form-control" id="mBU" name="business_unit"
+                                        value="{{ $requestor->business_units_name }}" readonly
+                                        style="background:var(--ygl);color:var(--gd);font-weight:700">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Company</label>
+                                    <input type="text" class="form-control" id="mCompany" name="company"
+                                        value="{{ $requestor->company_name }}" readonly
+                                        style="background:var(--ygl);color:var(--gd);font-weight:700">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Department</label>
+                                    <input type="text" class="form-control" id="mDepartment" name="department"
+                                        value="{{ $requestor->department_name }}" readonly
+                                        style="background:var(--ygl);color:var(--gd);font-weight:700">
                                 </div>
                             </div>
 
-                            {{-- Sub Category --}}
-                            <div class="mb-4 d-none" id="subCategoryWrap">
-                                <label class="form-label">
-                                    Specific issue <span class="text-danger">*</span>
-                                </label>
-                                <div id="subCategoryList" class="d-flex flex-column gap-2"></div>
-                            </div>
-
-                            {{-- Priority --}}
-                            <div class="mb-1">
-                                <label class="form-label">Priority</label>
-                                <div class="d-flex gap-2">
-                                    <div class="pri-opt low" data-pri="Low">
-                                        <div class="pri-dot"></div>
-                                        <div class="pri-lbl">Low</div>
-                                    </div>
-                                    <div class="pri-opt medium selected" data-pri="Medium">
-                                        <div class="pri-dot"></div>
-                                        <div class="pri-lbl">Medium</div>
-                                    </div>
-                                    <div class="pri-opt high" data-pri="High">
-                                        <div class="pri-dot"></div>
-                                        <div class="pri-lbl">High</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </div>
-
-                        {{-- Step 2: Details --}}
-                        <div class="form-step d-none" id="fs2">
+                            {{-- Subject & Description --}}
                             <div class="mb-3">
                                 <label class="form-label">Subject <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="mSubject"
@@ -657,18 +1120,12 @@
                                         placeholder="What happened, when it started…"></textarea>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Additional details <span class="text-danger">*</span></label>
+                                <label class="form-label">Additional details</label>
                                 <textarea class="form-control" id="mDetails"
                                         name="request_details" rows="2"
                                         placeholder="Error messages, steps to reproduce…"></textarea>
                             </div>
-                            <div class="row g-3 mb-1">
-                                <div class="col-6">
-                                    <label class="form-label">Asset tag / serial no.</label>
-                                    <input type="text" class="form-control" id="mAsset"
-                                        placeholder="e.g. LT-00432">
-                                </div>
-                                <div class="col-6">
+                            <div class="mb-3">
                                     <label class="form-label">Location</label>
                                     <select class="form-select" id="mLocation">
                                         <option value="">— Select location —</option>
@@ -688,44 +1145,59 @@
                                             <option value="Petro Cara">Petro Cara</option>
                                         </optgroup>
                                     </select>
+                            </div>
+
+                            <div class="mb-1">
+                                <label class="form-label">Supporting files <span style="font-weight:400;color:var(--tm)">(optional)</span></label>
+                                <input type="file" class="form-control" id="mAttachments" name="attachments[]"
+                                       multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                                <div style="font-size:11px;color:var(--tm);margin-top:4px">
+                                    Up to 5 files, 10MB each. Screenshots, documents, or logs that help explain the issue.
                                 </div>
+                                <div id="attachmentList" class="d-flex flex-column gap-1 mt-2"></div>
                             </div>
                         </div>
 
                         {{-- Step 3: Review --}}
                         <div class="form-step d-none" id="fs3">
                             <div class="review-box p-3 mb-3">
+
                                 <div class="font-brand fw-900 mb-3"
                                     style="font-size:14px;color:var(--gd);text-transform:uppercase;letter-spacing:.5px">
-                                    Ticket Summary
+                                    Support Request Summary
                                 </div>
-                                <div class="row g-3">
-                                    <div class="col-6">
-                                        <div class="review-lbl">Category</div>
-                                        <div class="fw-700" id="rv-device">—</div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="review-lbl">Specific Issue</div>
-                                        <div class="fw-700" id="rv-cat">—</div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="review-lbl">Priority</div>
-                                        <div class="fw-700" id="rv-pri">⚡ Medium</div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="review-lbl">Asset / Location</div>
-                                        <div class="fw-700" id="rv-asset">—</div>
-                                    </div>
-                                </div>
+
+                                <div class="mb-2"><b>Subject:</b> <span id="rv-subject">—</span></div>
+                                <div class="mb-2"><b>Describe Issue:</b> <span id="rv-desc">—</span></div>
+                                <div class="mb-2"><b>Additional Details:</b> <span id="rv-details">—</span></div>
+
+                                <hr>
+
+                                <div class="mb-2"><b>Requestor:</b> <span id="rv-requestor">—</span></div>
+                                <div class="mb-2"><b>Position:</b> <span id="rv-position">—</span></div>
+                                <div class="mb-2"><b>Business Unit:</b> <span id="rv-bu">—</span></div>
+                                <div class="mb-2"><b>Company:</b> <span id="rv-company">—</span></div>
+                                <div class="mb-2"><b>Department:</b> <span id="rv-department">—</span></div>
+                                
+                                <hr>
+
+                                <div class="mb-2"><b>Date Acknowledged:</b> <span id="rv-ack-date">—</span></div>
+                                <div class="mb-2"><b>Time Acknowledged:</b> <span id="rv-ack-time">—</span></div>
+
+                                <hr>
+
+                                <div class="mb-2"><b>Location:</b> <span id="rv-location">—</span></div>
+                                <div class="mb-2"><b>Attachments:</b> <span id="rv-attachments">None</span></div>
+
                             </div>
                             <div class="review-detail p-3">
                                 <div class="review-lbl mb-1">Subject</div>
-                                <div class="font-brand fw-800 mb-3" style="font-size:15px" id="rv-subject">—</div>
+                                <div class="font-brand fw-800 mb-3" style="font-size:15px" id="rv-subject-preview">—</div>
                                 <div class="review-lbl mb-1">Concern</div>
-                                <div style="font-size:13px;color:var(--tm);margin-bottom:12px" id="rv-desc">—</div>
+                                <div style="font-size:13px;color:var(--tm);margin-bottom:12px" id="rv-desc-preview">—</div>
                                 <div class="review-lbl mb-1">What happens next</div>
                                 <div style="font-size:13px;color:var(--tm)">
-                                    Your ticket will be assigned to an available IT Support Specialist.
+                                    Your support request will be assigned to an available IT Support Specialist.
                                     Average first response: <strong style="color:var(--gd)">under 2 hours</strong>.
                                 </div>
                             </div>
@@ -737,19 +1209,24 @@
                                 ✅
                             </div>
                             <h5 class="font-brand fw-900 mb-1" style="font-size:22px">
-                                Ticket submitted!
+                                Support request submitted!
                             </h5>
                             <p class="mb-2" style="color:var(--tm)">
                                 Your request has been received.<br>
                                 Helpdesk will assign a technician shortly.
                             </p>
                             <div class="ticket-ref my-3" id="newTicketRef">—</div>
+                            <div class="text-start p-3 mb-3 rounded" style="background:var(--ygl);font-size:12.5px;color:var(--gd)">
+                                <i class="bi bi-info-circle-fill me-1"></i>
+                                <strong>Double-check what you submitted.</strong>
+                                Incomplete or unclear details can delay how quickly your request gets picked up —
+                                if you missed something, add it now from your support request's chat.
+                            </div>
                             <p style="color:var(--tm);font-size:13px">
                                 Track progress from your dashboard.<br>
                                 You'll be notified when the status changes.
                             </p>
                         </div>
-
                     </div>
 
                     <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between"
@@ -767,14 +1244,14 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Cancel <em>Ticket</em></h5>
+                    <h5 class="mb-0">Cancel <em>Support Request</em></h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
                 <div class="modal-body px-4 py-4">
                     <div class="p-3 mb-3 rounded"
                          style="background:rgba(226,75,74,.1);border:1px solid rgba(226,75,74,.3);color:#e24b4a;font-size:13px;font-weight:600">
                         <i class="bi bi-exclamation-triangle me-1"></i>
-                        Are you sure you want to cancel ticket
+                        Are you sure you want to cancel support request
                         <strong id="cancelTicketRef"></strong>?
                         This action cannot be undone.
                     </div>
@@ -786,7 +1263,7 @@
                         @method('PATCH')
                         <button type="submit" class="btn-cancel-ticket"
                                 style="padding:10px 24px">
-                            <i class="bi bi-x-circle me-1"></i>Yes, Cancel Ticket
+                            <i class="bi bi-x-circle me-1"></i>Yes, Cancel Support Request
                         </button>
                     </form>
                 </div>
@@ -904,9 +1381,12 @@
             </div>
         </div>
     </div>
+
+    <x-service-report-modal />
 @endsection
 @section('scripts')
-<script>/* ── Dynamic SLA categories from DB ── */
+<script>
+    /* ── Dynamic SLA categories from DB ── */
     const slaCategories = @json($slaCategoriesJson);
 
     // Build a quick lookup: category name → subcategories
@@ -981,6 +1461,7 @@
             $('#hTicketType').val(priority);
         }
     });
+
     /* ══ GLOBAL CHAT FUNCTIONS — must be outside $(function(){}) ══ */
 
     let currentEmpChatTicketId = null;
@@ -1186,40 +1667,46 @@
 
         /* ── Step wizard ── */
         let step = 1;
+        const stepIds = ['fs2', 'fs3', 'fsSuccess']; // Details, Review, Success
 
         function showStep(n) {
             step = n;
-            ['fs1','fs2','fs3','fsSuccess'].forEach((id, i) => {
+            stepIds.forEach((id, i) => {
                 $('#' + id).toggleClass('d-none', i !== n - 1);
             });
-            for (let i = 1; i <= 3; i++) {
-                $('#si' + i).toggleClass('active', i === n).toggleClass('done', i < n);
-                if (i < 3) $('#sl' + i).toggleClass('done', i < n);
-            }
-            $('#btnBack').css('visibility', n > 1 && n < 4 ? 'visible' : 'hidden');
 
-            if (n === 3) {
-                const mainCat = $('.cat-main-opt.selected').data('cat') || '—';
-                const subCat  = $('.cat-sub-opt.selected').data('sub')  || '—';
-                const pri     = $('.pri-opt.selected').data('pri')       || 'Medium';
-                const asset   = $('#mAsset').val() || '—';
+            $('#si1').toggleClass('active', n === 1).toggleClass('done', n > 1);
+            $('#si2').toggleClass('active', n === 2).toggleClass('done', n > 2);
+            $('#sl1').toggleClass('done', n > 1);
 
-                $('#rv-device').text(mainCat);       // ← reuse rv-device for main category
-                $('#rv-cat').text(subCat);           // ← sub category
-                $('#rv-pri').text('⚡ ' + pri);
-                $('#rv-asset').text(asset);
+            $('#btnBack').css('visibility', n > 1 && n < 3 ? 'visible' : 'hidden');
+
+            if (n === 2) {
+                // Populate review screen from step 1 inputs
                 $('#rv-subject').text($('#mSubject').val() || '—');
                 $('#rv-desc').text($('#mDesc').val() || '—');
+                $('#rv-details').text($('#mDetails').val() || '—');
+                $('#rv-requestor').text($('input[name="users_id"]').prevAll('input.form-control').val() || $('.mb-3 input.form-control[readonly]').first().val() || '—');
+                $('#rv-position').text($('#mPosition').val() || '—');
+                $('#rv-bu').text($('#mBU').val() || '—');
+                $('#rv-company').text($('#mCompany').val() || '—');
+                $('#rv-department').text($('#mDepartment').val() || '—');
+                $('#rv-location').text($('#mLocation').val() || '—');
+                $('#rv-subject-preview').text($('#mSubject').val() || '—');
+                $('#rv-desc-preview').text($('#mDesc').val() || '—');
 
-                // Sync hidden fields
-                $('#hCategory').val(mainCat + ' — ' + subCat);
-                $('#hTicketType').val(pri);
+                const attachedFiles = document.getElementById('mAttachments').files;
+                $('#rv-attachments').text(
+                    attachedFiles.length
+                        ? attachedFiles.length + ' file' + (attachedFiles.length > 1 ? 's' : '')
+                        : 'None'
+                );
 
                 $('#btnNext')
                     .removeClass('btn-continue')
                     .addClass('btn-submit-ticket')
-                    .text('Submit ticket');
-            } else if (n === 4) {
+                    .text('Submit support request');
+            } else if (n === 3) {
                 $('#mFooter').hide();
             } else {
                 $('#btnNext')
@@ -1229,82 +1716,82 @@
             }
         }
 
-        /* ── Validate steps ── */
+        /* ── Attachment picker: client-side limits + preview list ── */
+        const MAX_ATTACHMENTS = 5;
+        const MAX_ATTACHMENT_MB = 10;
+
+        $('#mAttachments').on('change', function () {
+            const files = Array.from(this.files);
+            const list  = $('#attachmentList').empty();
+
+            if (files.length > MAX_ATTACHMENTS) {
+                alert(`You can attach up to ${MAX_ATTACHMENTS} files. Only the first ${MAX_ATTACHMENTS} will be kept.`);
+            }
+
+            const oversize = files.find(f => f.size > MAX_ATTACHMENT_MB * 1024 * 1024);
+            if (oversize) {
+                alert(`"${oversize.name}" exceeds the ${MAX_ATTACHMENT_MB}MB limit and will be removed.`);
+            }
+
+            const kept = files
+                .filter(f => f.size <= MAX_ATTACHMENT_MB * 1024 * 1024)
+                .slice(0, MAX_ATTACHMENTS);
+
+            // Rebuild the input's file list to only the valid/kept files
+            const dt = new DataTransfer();
+            kept.forEach(f => dt.items.add(f));
+            this.files = dt.files;
+
+            kept.forEach(f => {
+                const sizeKb = (f.size / 1024).toFixed(0);
+                list.append(
+                    `<div style="font-size:12px;color:var(--tm)"><i class="bi bi-paperclip me-1"></i>${$('<div>').text(f.name).html()} <span style="color:var(--tm)">(${sizeKb} KB)</span></div>`
+                );
+            });
+        });
+
+        /* ── Next / Submit ── */
         $('#btnNext').on('click', function () {
-           if (step === 1) {
-                    if (!$('.cat-main-opt.selected').length) {
-                        alert('Please select a category.');
-                        return;
-                    }
-                    if (!$('.cat-sub-opt.selected').length) {
-                        alert('Please select a specific issue.');
-                        return;
-                    }
 
-                    // ── Sync hidden fields
-                    const mainCat = $('.cat-main-opt.selected').data('cat') || '';
-                    const subCat  = $('.cat-sub-opt.selected').data('sub')  || '';
-                    $('#hCategory').val(mainCat + ' — ' + subCat);
-                    $('#hTicketType').val($('.pri-opt.selected').data('pri') || 'Medium');
+            if (step === 1) {
+                // Validate Details panel
+                if (!$('#mSubject').val().trim()) { alert('Please enter a subject.'); return; }
+                if (!$('#mDesc').val().trim())    { alert('Please describe the issue.'); return; }
+                if (!$('#users_id').val())      { alert('Please select a requestor.'); return; }
 
-                    showStep(2);
-                } else if (step === 2) {
-                if (!$('#mSubject').val().trim()) {
-                    alert('Please enter a subject.');
-                    return;
-                }
-                if (!$('#mDesc').val().trim()) {
-                    alert('Please describe the issue.');
-                    return;
-                }
                 $('#hAsset').val($('#mAsset').val());
                 $('#hLocation').val($('#mLocation').val());
-                showStep(3);
 
-            } else if (step === 3) {
+                showStep(2); // now review
 
-                // ── Re-sync ALL hidden fields right before submit
+            } else if (step === 2) {
+
                 const mainCat = $('.cat-main-opt.selected').data('cat') || '';
                 const subCat  = $('.cat-sub-opt.selected').data('sub')  || '';
                 const pri     = $('.pri-opt.selected').data('pri')      || 'Medium';
 
                 $('#hCategory').val(mainCat + ' — ' + subCat);
                 $('#hTicketType').val(pri);
-                $('#hAsset').val($('#mAsset').val());
-                $('#hLocation').val($('#mLocation').val());
 
-                // ── Final check
-                if (!$('#hCategory').val().trim()) {
-                    alert('Please go back and select a specific issue.');
-                    return;
-                }
+                const formData = new FormData(document.getElementById('ticketForm'));
 
-                console.log('Submitting with:', {
-                    request_category: $('#hCategory').val(),
-                    ticket_type:      $('#hTicketType').val(),
-                });
-
-                const form = $('#ticketForm');
                 $.ajax({
-                    url:  form.attr('action'),
+                    url: $('#ticketForm').attr('action'),
                     type: 'POST',
-                    data: form.serialize(),
+                    data: formData,
+                    processData: false,
+                    contentType: false,
                     success: function (response) {
                         $('#newTicketRef').text(response.ticket_number);
-                        showStep(4);
+                        showStep(3);
 
-                        // ── Redirect to dashboard after 3 seconds, NOT location.reload()
                         setTimeout(() => {
                             window.location.href = '{{ route("employee.tickets.index") }}';
                         }, 3000);
                     },
                     error: function (xhr) {
                         const errors = xhr.responseJSON?.errors;
-                        if (errors) {
-                            alert(Object.values(errors).flat().join('\n'));
-                        } else {
-                            alert('Something went wrong. Please try again.');
-                        }
+                        alert(errors ? Object.values(errors).flat().join('\n') : 'Something went wrong. Please try again.');
                     }
                 });
             }
@@ -1334,6 +1821,10 @@
             // Reset form fields
             $('#mSubject, #mDesc, #mDetails').val('');
             $('#mAsset, #mLocation').val('');
+
+            // Reset attachments
+            $('#mAttachments').val('');
+            $('#attachmentList').empty();
 
             // Reset priority
             $('.pri-opt').removeClass('selected')
@@ -1381,6 +1872,13 @@
                     curList.innerHTML = newList.innerHTML;
                 }
 
+                // ── Available IT — online/offline status
+                const newIt = doc.getElementById('itTeamList');
+                const curIt = document.getElementById('itTeamList');
+                if (newIt && curIt) {
+                    curIt.innerHTML = newIt.innerHTML;
+                }
+
                 // ── Badge counts — only update if changed
                 doc.querySelectorAll('.badge-count').forEach((newEl, i) => {
                     const curEl = document.querySelectorAll('.badge-count')[i];
@@ -1426,5 +1924,26 @@
                 silentRefreshTimer = setInterval(silentRefresh, 30000);
             }
         });
+
+    /* ── Onboarding modal — shows once; any dismissal (button, X, backdrop,
+           Escape) marks it seen so it never shows again for this employee. ── */
+    @if($showOnboarding)
+    (function () {
+        const modalEl = document.getElementById('onboardingModal');
+        if (!modalEl) return;
+
+        new bootstrap.Modal(modalEl).show();
+
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            fetch('{{ route('employee.onboarding.complete') }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                },
+            }).catch(() => {}); // best-effort — worst case it just shows again next login
+        }, { once: true });
+    })();
+    @endif
 </script>
 @endsection

@@ -4,7 +4,7 @@
 
 @section('nav-role-badge')
     <span class="role-badge-admin"><i class="bi bi-shield-fill me-1"></i>IT Admin</span>
-    <a href="{{ route('admin.users.index') }}" style="text-decoration:none">
+    <a href="{{ route('portal.users.index') }}" style="text-decoration:none">
         <span class="role-badge-admin"><i class="bi bi-people me-1"></i>Users</span>
     </a>
 @endsection
@@ -41,22 +41,32 @@
         <div class="sidebar-head red"><i class="bi bi-gear me-1"></i>Settings</div>
         <ul class="list-group sidebar-menu rounded-0">
             <li class="list-group-item">
-                <a href="{{ route('admin.users.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                <a href="{{ route('portal.users.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
                     <i class="bi bi-people me-1"></i>User
                 </a>
             </li>
             <li class="list-group-item active">
-                <a href="{{ route('admin.settings') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                <a href="{{ route('portal.settings') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
                     <i class="bi bi-building me-1"></i>Organization
                 </a>
             </li>
             <li class="list-group-item">
-                <a class="nav-link" href="{{ route('admin.sla-rules.index') }}">
+                <a class="nav-link" href="{{ route('portal.sla-rules.index') }}">
                     <i class="bi bi-clock-history"></i>SLA Rules
                 </a>
             </li>
             <li class="list-group-item">
-                <a href="{{ route('admin.audit-log') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                <a class="nav-link" href="{{ route('portal.holidays.index') }}">
+                    <i class="bi bi-calendar-x"></i>Holidays
+                </a>
+            </li>
+            <li class="list-group-item">
+                <a class="nav-link" href="{{ route('portal.leaves.index') }}">
+                    <i class="bi bi-calendar-minus"></i>Leave
+                </a>
+            </li>
+            <li class="list-group-item">
+                <a href="{{ route('portal.audit-log') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
                     <i class="bi bi-journal-text me-1"></i>Audit Log
                 </a>
             </li>
@@ -134,7 +144,7 @@
                         <div class="sfh-sub">Create a new business unit</div>
                     </div>
                 </div>
-                <form method="POST" id="buForm" action="{{ route('admin.settings.bu.store') }}">
+                <form method="POST" id="buForm" action="{{ route('portal.settings.bu.store') }}">
                     @csrf
                     <input type="hidden" id="buMethod" name="_method" value="POST">
                     <input type="hidden" id="buId" value="">
@@ -180,7 +190,7 @@
                                         onclick="editBU('{{ $bu->id }}', '{{ addslashes($bu->business_units_name) }}')">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <form method="POST" action="{{ route('admin.settings.bu.destroy', $bu) }}"
+                                <form method="POST" action="{{ route('portal.settings.bu.destroy', $bu) }}"
                                       onsubmit="return confirm('Delete this business unit?')">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn-sli-del">
@@ -215,7 +225,7 @@
                         <div class="sfh-sub">Create a new company</div>
                     </div>
                 </div>
-                <form method="POST" id="compForm" action="{{ route('admin.settings.company.store') }}">
+                <form method="POST" id="compForm" action="{{ route('portal.settings.company.store') }}">
                     @csrf
                     <input type="hidden" id="compMethod" name="_method" value="POST">
                     <input type="hidden" id="compId" value="">
@@ -273,7 +283,7 @@
                                         onclick="editCompany('{{ $company->id }}', '{{ addslashes($company->company_name) }}', '{{ $company->business_units_id }}')">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <form method="POST" action="{{ route('admin.settings.company.destroy', $company) }}"
+                                <form method="POST" action="{{ route('portal.settings.company.destroy', $company) }}"
                                       onsubmit="return confirm('Delete this company?')">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn-sli-del">
@@ -308,7 +318,7 @@
                         <div class="sfh-sub">Create a new department</div>
                     </div>
                 </div>
-                <form method="POST" id="deptForm" action="{{ route('admin.settings.dept.store') }}">
+                <form method="POST" id="deptForm" action="{{ route('portal.settings.dept.store') }}">
                     @csrf
                     <input type="hidden" id="deptMethod" name="_method" value="POST">
                     <input type="hidden" id="deptId" value="">
@@ -374,7 +384,7 @@
                                         onclick="editDept('{{ $dept->id }}', '{{ addslashes($dept->department_name) }}', '{{ $dept->companies_id }}')">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <form method="POST" action="{{ route('admin.settings.dept.destroy', $dept) }}"
+                                <form method="POST" action="{{ route('portal.settings.dept.destroy', $dept) }}"
                                       onsubmit="return confirm('Delete this department?')">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn-sli-del">
@@ -605,7 +615,7 @@ function editBU(id, name) {
     document.getElementById('buId').value        = id;
     document.getElementById('buName').value      = name;
     document.getElementById('buMethod').value    = 'PUT';
-    document.getElementById('buForm').action     = `/admin/settings/business-units/${id}`;
+    document.getElementById('buForm').action     = `/portal/settings/business-units/${id}`;
     document.getElementById('buFormTitle').textContent = 'Edit Business Unit';
     document.getElementById('buSaveBtn').innerHTML = '<i class="bi bi-check-lg me-1"></i>Update';
     document.getElementById('buCancelBtn').classList.remove('d-none');
@@ -617,7 +627,7 @@ function resetBuForm() {
     document.getElementById('buId').value        = '';
     document.getElementById('buName').value      = '';
     document.getElementById('buMethod').value    = 'POST';
-    document.getElementById('buForm').action     = '{{ route("admin.settings.bu.store") }}';
+    document.getElementById('buForm').action     = '{{ route("portal.settings.bu.store") }}';
     document.getElementById('buFormTitle').textContent = 'Add Business Unit';
     document.getElementById('buSaveBtn').innerHTML = '<i class="bi bi-check-lg me-1"></i>Save';
     document.getElementById('buCancelBtn').classList.add('d-none');
@@ -630,7 +640,7 @@ function editCompany(id, name, buId) {
     document.getElementById('compName').value       = name;
     document.getElementById('compBU').value         = buId;
     document.getElementById('compMethod').value     = 'PUT';
-    document.getElementById('compForm').action      = `/admin/settings/companies/${id}`;
+    document.getElementById('compForm').action      = `/portal/settings/companies/${id}`;
     document.getElementById('compFormTitle').textContent = 'Edit Company';
     document.getElementById('compSaveBtn').innerHTML = '<i class="bi bi-check-lg me-1"></i>Update';
     document.getElementById('compCancelBtn').classList.remove('d-none');
@@ -642,7 +652,7 @@ function resetCompForm() {
     document.getElementById('compName').value       = '';
     document.getElementById('compBU').value         = '';
     document.getElementById('compMethod').value     = 'POST';
-    document.getElementById('compForm').action      = '{{ route("admin.settings.company.store") }}';
+    document.getElementById('compForm').action      = '{{ route("portal.settings.company.store") }}';
     document.getElementById('compFormTitle').textContent = 'Add Company';
     document.getElementById('compSaveBtn').innerHTML = '<i class="bi bi-check-lg me-1"></i>Save';
     document.getElementById('compCancelBtn').classList.add('d-none');
@@ -654,7 +664,7 @@ function editDept(id, name, compId) {
     document.getElementById('deptName').value       = name;
     document.getElementById('deptComp').value       = compId;
     document.getElementById('deptMethod').value     = 'PUT';
-    document.getElementById('deptForm').action      = `/admin/settings/departments/${id}`;
+    document.getElementById('deptForm').action      = `/portal/settings/departments/${id}`;
     document.getElementById('deptFormTitle').textContent = 'Edit Department';
     document.getElementById('deptSaveBtn').innerHTML = '<i class="bi bi-check-lg me-1"></i>Update';
     document.getElementById('deptCancelBtn').classList.remove('d-none');
@@ -666,7 +676,7 @@ function resetDeptForm() {
     document.getElementById('deptName').value       = '';
     document.getElementById('deptComp').value       = '';
     document.getElementById('deptMethod').value     = 'POST';
-    document.getElementById('deptForm').action      = '{{ route("admin.settings.dept.store") }}';
+    document.getElementById('deptForm').action      = '{{ route("portal.settings.dept.store") }}';
     document.getElementById('deptFormTitle').textContent = 'Add Department';
     document.getElementById('deptSaveBtn').innerHTML = '<i class="bi bi-check-lg me-1"></i>Save';
     document.getElementById('deptCancelBtn').classList.add('d-none');

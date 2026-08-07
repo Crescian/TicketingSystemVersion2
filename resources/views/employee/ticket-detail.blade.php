@@ -11,7 +11,7 @@
 @section('nav-username', explode(' ', Auth::user()->name)[0] . ' ' . strtoupper(substr(explode(' ', Auth::user()->name)[1] ?? '', 0, 1)) . '.')
 
 @section('hero-title')
-    <h1>TICKET <em>DETAILS</em></h1>
+    <h1>SUPPORT REQUEST <em>DETAILS</em></h1>
 @endsection
 @section('hero-subtitle', 'Full history and status of your support request.')
 
@@ -60,6 +60,8 @@
     .tl-desc  { font-size: 13px; color: var(--tm); }
     .btn-back-page { background: none; border: 1.5px solid var(--bd); color: var(--tm); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; padding: 8px 20px; border-radius: 50px; transition: all .2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
     .btn-back-page:hover { border-color: var(--gl); color: var(--gd); }
+    .btn-service-report { background:#e8f5ee; color:#1a5a3a; font-family:'Nunito',sans-serif; font-weight:800; font-size:13px; padding:8px 20px; border-radius:50px; border:1.5px solid #a8ddc0; transition:all .2s; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+    .btn-service-report:hover { background:#c8ead8; }
     .btn-cancel-ticket { background: none; border: 1.5px solid #e24b4a; color: #e24b4a; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; padding: 8px 20px; border-radius: 50px; transition: all .2s; cursor: pointer; }
     .btn-cancel-ticket:hover { background: #e24b4a; color: #fff; }
 @endsection
@@ -67,10 +69,10 @@
 @section('sidebar')
     {{-- Ticket quick info --}}
     <div class="sidebar-card mb-3">
-        <div class="sidebar-head">Ticket Info</div>
+        <div class="sidebar-head">Support Request Info</div>
         <div class="p-3 d-flex flex-column gap-3">
             <div>
-                <div class="detail-lbl">Ticket Number</div>
+                <div class="detail-lbl">Support Request Number</div>
                 <div class="detail-val">#{{ $ticket->ticket_number }}</div>
             </div>
             <div>
@@ -83,10 +85,11 @@
                 <div class="detail-lbl">Priority</div>
                 @php
                     $priColor = match($ticket->ticket_type) {
-                        'High'   => '#e24b4a',
-                        'Medium' => '#f5c842',
-                        'Low'    => '#4a7c4a',
-                        default  => 'var(--tm)'
+                        'Critical' => '#8b0000',
+                        'High'     => '#e24b4a',
+                        'Medium'   => '#f5c842',
+                        'Low'      => '#4a7c4a',
+                        default    => 'var(--tm)'
                     };
                 @endphp
                 <div class="detail-val" style="color:{{ $priColor }}">
@@ -95,8 +98,20 @@
             </div>
             <div>
                 <div class="detail-lbl">Category</div>
-                <div class="detail-val">{{ $ticket->request_category }}</div>
+                @if($ticket->subcategory_name)
+                    <div class="detail-val">{{ $ticket->slaCategory->name ?? '—' }}</div>
+                @else
+                    <div style="font-size:13px;font-weight:600;color:var(--tm)">
+                        Pending classification by Helpdesk
+                    </div>
+                @endif
             </div>
+            @if($ticket->subcategory_name)
+                <div>
+                    <div class="detail-lbl">Subtask</div>
+                    <div class="detail-val">{{ $ticket->subcategory_name }}</div>
+                </div>
+            @endif
             <div>
                 <div class="detail-lbl">Submitted</div>
                 <div style="font-size:13px;font-weight:600;color:var(--tm)">
@@ -138,6 +153,14 @@
                     </span>
                 @endif
             </div>
+            @if($ticket->expected_start_label ?? null)
+                <div>
+                    <div class="detail-lbl">{{ $ticket->expected_start_label === 'Being worked on now' ? 'Status' : 'Expected Start' }}</div>
+                    <div style="font-size:13px;font-weight:600;color:var(--tm)">
+                        {{ $ticket->expected_start_label }}
+                    </div>
+                </div>
+            @endif
             @if($ticket->resolved_at)
                 <div>
                     <div class="detail-lbl">Resolved At</div>
@@ -149,9 +172,16 @@
         </div>
     </div>
 
+    @if($ticket->status === 'Closed')
+        <button type="button" class="btn-service-report w-100 justify-content-center mb-3"
+                onclick="openServiceReportPreview('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+            <i class="bi bi-file-earmark-pdf"></i> View Service Report
+        </button>
+    @endif
+
     {{-- Back button --}}
     <a href="{{ route('employee.tickets.index') }}" class="btn-back-page w-100 justify-content-center">
-        <i class="bi bi-arrow-left"></i> Back to My Tickets
+        <i class="bi bi-arrow-left"></i> Back to My Support Requests
     </a>
 @endsection
 
@@ -170,6 +200,32 @@
         <div class="ticket-title mb-2" style="font-size:20px">{{ $ticket->subject }}</div>
         <div class="ticket-desc mb-4">{{ $ticket->concern }}</div>
 
+        {{-- Classification & assignment — shown once Helpdesk/Supervisor have
+             classified the ticket and assigned it to an ICT Support Specialist. --}}
+        @if($ticket->subcategory_name)
+            <div class="mb-4 p-3" style="background:var(--ygl);border-radius:12px;border:1px solid var(--gl)">
+                <div class="detail-lbl mb-2">
+                    <i class="bi bi-diagram-3 me-1"></i>Classified &amp; Assigned
+                </div>
+                <div class="d-flex flex-wrap gap-4">
+                    <div>
+                        <div class="detail-lbl mb-0">Category</div>
+                        <div class="detail-val">{{ $ticket->slaCategory->name ?? '—' }}</div>
+                    </div>
+                    <div>
+                        <div class="detail-lbl mb-0">Subtask</div>
+                        <div class="detail-val">{{ $ticket->subcategory_name }}</div>
+                    </div>
+                    @if($ticket->assignedTo)
+                        <div>
+                            <div class="detail-lbl mb-0">ICT Support Specialist</div>
+                            <div class="detail-val">{{ $ticket->assignedTo->name }}</div>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        @endif
+
         {{-- Additional details --}}
         @if($ticket->request_details)
             <div class="mb-4">
@@ -177,6 +233,25 @@
                 <div class="ticket-desc"
                      style="background:var(--ygl);padding:12px;border-radius:10px">
                     {{ $ticket->request_details }}
+                </div>
+            </div>
+        @endif
+
+        {{-- Supporting files --}}
+        @if($ticket->attachments->isNotEmpty())
+            <div class="mb-4">
+                <div class="detail-lbl mb-2">Supporting Files</div>
+                <div class="d-flex flex-column gap-2">
+                    @foreach($ticket->attachments as $attachment)
+                        <a href="{{ route('attachments.download', $attachment) }}"
+                           class="d-flex align-items-center gap-2 p-2 text-decoration-none"
+                           style="background:var(--ygl);border-radius:10px;color:var(--gd);font-size:13px;font-weight:600">
+                            <i class="bi bi-paperclip"></i>
+                            {{ $attachment->original_name }}
+                            <span style="color:var(--tm);font-weight:600;font-size:11px">({{ $attachment->humanSize() }})</span>
+                            <i class="bi bi-download ms-auto" style="color:var(--tm)"></i>
+                        </a>
+                    @endforeach
                 </div>
             </div>
         @endif
@@ -192,11 +267,11 @@
             </div>
         @endif
 
-        {{-- Cancel button --}}
-        @if(in_array($ticket->status, ['Open', 'In Progress']))
+        {{-- Cancel button — only while Helpdesk hasn't acknowledged the request yet --}}
+        @if($ticket->status === 'New Request' && is_null($ticket->date_acknowledged))
             <button class="btn-cancel-ticket"
                     onclick="confirmCancel('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                <i class="bi bi-x-circle me-1"></i>Cancel This Ticket
+                <i class="bi bi-x-circle me-1"></i>Cancel This Support Request
             </button>
         @endif
     </div>
@@ -211,19 +286,27 @@
         <div class="timeline-wrap">
             @forelse($ticket->statusHistories->sortBy('changed_at') as $history)
                 @php
-                    $dotClass = match($history->new_status) {
-                        'Open'        => 'open',
-                        'In Progress' => 'in-progress',
-                        'Escalated'   => 'escalated',
-                        'Resolved'    => 'resolved',
-                        'Cancelled'   => 'cancelled',
-                        default       => ''
+                    // Buckets every real status string this app sets (not just the 5
+                    // literal names the old match covered) into one of the 5 existing
+                    // dot colors, so nothing falls through to an unstyled default.
+                    $dotClass = match (true) {
+                        $history->new_status === 'Cancelled' => 'cancelled',
+                        $history->new_status === 'Escalated' => 'escalated',
+                        in_array($history->new_status, [
+                            'Closed', 'Pending Supervisor Approval', 'Pending Closure',
+                            'Awaiting Requestor', 'Pending Admin Supervisor Approval',
+                        ], true) => 'resolved',
+                        in_array($history->new_status, [
+                            'New Request', 'L1 In Progress', 'Awaiting Supervisor',
+                            'Awaiting Admin Classification', 'Awaiting Admin Supervisor', 'Awaiting Manager',
+                        ], true) => 'open',
+                        default => 'in-progress',
                     };
                 @endphp
                 <div class="tl-item">
                     <div class="tl-dot {{ $dotClass }}"></div>
                     <div class="tl-time">
-                        {{ \Carbon\Carbon::parse($history->changed_at)->format('M d, Y — g:i A') }}
+                        {{ \Carbon\Carbon::parse($history->changed_at)->timezone('Asia/Manila')->format('M d, Y — g:i A') }}
                         · {{ \Carbon\Carbon::parse($history->changed_at)->diffForHumans() }}
                     </div>
                     <div class="tl-title">
@@ -252,14 +335,14 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Cancel <em>Ticket</em></h5>
+                    <h5 class="mb-0">Cancel <em>Support Request</em></h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
                 <div class="modal-body px-4 py-4">
                     <div class="p-3 rounded"
                          style="background:rgba(226,75,74,.1);border:1px solid rgba(226,75,74,.3);color:#e24b4a;font-size:13px;font-weight:600">
                         <i class="bi bi-exclamation-triangle me-1"></i>
-                        Are you sure you want to cancel ticket
+                        Are you sure you want to cancel support request
                         <strong id="cancelTicketRef"></strong>?
                         This cannot be undone.
                     </div>
@@ -271,13 +354,15 @@
                         @method('PATCH')
                         <button type="submit" class="btn-cancel-ticket"
                                 style="padding:10px 24px">
-                            <i class="bi bi-x-circle me-1"></i>Yes, Cancel Ticket
+                            <i class="bi bi-x-circle me-1"></i>Yes, Cancel Support Request
                         </button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
+
+    <x-service-report-modal />
 @endsection
 
 @section('scripts')

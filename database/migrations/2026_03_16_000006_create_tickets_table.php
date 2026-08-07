@@ -11,17 +11,19 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('tickets', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')
+                ->primary()
+                ->default(DB::raw('gen_random_uuid()'));
             $table->string('ticket_number')->unique();
-            $table->uuid('users_id');
+            $table->uuid('users_id')->nullable();
             $table->uuid('assigned_to')->nullable();
-            $table->string('ticket_type');
-            $table->string('request_category');
-            $table->string('request_details');
+            $table->string('ticket_type')->nullable();
+            $table->string('request_category')->nullable();
+            $table->string('request_details')->nullable();
             $table->string('asset')->nullable();
-            $table->string('subject');
-            $table->string('concern');
-            $table->string('status');
+            $table->string('subject')->nullable();
+            $table->string('concern')->nullable();
+            $table->string('status')->nullable();
             $table->integer('escalation_level')->default(0);
             $table->string('location')->nullable();
             $table->timestamp('started_at')->nullable();

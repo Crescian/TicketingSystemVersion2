@@ -34,6 +34,10 @@
             <span class="num">{{ $counts['techs'] }}</span>
             <span class="lbl">IT Techs</span>
         </div>
+        <div class="stat-pill green">
+            <span class="num" id="heroOnlineCount">{{ $counts['online'] }}</span>
+            <span class="lbl">Online Now</span>
+        </div>
     </div>
 @endsection
 
@@ -46,6 +50,8 @@
     .settings-nav .nav-link:hover { background:var(--ygl); }
     .settings-nav .nav-link.active { background:var(--ygl); border-left:4px solid var(--yg); font-weight:700; }
     .settings-nav .nav-link .badge-count { background:var(--gd); color:var(--yg); font-size:11px; border-radius:20px; padding:2px 8px; margin-left:auto; font-weight:800; }
+
+    .stat-pill.green .num { color: #7be495; }
 
     /* ── Toolbar ── */
     .toolbar { background:#fff; border-radius:14px; border:1.5px solid var(--bd); padding:14px 18px; }
@@ -90,6 +96,9 @@
     .role-dot.admin     { background:#e24b4a; }
     .role-dot.executive { background:#9b59b6; }
 
+    /* Level badge */
+    .level-badge { display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:20px; padding:0 6px; border-radius:20px; font-size:11px; font-weight:800; background:var(--gd); color:var(--yg); margin-left:6px; }
+
     /* Status chips */
     .status-chip { display:inline-flex; align-items:center; gap:5px; border-radius:20px; padding:4px 10px; font-size:11px; font-weight:800; }
     .status-chip.active   { background:#e8f5ee; color:#1a5a3a; }
@@ -133,6 +142,30 @@
     /* Avatar preview */
     .avatar-preview { width:64px; height:64px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Nunito',sans-serif; font-weight:900; font-size:22px; margin:0 auto 16px; }
 
+    /* ── Presence (online/offline) ── */
+    .presence-chip { display:inline-flex; align-items:center; gap:5px; border-radius:20px; padding:4px 10px; font-size:11px; font-weight:800; white-space:nowrap; }
+    .presence-chip.online  { background:#e8f5ee; color:#1a5a3a; }
+    .presence-chip.offline { background:var(--ygl); color:var(--tm); }
+    .presence-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+    .presence-dot.online  { background:#2ecc71; box-shadow:0 0 0 0 rgba(46,204,113,.6); animation:presence-pulse 2s infinite; }
+    .presence-dot.offline { background:#b8b8a8; }
+    @keyframes presence-pulse {
+        0%   { box-shadow:0 0 0 0 rgba(46,204,113,.5); }
+        70%  { box-shadow:0 0 0 5px rgba(46,204,113,0); }
+        100% { box-shadow:0 0 0 0 rgba(46,204,113,0); }
+    }
+
+    /* ── IT Team Online Now panel ── */
+    .it-online-panel { background:#fff; border-radius:14px; border:1.5px solid var(--bd); padding:14px 18px; }
+    .it-online-hdr { display:flex; align-items:center; gap:8px; font-family:'Nunito',sans-serif; font-weight:800; font-size:13px; color:var(--gd); margin-bottom:10px; }
+    .it-online-hdr .presence-dot.online { animation:presence-pulse 2s infinite; }
+    .it-online-list { display:flex; flex-wrap:wrap; gap:8px; }
+    .it-online-chip { display:flex; align-items:center; gap:7px; background:var(--ygl); border:1.5px solid var(--bd); border-radius:50px; padding:5px 12px 5px 5px; }
+    .it-online-chip .user-av { width:26px; height:26px; font-size:10px; }
+    .it-online-chip .ioc-name { font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; color:var(--gd); }
+    .it-online-chip .ioc-role { font-size:10px; color:var(--tm); }
+    .it-online-empty { font-size:13px; color:var(--tm); padding:4px 0; }
+
     /* Empty state */
     .empty-state { padding:48px; text-align:center; }
     .empty-icon  { font-size:40px; margin-bottom:12px; opacity:.4; }
@@ -146,23 +179,33 @@
         <div class="sidebar-head"><i class="bi bi-gear me-1"></i>Settings</div>
         <ul class="nav flex-column settings-nav">
             <li class="nav-item">
-                <a class="nav-link active" href="{{ route('admin.users.index') }}">
+                <a class="nav-link active" href="{{ route('portal.users.index') }}">
                     <i class="bi bi-people"></i>Users
                     <span class="badge-count">{{ $counts['total'] }}</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.settings') }}">
+                <a class="nav-link" href="{{ route('portal.settings') }}">
                     <i class="bi bi-building"></i>Organization
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.sla-rules.index') }}">
+                <a class="nav-link" href="{{ route('portal.sla-rules.index') }}">
                     <i class="bi bi-clock-history"></i>SLA Rules
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.audit-log') }}">
+                <a class="nav-link" href="{{ route('portal.holidays.index') }}">
+                    <i class="bi bi-calendar-x"></i>Holidays
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('portal.leaves.index') }}">
+                    <i class="bi bi-calendar-minus"></i>Leave
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('portal.audit-log') }}">
                     <i class="bi bi-journal-text"></i>Audit Log
                 </a>
             </li>
@@ -187,8 +230,42 @@
         </div>
     @endif
 
+    {{-- IT Team — Online Now --}}
+    <div class="it-online-panel mb-3">
+        <div class="it-online-hdr">
+            <span class="presence-dot online"></span>
+            IT Team — Online Now
+            <span id="itOnlineHdrCount">({{ $itTeamOnline->count() }})</span>
+        </div>
+        <div class="it-online-list" id="itOnlineList">
+            @forelse($itTeamOnline as $member)
+                @php
+                    $mParts = explode(' ', $member->name);
+                    $mInitials = strtoupper(substr($mParts[0], 0, 1)) .
+                                 strtoupper(substr($mParts[count($mParts) - 1], 0, 1));
+                    $mRoleSlug = match($member->role?->role_name) {
+                        'IT Support Specialist', 'Supervisor - Support Specialist' => 'tech',
+                        'IT Admin', 'Supervisor - IT Admin' => 'admin',
+                        'Helpdesk' => 'helpdesk',
+                        'Manager' => 'executive',
+                        default => 'employee'
+                    };
+                @endphp
+                <div class="it-online-chip">
+                    <div class="user-av av-{{ $mRoleSlug }}">{{ $mInitials }}</div>
+                    <div>
+                        <div class="ioc-name">{{ $member->name }}</div>
+                        <div class="ioc-role">{{ $member->role?->role_name ?? 'N/A' }}</div>
+                    </div>
+                </div>
+            @empty
+                <div class="it-online-empty">No IT team members online right now.</div>
+            @endforelse
+        </div>
+    </div>
+
     {{-- Toolbar --}}
-    <form method="GET" action="{{ route('admin.users.index') }}"
+    <form method="GET" action="{{ route('portal.users.index') }}"
           class="toolbar d-flex flex-wrap align-items-center gap-3 mb-3"
           id="filterForm">
         <div class="search-wrap flex-grow-1" style="max-width:280px">
@@ -235,11 +312,11 @@
                 'Helpdesk'      => ['label' => 'Helpdesk',      'count' => $roleCounts['Helpdesk']],
                 'IT Support Specialist' => ['label' => 'IT Tech',       'count' => $roleCounts['IT Support Specialist']],
                 'IT Admin'      => ['label' => 'Admin',         'count' => $roleCounts['IT Admin']],
-                'Executive'     => ['label' => 'Executive',     'count' => $roleCounts['Executive']],
+                'Manager'       => ['label' => 'Manager',       'count' => $roleCounts['Manager']],
             ];
         @endphp
         @foreach($tabs as $key => $tab)
-            <a href="{{ route('admin.users.index', array_merge(request()->except('role'), ['role' => $key])) }}"
+            <a href="{{ route('portal.users.index', array_merge(request()->except('role'), ['role' => $key])) }}"
                class="tab-pill {{ $role === $key ? 'active' : '' }}">
                 {{ $tab['label'] }} ({{ $tab['count'] }})
             </a>
@@ -261,6 +338,7 @@
                         <th>Department</th>
                         <th>Position</th>
                         <th>Status</th>
+                        <th>Presence</th>
                         <th>Joined</th>
                         <th style="text-align:right">Actions</th>
                     </tr>
@@ -277,18 +355,21 @@
                                 'IT Support Specialist' => 'tech',
                                 'IT Admin'      => 'admin',
                                 'Helpdesk'      => 'helpdesk',
-                                'Executive'     => 'executive',
+                                'Manager'       => 'executive',
                                 default         => 'employee'
                             };
                             $roleIcon  = match($user->role?->role_name) {
                                 'IT Support Specialist' => '🔧',
                                 'IT Admin'      => '🛡️',
                                 'Helpdesk'      => '🎧',
-                                'Executive'     => '👔',
+                                'Manager'       => '👔',
                                 default         => '🧑‍💼'
                             };
+
+                            $lastSeen = $lastActivityMap[$user->id] ?? null;
+                            $isOnline = in_array($user->id, $onlineUserIds->all(), true);
                         @endphp
-                        <tr>
+                        <tr data-user-id="{{ $user->id }}">
                             <td>
                                 <input type="checkbox" class="row-check"
                                        style="accent-color:var(--gd)">
@@ -309,6 +390,9 @@
                                     <span class="role-dot {{ $roleSlug }}"></span>
                                     {{ $roleIcon }} {{ $user->role?->role_name ?? 'N/A' }}
                                 </span>
+                                @if($user->levelLabel())
+                                    <span class="level-badge" title="Support tier level">{{ $user->levelLabel() }}</span>
+                                @endif
                             </td>
                             <td>{{ $user->department?->department_name ?? '—' }}</td>
                             <td style="color:var(--tm);font-size:13px">
@@ -319,6 +403,22 @@
                                     <span class="status-dot {{ $user->active ? 'active' : 'inactive' }}"></span>
                                     {{ $user->active ? 'Active' : 'Inactive' }}
                                 </span>
+                            </td>
+                            <td class="presence-cell">
+                                @if($isOnline)
+                                    <span class="presence-chip online">
+                                        <span class="presence-dot online"></span>Online
+                                    </span>
+                                @else
+                                    <span class="presence-chip offline">
+                                        <span class="presence-dot offline"></span>
+                                        @if($lastSeen)
+                                            {{ \Carbon\Carbon::createFromTimestamp($lastSeen)->diffForHumans() }}
+                                        @else
+                                            Never logged in
+                                        @endif
+                                    </span>
+                                @endif
                             </td>
                             <td style="color:var(--tm);font-size:13px">
                                 {{ $user->created_at->format('M d, Y') }}
@@ -340,7 +440,7 @@
                                         </button>
                                     @else
                                         <form method="POST"
-                                              action="{{ route('admin.users.reactivate', $user) }}"
+                                              action="{{ route('portal.users.reactivate', $user) }}"
                                               style="display:inline">
                                             @csrf @method('PATCH')
                                             <button type="submit" class="btn-activ">
@@ -353,7 +453,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8">
+                            <td colspan="9">
                                 <div class="empty-state">
                                     <div class="empty-icon">
                                         <i class="bi bi-people"></i>
@@ -393,7 +493,7 @@
                     <h5 class="mb-0" id="userModalTitle">Add <em>New User</em></h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
-                <form method="POST" id="userForm" action="{{ route('admin.users.store') }}">
+                <form method="POST" id="userForm" action="{{ route('portal.users.store') }}">
                     @csrf
                     <input type="hidden" name="_method" id="formMethod" value="POST">
 
@@ -485,7 +585,7 @@
                                             'IT Support Specialist' => '🔧',
                                             'IT Admin'             => '🛡️',
                                             'Helpdesk'             => '🎧',
-                                            'Executive'            => '👔',
+                                            'Manager'              => '👔',
                                             default                => '🧑‍💼'
                                         };
                                     @endphp
@@ -494,6 +594,9 @@
                                         data-role-name="{{ $r->role_name }}">
                                         <span class="ro-icon">{{ $icon }}</span>
                                         <span class="ro-lbl">{{ $r->role_name }}</span>
+                                        @if($r->level_label)
+                                            <span class="level-badge" style="margin-left:0;margin-top:4px">{{ $r->level_label }}</span>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>
@@ -597,7 +700,7 @@
                              style="background:var(--rdl);font-size:13px;color:var(--rd)">
                             <i class="bi bi-exclamation-triangle-fill me-1"></i>
                             Deactivating <strong id="deactUserName"></strong> will block
-                            their login. Their ticket history will be preserved.
+                            their login. Their support request history will be preserved.
                             You can reactivate them at any time.
                         </div>
                         <div>
@@ -740,7 +843,7 @@ $(function () {
             'Helpdesk':             'av-helpdesk',
             'IT Support Specialist':'av-tech',
             'IT Admin':             'av-admin',
-            'Executive':            'av-executive'
+            'Manager':              'av-executive'
         }[role] || 'av-employee';
         $('#avatarPreview').text(ini).attr('class', 'avatar-preview ' + cls);
     }
@@ -767,7 +870,7 @@ $(function () {
     /* ── Open Add Modal ── */
     window.openAddModal = function () {
         $('#userModalTitle').html('Add <em>New User</em>');
-        $('#userForm').attr('action', '{{ route('admin.users.store') }}');
+        $('#userForm').attr('action', '{{ route('portal.users.store') }}');
         $('#formMethod').val('POST');
         $('#addPasswordNote').show();
         resetModalFields();
@@ -776,11 +879,11 @@ $(function () {
 
     /* ── Open Edit Modal ── */
     window.openEditModal = function (userId) {
-        fetch('/admin/users/' + userId)
+        fetch('/portal/users/' + userId)
             .then(r => r.json())
             .then(u => {
                 $('#userModalTitle').html('Edit <em>User</em>');
-                $('#userForm').attr('action', '/admin/users/' + userId);
+                $('#userForm').attr('action', '/portal/users/' + userId);
                 $('#formMethod').val('PUT');
                 $('#mName').val(u.name);
                 $('#mEmail').val(u.email);
@@ -818,16 +921,77 @@ $(function () {
     /* ── Open Reset Modal ── */
     window.openResetModal = function (userId, userName) {
         $('#resetUserName').text(userName);
-        $('#resetForm').attr('action', '/admin/users/' + userId + '/reset-password');
+        $('#resetForm').attr('action', '/portal/users/' + userId + '/reset-password');
         new bootstrap.Modal('#resetPwModal').show();
     };
 
     /* ── Open Deactivate Modal ── */
     window.openDeactModal = function (userId, userName) {
         $('#deactUserName').text(userName);
-        $('#deactForm').attr('action', '/admin/users/' + userId + '/deactivate');
+        $('#deactForm').attr('action', '/portal/users/' + userId + '/deactivate');
         new bootstrap.Modal('#deactModal').show();
     };
+
+    /* ── Live presence polling ── */
+    const presenceRoleSlug = {
+        'IT Support Specialist': 'tech',
+        'Supervisor - Support Specialist': 'tech',
+        'IT Admin': 'admin',
+        'Supervisor - IT Admin': 'admin',
+        'Helpdesk': 'helpdesk',
+        'Manager': 'executive',
+    };
+
+    function initials(name) {
+        const parts = name.trim().split(' ');
+        return (parts.length >= 2
+            ? parts[0][0] + parts[parts.length - 1][0]
+            : (parts[0][0] || '?')).toUpperCase();
+    }
+
+    function renderItOnlineList(members) {
+        const $list = $('#itOnlineList');
+        if (!members.length) {
+            $list.html('<div class="it-online-empty">No IT team members online right now.</div>');
+            return;
+        }
+        $list.html(members.map(m => {
+            const slug = presenceRoleSlug[m.role_name] || 'employee';
+            return `<div class="it-online-chip">
+                        <div class="user-av av-${slug}">${initials(m.name)}</div>
+                        <div>
+                            <div class="ioc-name">${$('<div>').text(m.name).html()}</div>
+                            <div class="ioc-role">${$('<div>').text(m.role_name || 'N/A').html()}</div>
+                        </div>
+                    </div>`;
+        }).join(''));
+    }
+
+    function refreshPresence() {
+        fetch('{{ route('portal.users.presence') }}', { headers: { 'Accept': 'application/json' } })
+            .then(r => r.ok ? r.json() : Promise.reject())
+            .then(data => {
+                $('#heroOnlineCount').text(data.online_count);
+                $('#itOnlineHdrCount').text('(' + data.online_count + ')');
+                renderItOnlineList(data.it_team);
+
+                const onlineIds = new Set(data.online_user_ids);
+                $('tr[data-user-id]').each(function () {
+                    const $row = $(this);
+                    const uid = $row.data('user-id');
+                    const $cell = $row.find('.presence-cell');
+                    if (onlineIds.has(uid)) {
+                        $cell.html('<span class="presence-chip online"><span class="presence-dot online"></span>Online</span>');
+                    } else if ($cell.find('.presence-dot.online').length) {
+                        // Was online, now isn't — flip without a precise "last seen" until next full load.
+                        $cell.html('<span class="presence-chip offline"><span class="presence-dot offline"></span>Offline</span>');
+                    }
+                });
+            })
+            .catch(() => {/* transient network hiccup — next poll retries */});
+    }
+
+    setInterval(refreshPresence, 30000);
 
 });
 </script>

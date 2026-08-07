@@ -18,6 +18,71 @@ class AuditLogController extends Controller
         $severity = $request->get('severity', '');
         $date = $request->get('date', '');
 
+        $logs = $this->filteredQuery($request)->paginate(15)->withQueryString();
+
+        // ── Stats
+        $counts = [
+            'today' => TicketStatusHistories::whereDate('changed_at', today())->count(),
+            'week' => TicketStatusHistories::whereBetween('changed_at', [
+                now()->startOfWeek(),
+                now()->endOfWeek()
+            ])->count(),
+            'critical' => TicketStatusHistories::whereIn('new_status', ['Escalated', 'Cancelled'])
+                ->count(),
+            'all_time' => TicketStatusHistories::count(),
+        ];
+
+        return view('admin.audit-log', compact(
+            'logs',
+            'counts',
+            'search',
+            'action',
+            'module',
+            'severity',
+            'date'
+        ));
+    }
+
+    // Streams the currently-filtered audit log as a CSV download.
+    public function export(Request $request)
+    {
+        $logs = $this->filteredQuery($request)->get();
+
+        $filename = 'audit-log-' . now()->format('Y-m-d_His') . '.csv';
+
+        return response()->streamDownload(function () use ($logs) {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, ['Date/Time', 'Ticket Number', 'User', 'Role', 'Action', 'Old Status', 'New Status', 'Severity', 'Notes']);
+
+            foreach ($logs as $log) {
+                fputcsv($handle, [
+                    $log->changed_at?->format('Y-m-d H:i:s'),
+                    $log->ticket?->ticket_number,
+                    $log->changedBy?->name ?? 'System',
+                    $log->changedBy?->role?->role_name ?? '—',
+                    self::getActionLabel($log->new_status ?? ''),
+                    $log->old_status ?? '—',
+                    $log->new_status ?? '—',
+                    self::getSeverity($log->new_status ?? ''),
+                    $log->notes,
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
+    // Shared filter logic for both the paginated index view and the CSV export.
+    private function filteredQuery(Request $request)
+    {
+        $search = $request->get('search', '');
+        $action = $request->get('action', '');
+        $severity = $request->get('severity', '');
+        $date = $request->get('date', '');
+
         // ── Build audit log from ticket_status_histories
         // (the main source of truth for all actions in the system)
         $query = TicketStatusHistories::with([
@@ -57,29 +122,7 @@ class AuditLogController extends Controller
             $query->whereIn('new_status', $this->getSeverityStatuses($severity));
         }
 
-        $logs = $query->paginate(15)->withQueryString();
-
-        // ── Stats
-        $counts = [
-            'today' => TicketStatusHistories::whereDate('changed_at', today())->count(),
-            'week' => TicketStatusHistories::whereBetween('changed_at', [
-                now()->startOfWeek(),
-                now()->endOfWeek()
-            ])->count(),
-            'critical' => TicketStatusHistories::whereIn('new_status', ['Escalated', 'Cancelled'])
-                ->count(),
-            'all_time' => TicketStatusHistories::count(),
-        ];
-
-        return view('admin.audit-log', compact(
-            'logs',
-            'counts',
-            'search',
-            'action',
-            'module',
-            'severity',
-            'date'
-        ));
+        return $query;
     }
 
     // Map severity to statuses

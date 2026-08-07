@@ -101,6 +101,25 @@
       color: var(--gl);
     }
 
+    .btn-back-dashboard {
+      display: inline-flex;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1.5px solid var(--bd);
+      color: var(--tm);
+      text-decoration: none;
+      transition: all .2s;
+    }
+
+    .btn-back-dashboard:hover {
+      border-color: var(--gl);
+      color: var(--gd);
+      background: var(--ygl);
+    }
+
     /* Admin role badge — red gradient */
     .role-badge-admin {
       background: linear-gradient(135deg, var(--rd), #c0392b);
@@ -605,6 +624,10 @@
       display: inline-block;
     }
 
+    .pri-critical {
+      background: #8b0000;
+    }
+
     .pri-high {
       background: #e24b4a;
     }
@@ -746,6 +769,23 @@
     }
 
     .btn-resolve-a:hover {
+      background: #c8ead8;
+    }
+
+    .btn-service-report {
+      background: #e8f5ee;
+      color: #1a5a3a;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1.5px solid #a8ddc0;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .btn-service-report:hover {
       background: #c8ead8;
     }
 
@@ -1134,7 +1174,10 @@
 </head>
 
 <body>
-
+  @php
+    $user = auth()->user();
+    $dashboardRoute = $user->dashboardRoute();
+  @endphp
   {{-- ── ADMIN TOPBAR (dark) ── --}}
   <div id="topbar" class="d-flex justify-content-between align-items-center px-4 py-1">
     <span><strong>IT Admin Console</strong> — Full system access</span>
@@ -1155,8 +1198,13 @@
   {{-- ── NAVBAR ── --}}
   <nav class="navbar sticky-top px-4 py-0">
     <div class="container-fluid px-0">
-      <a class="navbar-brand" href="{{ route('admin.dashboard') }}">LG<span>ICT</span></a>
+      <a class="navbar-brand" href="{{ route($dashboardRoute) }}">Support Request<span> System</span></a>
       <div class="ms-auto d-flex align-items-center gap-2">
+        @if(!Route::is($dashboardRoute))
+            <a href="{{ route($dashboardRoute) }}" class="btn-back-dashboard">
+                <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+            </a>
+        @endif
         @yield('nav-role-badge')
         <a href="{{ route('profile') }}" class="d-flex align-items-center gap-2 text-decoration-none text-reset">
           <div class="avatar-chip-admin">@yield('avatar-initials', 'MA')</div>
@@ -1207,8 +1255,8 @@
   <script>
     /* ── Shared: filter ── */
     function setFilter(val, labelMap) {
-      const label = labelMap || { all: 'All Tickets' };
-      $('#listTitle').text(label[val] || 'All Tickets');
+      const label = labelMap || { all: 'All Support Requests' };
+      $('#listTitle').text(label[val] || 'All Support Requests');
       $('.tab-pill').removeClass('active').filter('[data-filter="' + val + '"]').addClass('active');
       $('#sideNav .list-group-item').removeClass('active').filter('[data-filter="' + val + '"]').addClass('active');
       $('#ticketList .ticket-card').each(function () {

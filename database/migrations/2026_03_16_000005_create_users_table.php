@@ -18,6 +18,7 @@ return new class extends Migration {
             $table->string('password');
             $table->uuid('role_id')->nullable();
             $table->uuid('department_id')->nullable();
+            $table->uuid('reports_to_user_id')->nullable();
             $table->string('position');
             $table->boolean('active')->default(true);
             $table->rememberToken();

@@ -23,53 +23,49 @@
       <div class="deco-circle c2"></div>
       <div class="deco-circle c3"></div>
 
-      <a href="#" class="left-logo">LG<span>ICT</span></a>
+      <a href="#" class="left-logo">Support Request<span> System</span></a>
 
       <div class="left-main">
         <div class="left-eyebrow">
           <div class="dot"></div>IT Support Portal
         </div>
-        <h1 class="left-headline">ONE LOGIN.<br>YOUR <em>ROLE.</em><br>YOUR <em>TOOLS.</em></h1>
-        <p class="left-desc">Sign in with your company account. We'll automatically take you to the right dashboard based
-          on your role.</p>
+        <h1 class="left-headline">SUBMIT YOUR ISSUE.<br>WATCH IT <em>MOVE.</em><br>GET IT <em>RESOLVED.</em></h1>
+        <p class="left-desc">Sign in to raise a request, track it in real time, and know exactly when help is on the
+          way.</p>
 
         <div class="role-cards">
           <div class="role-card">
-            <div class="role-icon customer"><i class="bi bi-person"></i></div>
+            <div class="role-icon customer"><i class="bi bi-stopwatch"></i></div>
             <div>
-              <div class="role-title">Customer (Employee)</div>
-              <div class="role-desc">Submit and track your IT support requests</div>
+              <div class="role-title">Know What to Expect</div>
+              <div class="role-desc">Every support request gets a response and resolution target the moment it's submitted</div>
             </div>
-            <i class="bi bi-arrow-right role-arrow"></i>
           </div>
           <div class="role-card">
-            <div class="role-icon helpdesk"><i class="bi bi-headset"></i></div>
+            <div class="role-icon helpdesk"><i class="bi bi-activity"></i></div>
             <div>
-              <div class="role-title">Helpdesk</div>
-              <div class="role-desc">Manage the queue, assign technicians</div>
+              <div class="role-title">Live Status Tracking</div>
+              <div class="role-desc">Watch your support request move from submitted, to assigned, to resolved</div>
             </div>
-            <i class="bi bi-arrow-right role-arrow"></i>
           </div>
           <div class="role-card">
-            <div class="role-icon tech"><i class="bi bi-tools"></i></div>
+            <div class="role-icon tech"><i class="bi bi-person-check"></i></div>
             <div>
-              <div class="role-title">IT Support Specialist</div>
-              <div class="role-desc">Accept, work on, and resolve tickets</div>
+              <div class="role-title">Focused Attention</div>
+              <div class="role-desc">Your assigned specialist works your support request start to finish before moving on</div>
             </div>
-            <i class="bi bi-arrow-right role-arrow"></i>
           </div>
           <div class="role-card">
-            <div class="role-icon admin"><i class="bi bi-shield-fill"></i></div>
+            <div class="role-icon admin"><i class="bi bi-chat-dots"></i></div>
             <div>
-              <div class="role-title">IT Admin</div>
-              <div class="role-desc">Handle escalations, full system oversight</div>
+              <div class="role-title">Stay in the Loop</div>
+              <div class="role-desc">Message your specialist directly and get notified the moment anything changes</div>
             </div>
-            <i class="bi bi-arrow-right role-arrow"></i>
           </div>
         </div>
       </div>
 
-      <div class="left-footer">© 2026 LGICT Internal Support System. All rights reserved. Developed by CML</div>
+      <div class="left-footer">© 2026 ONEICT Internal Support System. All rights reserved. Developed by CML</div>
     </div>
 
     {{-- ══ RIGHT PANEL ══ --}}
@@ -77,7 +73,7 @@
       <div class="form-box">
 
         <div class="form-eyebrow">Welcome back</div>
-        <h2 class="form-title">Sign in to<br><em>LGICT</em></h2>
+        <h2 class="form-title">Sign in to<br><em>Support Request System</em></h2>
         <p class="form-sub">Use your company email and password. You'll be redirected to your role's dashboard
           automatically.</p>
 
@@ -102,26 +98,6 @@
           </div>
         @endif
 
-        {{-- ── Demo role chips (UI only, autofills the form) ── --}}
-        {{-- <div class="divider">
-          <div class="divider-line"></div>
-          <div class="divider-text">Try a demo role</div>
-          <div class="divider-line"></div>
-        </div>
-        <div class="role-preview" id="demoChips">
-          <div class="rp-chip" data-email="customer@lgict.com" data-name="Juan Dela Cruz" data-role="Customer">
-            <span class="rp-dot customer"></span>Customer
-          </div>
-          <div class="rp-chip" data-email="helpdesk@lgict.com" data-name="Maria Santos" data-role="Helpdesk">
-            <span class="rp-dot helpdesk"></span>Helpdesk
-          </div>
-          <div class="rp-chip" data-email="tech@lgict.com" data-name="R. Buenaventura" data-role="IT Technician">
-            <span class="rp-dot tech"></span>IT Tech
-          </div>
-          <div class="rp-chip" data-email="admin@lgict.com" data-name="M. Aquino" data-role="IT Admin">
-            <span class="rp-dot admin"></span>IT Admin
-          </div>
-        </div> --}}
 
         {{-- ── Laravel Login Form ── --}}
         <form method="POST" action="{{ route('login') }}" id="loginForm" novalidate>
@@ -176,12 +152,36 @@
 
         </form>
 
+        <div style="display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--tm);font-size:12px;font-weight:600;">
+          <div style="flex:1;height:1px;background:var(--bd,#e0e0e0);"></div>
+          OR
+          <div style="flex:1;height:1px;background:var(--bd,#e0e0e0);"></div>
+        </div>
+
+        <a href="{{ route('auth.microsoft.redirect') }}" class="btn-login"
+          style="display:flex;align-items:center;justify-content:center;gap:10px;text-decoration:none;background:#fff;color:#5e5e5e;border:1.5px solid #d0d0d0;">
+          <svg width="18" height="18" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+            <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+            <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+            <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+          </svg>
+          Sign in with Microsoft
+        </a>
+
         <p style="text-align:center;font-size:12px;color:var(--tm)">
           Having trouble? Contact your IT Helpdesk or email
           <a href="mailto:icthelpdesk@leoniogroup.com"
             style="color:var(--gl);font-weight:700">icthelpdesk@leoniogroup.com</a>
         </p>
 
+                {{-- Return to Landing --}}
+        <!-- <div class="text-center mt-3">
+            <a href="http://usermgmt.development.com/" style="font-size:12.5px;font-weight:700;color:var(--tm);text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:color .2s;"
+            onmouseover="this.style.color='var(--nl)'" onmouseout="this.style.color='var(--tm)'">
+                <i class="bi bi-arrow-left"></i> Return to Home
+            </a>
+        </div> -->
       </div>
       <div class="right-footer">LGICT Support System v2.5 &nbsp;·&nbsp; Secure internal access</div>
     </div>
@@ -248,6 +248,6 @@
         }, 300);
       @endif
 
-                            });
+                              });
   </script>
 @endsection

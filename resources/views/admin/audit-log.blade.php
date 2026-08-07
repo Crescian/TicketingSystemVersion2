@@ -140,23 +140,33 @@
         <div class="sidebar-head"><i class="bi bi-gear me-1"></i>Settings</div>
         <ul class="nav flex-column settings-nav">
             <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.users.index') }}">
+                <a class="nav-link" href="{{ route('portal.users.index') }}">
                     <i class="bi bi-people"></i>Users
                     <span class="badge-count">{{ \App\Models\User::count() }}</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.settings') }}">
+                <a class="nav-link" href="{{ route('portal.settings') }}">
                     <i class="bi bi-building"></i>Organization
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.sla-rules.index') }}">
+                <a class="nav-link" href="{{ route('portal.sla-rules.index') }}">
                     <i class="bi bi-clock-history"></i>SLA Rules
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link active" href="{{ route('admin.audit-log') }}">
+                <a class="nav-link" href="{{ route('portal.holidays.index') }}">
+                    <i class="bi bi-calendar-x"></i>Holidays
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('portal.leaves.index') }}">
+                    <i class="bi bi-calendar-minus"></i>Leave
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="{{ route('portal.audit-log') }}">
                     <i class="bi bi-journal-text"></i>Audit Log
                 </a>
             </li>
@@ -169,14 +179,14 @@
 
     {{-- Toolbar --}}
     <div class="toolbar d-flex flex-wrap align-items-center gap-3 mb-3">
-      <form method="GET" action="{{ route('admin.audit-log') }}"
+      <form method="GET" action="{{ route('portal.audit-log') }}"
             class="d-flex flex-wrap align-items-center gap-3 w-100"
             id="filterForm">
 
           <div class="search-wrap flex-grow-1" style="max-width:260px">
               <i class="bi bi-search" style="color:var(--tm)"></i>
               <input type="text" name="search" id="searchInput"
-                    placeholder="Search by user, ticket, notes…"
+                    placeholder="Search by user, support request, notes…"
                     value="{{ $search }}" autocomplete="off">
           </div>
 
@@ -201,7 +211,7 @@
                 style="border-radius:50px;padding:8px 14px"
                 onchange="this.form.submit()">
 
-          <a href="{{ route('admin.audit-log') }}" class="btn-export ms-auto">
+          <a href="{{ route('portal.audit-log.export', request()->query()) }}" class="btn-export ms-auto">
               <i class="bi bi-download"></i> Export CSV
           </a>
 
@@ -210,19 +220,19 @@
 
     {{-- Tab pills --}}
     <div class="d-flex flex-wrap gap-2 mb-3">
-        <a href="{{ route('admin.audit-log') }}"
+        <a href="{{ route('portal.audit-log') }}"
           class="tab-pill {{ $severity === '' ? 'active' : '' }}">
             All Events ({{ number_format($counts['all_time']) }})
         </a>
-        <a href="{{ route('admin.audit-log', ['severity' => 'info']) }}"
+        <a href="{{ route('portal.audit-log', ['severity' => 'info']) }}"
           class="tab-pill {{ $severity === 'info' ? 'active' : '' }}">
             Info
         </a>
-        <a href="{{ route('admin.audit-log', ['severity' => 'warning']) }}"
+        <a href="{{ route('portal.audit-log', ['severity' => 'warning']) }}"
           class="tab-pill {{ $severity === 'warning' ? 'active' : '' }}">
             Warning
         </a>
-        <a href="{{ route('admin.audit-log', ['severity' => 'critical']) }}"
+        <a href="{{ route('portal.audit-log', ['severity' => 'critical']) }}"
           class="tab-pill {{ $severity === 'critical' ? 'active' : '' }}">
             <span class="sev-dot critical"></span>
             Critical ({{ $counts['critical'] }})
@@ -291,7 +301,7 @@
                           </td>
                           <td>
                               <span class="module-chip">
-                                  <i class="bi bi-ticket-perforated me-1"></i>Ticket
+                                  <i class="bi bi-ticket-perforated me-1"></i>Support Request
                               </span>
                           </td>
                           <td style="max-width:260px;color:var(--gd);font-weight:600">
@@ -314,9 +324,9 @@
                           </td>
                           <td class="meta-cell" style="white-space:nowrap">
                               <div style="font-weight:700;color:var(--gd)">
-                                  {{ \Carbon\Carbon::parse($log->changed_at)->format('M d, Y') }}
+                                  {{ \Carbon\Carbon::parse($log->changed_at)->timezone('Asia/Manila')->format('M d, Y') }}
                               </div>
-                              <div>{{ \Carbon\Carbon::parse($log->changed_at)->format('h:i A') }}</div>
+                              <div>{{ \Carbon\Carbon::parse($log->changed_at)->timezone('Asia/Manila')->format('h:i A') }}</div>
                           </td>
                       </tr>
 
@@ -348,7 +358,7 @@
                                               </div>
                                           @endif
                                           <div class="col-md-4">
-                                              <div class="detail-label">Ticket</div>
+                                              <div class="detail-label">Support Request</div>
                                               <div class="detail-val">
                                                   #{{ $log->ticket?->ticket_number ?? '—' }}
                                               </div>
@@ -362,7 +372,7 @@
                                           <div class="col-md-4">
                                               <div class="detail-label">Exact Timestamp</div>
                                               <div class="detail-val">
-                                                  {{ \Carbon\Carbon::parse($log->changed_at)->format('D, M d Y — h:i:s A') }}
+                                                  {{ \Carbon\Carbon::parse($log->changed_at)->timezone('Asia/Manila')->format('D, M d Y — h:i:s A') }}
                                               </div>
                                           </div>
                                       </div>

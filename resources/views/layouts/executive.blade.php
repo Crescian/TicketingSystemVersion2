@@ -36,6 +36,7 @@
       --ex-yg: #c8e63c;
       --ex-green: #3fb950;
       --ex-red: #f85149;
+      --ex-critical: #ff2d2d;
       --ex-amber: #d29922;
       --ex-blue: #58a6ff;
     }
@@ -850,7 +851,7 @@
   <div id="topbar">
     {{-- Left: logo + badge --}}
     <div class="d-flex align-items-center gap-3">
-      <a href="#" class="top-logo">LG<span>ICT</span></a>
+      <a href="#" class="top-logo">Support Request<span> System</span></a>
       <span class="exec-badge"><i class="bi bi-briefcase me-1"></i>Management View</span>
     </div>
 
@@ -858,10 +859,11 @@
     <div class="d-flex align-items-center gap-3">
       {{-- Date range toggle — functional in @yield('scripts') --}}
       <div class="date-range" id="dateRange">
-        <button class="dr-btn" data-range="7D">7D</button>
-        <button class="dr-btn active" data-range="30D">30D</button>
-        <button class="dr-btn" data-range="90D">90D</button>
-        <button class="dr-btn" data-range="YTD">YTD</button>
+        @php $activeRange = $range ?? '30D'; @endphp
+        <button class="dr-btn {{ $activeRange === '7D' ? 'active' : '' }}" data-range="7D">7D</button>
+        <button class="dr-btn {{ $activeRange === '30D' ? 'active' : '' }}" data-range="30D">30D</button>
+        <button class="dr-btn {{ $activeRange === '90D' ? 'active' : '' }}" data-range="90D">90D</button>
+        <button class="dr-btn {{ $activeRange === 'YTD' ? 'active' : '' }}" data-range="YTD">YTD</button>
       </div>
 
       <span class="top-date"><i class="bi bi-calendar3 me-1"></i>{{ now()->format('F j, Y') }}</span>
