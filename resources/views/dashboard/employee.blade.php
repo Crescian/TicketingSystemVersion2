@@ -59,6 +59,13 @@
     }
     .btn-news:hover { background: var(--ygd); transform: translateY(-2px); }
 
+    /* ── Onboarding modal ── */
+    .onboard-icon {
+        width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+        background: var(--ygl); color: var(--gd);
+        display: flex; align-items: center; justify-content: center; font-size: 15px;
+    }
+
     /* ── Available IT panel ── */
     .it-avail-row { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:10px; }
     .it-avail-row:hover { background:var(--ygl); }
@@ -587,13 +594,20 @@
                     : '—';
 
                 // ── Full lifecycle tracker: Submitted -> Acknowledged -> Classified & Assigned ->
-                // In Progress -> Resolved -> Closed. Collapses the many internal handoff statuses
-                // (supervisor classification, technician acknowledgement, admin validation, etc.)
-                // into the 6 phases that actually matter to the requestor.
+                // In Progress -> Done Service Support -> Preparing Service Report ->
+                // Awaiting Your Confirmation -> Closed. Collapses the many internal handoff
+                // statuses (supervisor classification, technician acknowledgement, admin
+                // validation, etc.) into the 8 phases that actually matter to the requestor.
                 $isCancelled = $ticket->status === 'Cancelled';
                 $isClosedT   = $ticket->status === 'Closed';
                 $isAwaitingRequestorT = $ticket->status === 'Awaiting Requestor';
-                $isResolvedPhase = in_array($ticket->status, ['Pending Supervisor Approval', 'Pending Closure', 'Resolved']);
+                // ── Split out of what used to be a single combined "Resolved" step — the
+                //    technician finishing their work (Pending Supervisor Approval) and the
+                //    supervisor finalizing the paperwork (Pending Closure) are visibly
+                //    different waits from the requestor's side, so each gets its own step.
+                $isDoneServiceSupport = $ticket->status === 'Pending Supervisor Approval';
+                $isPreparingReport    = in_array($ticket->status, ['Pending Closure', 'Resolved']);
+                $isResolvedPhase = $isDoneServiceSupport || $isPreparingReport;
                 // ── Everything from "assigned, waiting on the technician to start" through
                 //    active work — mirrors the 'in_progress' phase filter in
                 //    TicketsController@index (minus the resolved-phase tail, which gets its
@@ -625,19 +639,24 @@
                     default => ''
                 };
                 $tStep5 = match(true) {
-                    $isResolvedPhase => 'active',
+                    $isDoneServiceSupport => 'active',
+                    $isPreparingReport || $isAwaitingRequestorT || $isClosedT => 'done',
+                    default => ''
+                };
+                $tStep6 = match(true) {
+                    $isPreparingReport => 'active',
                     $isAwaitingRequestorT || $isClosedT => 'done',
                     default => ''
                 };
                 // ── Ticket is resolved and needs the requestor to acknowledge it before it
                 //    can close — its own step so it's clear the ball is in the employee's
                 //    court, rather than reading as part of the "Closed" step itself.
-                $tStep6 = match(true) {
+                $tStep7 = match(true) {
                     $isAwaitingRequestorT => 'active',
                     $isClosedT => 'done',
                     default => ''
                 };
-                $tStep7 = match(true) {
+                $tStep8 = match(true) {
                     $isClosedT => 'done',
                     default => ''
                 };
@@ -647,11 +666,13 @@
                 $tLine4 = $tStep5 !== '' ? 'done' : '';
                 $tLine5 = $tStep6 !== '' ? 'done' : '';
                 $tLine6 = $tStep7 !== '' ? 'done' : '';
+                $tLine7 = $tStep8 !== '' ? 'done' : '';
 
-                // ── Ticket was investigated but couldn't be technically fixed — the
-                //    "Resolved" step reads as a false positive otherwise, so it gets its
-                //    own red/X treatment instead of the usual green checkmark.
-                $isUnresolved = $ticket->cannot_resolve && $tStep5 !== '';
+                // ── Ticket was investigated but couldn't be technically fixed — jumps
+                //    straight from Escalated to Pending Closure (never Pending Supervisor
+                //    Approval), so the failure marker belongs on "Preparing Service Report",
+                //    the step whose status it actually reaches.
+                $isUnresolved = $ticket->cannot_resolve && $tStep6 !== '';
             @endphp
 
             <div class="ticket-card {{ $statusClass }} p-3"
@@ -711,29 +732,36 @@
                         </div>
                         <div class="ps-line {{ $tLine4 }}"></div>
                         <div class="ps-step">
+                            <div class="ps-dot {{ $tStep5 }}">
+                                @if($tStep5 === 'done') <i class="bi bi-check"></i> @else 5 @endif
+                            </div>
+                            <div class="ps-lbl {{ $tStep5 }}">Done Service Support</div>
+                        </div>
+                        <div class="ps-line {{ $tLine5 }}"></div>
+                        <div class="ps-step">
                             @if($isUnresolved)
                                 <div class="ps-dot failed"><i class="bi bi-x-lg"></i></div>
                                 <div class="ps-lbl failed">Unresolved</div>
                             @else
-                                <div class="ps-dot {{ $tStep5 }}">
-                                    @if($tStep5 === 'done') <i class="bi bi-check"></i> @else 5 @endif
+                                <div class="ps-dot {{ $tStep6 }}">
+                                    @if($tStep6 === 'done') <i class="bi bi-check"></i> @else 6 @endif
                                 </div>
-                                <div class="ps-lbl {{ $tStep5 }}">Resolved</div>
+                                <div class="ps-lbl {{ $tStep6 }}">Preparing Service Report</div>
                             @endif
-                        </div>
-                        <div class="ps-line {{ $tLine5 }}"></div>
-                        <div class="ps-step">
-                            <div class="ps-dot {{ $tStep6 }}">
-                                @if($tStep6 === 'done') <i class="bi bi-check"></i> @else 6 @endif
-                            </div>
-                            <div class="ps-lbl {{ $tStep6 }}">Awaiting You</div>
                         </div>
                         <div class="ps-line {{ $tLine6 }}"></div>
                         <div class="ps-step">
                             <div class="ps-dot {{ $tStep7 }}">
                                 @if($tStep7 === 'done') <i class="bi bi-check"></i> @else 7 @endif
                             </div>
-                            <div class="ps-lbl {{ $tStep7 }}">Closed</div>
+                            <div class="ps-lbl {{ $tStep7 }}">Awaiting Your Confirmation</div>
+                        </div>
+                        <div class="ps-line {{ $tLine7 }}"></div>
+                        <div class="ps-step">
+                            <div class="ps-dot {{ $tStep8 }}">
+                                @if($tStep8 === 'done') <i class="bi bi-check"></i> @else 8 @endif
+                            </div>
+                            <div class="ps-lbl {{ $tStep8 }}">Closed</div>
                         </div>
                     </div>
                 @endif
@@ -939,6 +967,55 @@
 {{-- ══ NEW TICKET MODAL ══ --}}
 @section('modals')
 
+    {{-- Welcome / Onboarding Modal — one-time, shown until the employee
+         dismisses it (users.onboarded_at gets stamped, see
+         TicketsController::completeOnboarding()). --}}
+    @if($showOnboarding)
+        <div class="modal fade" id="onboardingModal" tabindex="-1" data-bs-backdrop="static">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0">Welcome to the New <em>IT Support System</em></h5>
+                        <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                    </div>
+                    <div class="modal-body px-4 py-4">
+                        <p style="font-size:13px;color:var(--tm);margin-bottom:18px">
+                            This replaces email/walk-in IT requests — here's what's different:
+                        </p>
+                        <div class="d-flex flex-column gap-3">
+                            <div class="d-flex align-items-start gap-3">
+                                <div class="onboard-icon"><i class="bi bi-stopwatch"></i></div>
+                                <div>
+                                    <div style="font-weight:800;font-size:13px">Know what to expect</div>
+                                    <div style="font-size:12px;color:var(--tm)">Every ticket gets a response and resolution target the moment it's submitted.</div>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-start gap-3">
+                                <div class="onboard-icon"><i class="bi bi-activity"></i></div>
+                                <div>
+                                    <div style="font-weight:800;font-size:13px">Track it live</div>
+                                    <div style="font-size:12px;color:var(--tm)">Watch your ticket move from submitted, to assigned, to resolved — right from this dashboard.</div>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-start gap-3">
+                                <div class="onboard-icon"><i class="bi bi-chat-dots"></i></div>
+                                <div>
+                                    <div style="font-weight:800;font-size:13px">Message your specialist</div>
+                                    <div style="font-size:12px;color:var(--tm)">No more back-and-forth emails — chat directly on the ticket and get notified the moment it changes.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3">
+                        <button type="button" class="btn-submit-ticket w-100" data-bs-dismiss="modal">
+                            Got it, let's go
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Submit Ticket Modal --}}
     <div class="modal fade" id="ticketModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -949,8 +1026,10 @@
                 </div>
                 <form method="POST" action="{{ route('employee.tickets.store') }}" id="ticketForm" enctype="multipart/form-data">
                     @csrf
-                    <input type="hidden" name="ticket_type"      id="hTicketType"   value="Medium">
-                    <input type="hidden" name="request_category" id="hCategory"     value="">
+                    {{-- No priority/category fields here — this form has no picker for either.
+                         Every self-filed ticket is created at a fixed baseline priority
+                         server-side (TicketsController::DEFAULT_PRIORITY); Helpdesk/Supervisor
+                         assign the real category and priority during classification. --}}
                     <input type="hidden" name="asset"            id="hAsset"        value="">
                     <input type="hidden" name="location"         id="hLocation"     value="">
 
@@ -1046,7 +1125,7 @@
                                         name="request_details" rows="2"
                                         placeholder="Error messages, steps to reproduce…"></textarea>
                             </div>
-                            <div class="row g-3 mb-1">
+                            <div class="mb-3">
                                     <label class="form-label">Location</label>
                                     <select class="form-select" id="mLocation">
                                         <option value="">— Select location —</option>
@@ -1099,7 +1178,7 @@
                                 <div class="mb-2"><b>Business Unit:</b> <span id="rv-bu">—</span></div>
                                 <div class="mb-2"><b>Company:</b> <span id="rv-company">—</span></div>
                                 <div class="mb-2"><b>Department:</b> <span id="rv-department">—</span></div>
-
+                                
                                 <hr>
 
                                 <div class="mb-2"><b>Date Acknowledged:</b> <span id="rv-ack-date">—</span></div>
@@ -1137,6 +1216,12 @@
                                 Helpdesk will assign a technician shortly.
                             </p>
                             <div class="ticket-ref my-3" id="newTicketRef">—</div>
+                            <div class="text-start p-3 mb-3 rounded" style="background:var(--ygl);font-size:12.5px;color:var(--gd)">
+                                <i class="bi bi-info-circle-fill me-1"></i>
+                                <strong>Double-check what you submitted.</strong>
+                                Incomplete or unclear details can delay how quickly your request gets picked up —
+                                if you missed something, add it now from your ticket's chat.
+                            </div>
                             <p style="color:var(--tm);font-size:13px">
                                 Track progress from your dashboard.<br>
                                 You'll be notified when the status changes.
@@ -1839,5 +1924,26 @@
                 silentRefreshTimer = setInterval(silentRefresh, 30000);
             }
         });
+
+    /* ── Onboarding modal — shows once; any dismissal (button, X, backdrop,
+           Escape) marks it seen so it never shows again for this employee. ── */
+    @if($showOnboarding)
+    (function () {
+        const modalEl = document.getElementById('onboardingModal');
+        if (!modalEl) return;
+
+        new bootstrap.Modal(modalEl).show();
+
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            fetch('{{ route('employee.onboarding.complete') }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                },
+            }).catch(() => {}); // best-effort — worst case it just shows again next login
+        }, { once: true });
+    })();
+    @endif
 </script>
 @endsection

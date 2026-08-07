@@ -633,6 +633,7 @@
                                     'priority' => $ticket->ticket_type,
                                     'response' => $ticket->response_time_minutes,
                                     'resolution' => $ticket->resolution_time_minutes,
+                                    'workloadClassId' => $ticket->workload_class_id,
                                 ]) }})">
                             <i class="bi bi-tags me-1"></i>{{ $ticket->subcategory_name ? 'Review & Assign' : 'Classify & Assign' }}
                         </button>
@@ -1451,6 +1452,13 @@ window.openClassifyAssignModal = function (ticketId, ticketNumber, defaults) {
         );
     });
     $('#caWorkloadManualHint').addClass('d-none');
+
+    // Reflect the workload class Helpdesk already picked, if any — set silently
+    // (no 'change' trigger) so it doesn't clobber the response/resolution values
+    // set from defaults below, which already carry any manual customization.
+    if (defaults && defaults.workloadClassId) {
+        $wcSelect.val(defaults.workloadClassId);
+    }
 
     // Pre-select Helpdesk's default classification, if this ticket already has one —
     // the Supervisor can still change any of it, this just saves starting from blank.

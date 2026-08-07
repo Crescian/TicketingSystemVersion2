@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\OrgController;
+use App\Http\Controllers\Api\TicketsController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -22,4 +23,11 @@ Route::middleware(['auth:sanctum', 'abilities:org:read'])->prefix('org')->group(
     Route::get('/companies', [OrgController::class, 'companies']);
     Route::get('/departments', [OrgController::class, 'departments']);
     Route::get('/users', [OrgController::class, 'users']);
+});
+
+// Read-only ticket export for SLA/workload/resolution-time analysis — separate
+// 'tickets:read' token ability (issued via `php artisan api:issue-tickets-token`),
+// scoped independently from 'org:read' so access can be granted per-resource.
+Route::middleware(['auth:sanctum', 'abilities:tickets:read'])->group(function () {
+    Route::get('/tickets', [TicketsController::class, 'index']);
 });

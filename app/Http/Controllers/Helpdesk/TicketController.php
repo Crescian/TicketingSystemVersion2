@@ -133,7 +133,7 @@ class TicketController extends Controller
         $slaCategories = \App\Models\SlaCategory::with([
             'rules' => function ($q) {
                 $q->where('is_active', true)
-                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes')
+                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes', 'helpdesk_resolvable')
                     ->orderBy('subcategory_name');
             }
         ])
@@ -154,6 +154,7 @@ class TicketController extends Controller
                 'priority' => $r->priority,
                 'response' => $r->response_time_minutes,
                 'resolution' => $r->resolution_time_minutes,
+                'helpdesk_resolvable' => $r->helpdesk_resolvable,
             ])->values()->toArray(),
         ])->values()->toArray();
 
@@ -269,6 +270,7 @@ class TicketController extends Controller
             'workload_class_id' => 'nullable|exists:workload_classes,id',
             'response_time_minutes' => 'nullable|numeric|min:5|max:43200',
             'resolution_time_minutes' => 'nullable|numeric|min:5|max:43200',
+            'handle_myself' => 'nullable|boolean',
         ]);
 
         $slaRule = SlaRule::findOrFail($request->sla_rule_id);
@@ -278,6 +280,14 @@ class TicketController extends Controller
 
         if ($workloadClass && $workloadClass->requires_manual_resolution && !$request->filled('resolution_time_minutes')) {
             return back()->with('error', "The \"{$workloadClass->name}\" workload class has no fixed resolution target — enter the agreed resolution time in minutes.");
+        }
+
+        // ── L1 self-resolve: only for subcategories IT Admin explicitly marked
+        // helpdesk_resolvable — checked server-side, not just hidden in the UI, since
+        // trusting a client-submitted flag here would let anyone bypass the gate.
+        $handleMyself = $request->boolean('handle_myself');
+        if ($handleMyself && !$slaRule->helpdesk_resolvable) {
+            return back()->with('error', "\"{$slaRule->subcategory_name}\" isn't marked as Helpdesk-resolvable — send it to the Supervisor for assignment instead.");
         }
 
         $priority = $request->priority ?: $slaRule->priority;
@@ -293,15 +303,19 @@ class TicketController extends Controller
         }
 
         $oldStatus = $ticket->status;
+        $newStatus = $handleMyself ? 'In Progress' : 'Awaiting Supervisor';
 
         $ticket->update([
-            'status' => 'Awaiting Supervisor',
+            'status' => $newStatus,
             'sla_category_id' => $slaRule->sla_category_id,
             'subcategory_name' => $slaRule->subcategory_name,
             'workload_class_id' => $workloadClass?->id,
             'ticket_type' => $priority,
             'response_time_minutes' => $responseTime,
             'resolution_time_minutes' => $resolutionTime,
+            'assigned_to' => $handleMyself ? Auth::id() : $ticket->assigned_to,
+            'assigned_at' => $handleMyself ? now() : $ticket->assigned_at,
+            'started_at' => $handleMyself ? now() : $ticket->started_at,
         ]);
 
         $overrideNote = ($priority !== $slaRule->priority
@@ -314,14 +328,19 @@ class TicketController extends Controller
         TicketStatusHistories::create([
             'ticket_id' => $ticket->id,
             'old_status' => $oldStatus,
-            'new_status' => 'Awaiting Supervisor',
+            'new_status' => $newStatus,
             'changed_by' => Auth::id(),
             'notes' => "Classified by Helpdesk - " . Auth::user()->name
                 . ". Classified as {$slaRule->subcategory_name} ({$priority})."
                 . $overrideNote
+                . ($handleMyself ? ' Kept by Helpdesk for direct (L1) resolution.' : '')
                 . ($request->notes ? " Note: {$request->notes}" : ''),
             'changed_at' => now(),
         ]);
+
+        if ($handleMyself) {
+            return back()->with('success', "Ticket #{$ticket->ticket_number} classified as {$slaRule->subcategory_name} and kept for you to resolve.");
+        }
 
         $supervisors = User::withActiveRole('Supervisor - Support Specialist')->get();
         foreach ($supervisors as $supervisor) {
@@ -504,16 +523,18 @@ class TicketController extends Controller
         );
     }
 
-    // Mark as resolved — an "L1" quick fix Helpdesk closes out themselves, without
-    // handing off to Supervisor/Technician. Only available before classification
-    // (New Request/L1 In Progress), same window as classify(). Lands on Pending
-    // Closure — the same status a Technician's resolution reaches after Supervisor
-    // validation — so it flows into Helpdesk's own closenotify() step next, same as
-    // any other resolution path.
+    // Mark as resolved — closes out a ticket Helpdesk classified and kept for
+    // themselves via classify()'s "handle_myself" option (see there). Requires
+    // classification to have already happened, unlike the old version of this
+    // action — that's the whole point of the change: an L1 self-resolve now
+    // always carries real category/priority/SLA data instead of none at all.
+    // Lands on Pending Closure — the same status a Technician's resolution
+    // reaches after Supervisor validation — so it flows into Helpdesk's own
+    // closenotify() step next, same as any other resolution path.
     public function resolve(Request $request, Tickets $ticket)
     {
-        if (is_null($ticket->date_acknowledged) || !in_array($ticket->status, ['New Request', 'L1 In Progress'])) {
-            return back()->with('error', 'Only acknowledged, not-yet-classified tickets can be resolved directly by Helpdesk.');
+        if ($ticket->status !== 'In Progress' || $ticket->assigned_to !== Auth::id()) {
+            return back()->with('error', 'Only tickets you classified and kept for yourself can be resolved this way.');
         }
 
         $request->validate([

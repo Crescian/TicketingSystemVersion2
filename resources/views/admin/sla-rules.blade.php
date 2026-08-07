@@ -293,6 +293,20 @@
                                   rows="2" placeholder="Notes…"></textarea>
                     </div>
 
+                    {{-- Helpdesk direct-resolve --}}
+                    <div class="sf-field">
+                        <label class="d-flex align-items-center gap-2" style="cursor:pointer;font-weight:600">
+                            <input type="checkbox" name="helpdesk_resolvable" id="ruleHelpdeskResolvable" value="1"
+                                   style="width:16px;height:16px;cursor:pointer">
+                            Helpdesk can resolve this directly (L1)
+                        </label>
+                        <div style="font-size:11px;color:var(--tm);margin-top:4px">
+                            Lets Helpdesk classify a ticket in this subcategory and keep it for themselves
+                            instead of sending it to the Supervisor for technician assignment. Leave unchecked
+                            for anything that genuinely needs a Support Specialist.
+                        </div>
+                    </div>
+
                     {{-- Preview --}}
                     <div class="rule-preview" id="rulePreview">
                         <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Preview</div>
@@ -397,7 +411,15 @@
                                             @endphp
                                             <tr class="{{ !$rule->is_active ? 'row-inactive' : '' }}" id="rule-row-{{ $rule->id }}">
                                                 <td>
-                                                    <div class="sub-name">{{ $rule->subcategory_name }}</div>
+                                                    <div class="sub-name d-flex align-items-center gap-2">
+                                                        {{ $rule->subcategory_name }}
+                                                        @if($rule->helpdesk_resolvable)
+                                                            <span title="Helpdesk can resolve this directly"
+                                                                  style="font-size:9px;font-weight:800;background:#e8f5ee;color:#1a5a3a;border:1px solid #a8ddc0;border-radius:20px;padding:1px 7px;letter-spacing:.3px">
+                                                                L1
+                                                            </span>
+                                                        @endif
+                                                    </div>
                                                     @if($rule->description)
                                                         <div class="sub-desc">{{ Str::limit($rule->description, 40) }}</div>
                                                     @endif
@@ -437,7 +459,8 @@
                                                                     '{{ $rule->priority }}',
                                                                     {{ $rule->response_time_minutes }},
                                                                     {{ $rule->resolution_time_minutes }},
-                                                                    '{{ addslashes($rule->description ?? '') }}'
+                                                                    '{{ addslashes($rule->description ?? '') }}',
+                                                                    {{ $rule->helpdesk_resolvable ? 'true' : 'false' }}
                                                                 )"
                                                                 title="Edit">
                                                             <i class="bi bi-pencil"></i>
@@ -871,7 +894,7 @@ function resetCatForm() {
 }
 
 /* ── Edit rule ── */
-function editRule(id, catId, subcat, priority, respMins, resMins, desc) {
+function editRule(id, catId, subcat, priority, respMins, resMins, desc, helpdeskResolvable) {
     document.getElementById('ruleForm').action          =
         '{{ route("portal.sla-rules.rule.update", ["slaRule" => "__ID__"]) }}'.replace('__ID__', id);
     document.getElementById('ruleMethod').value         = 'PUT';
@@ -880,6 +903,7 @@ function editRule(id, catId, subcat, priority, respMins, resMins, desc) {
     document.getElementById('ruleResponse').value       = respMins;
     document.getElementById('ruleResolution').value     = resMins;
     document.getElementById('ruleDescription').value    = desc;
+    document.getElementById('ruleHelpdeskResolvable').checked = helpdeskResolvable;
 
     syncTimeUnit('ruleResponse',   'ruleResponseUnit');
     syncTimeUnit('ruleResolution', 'ruleResolutionUnit');
@@ -913,6 +937,7 @@ function resetRuleForm() {
     document.getElementById('ruleResolution').value     = '';
     document.getElementById('ruleDescription').value    = '';
     document.getElementById('rulePriority').value       = '';
+    document.getElementById('ruleHelpdeskResolvable').checked = false;
     document.querySelectorAll('#ruleFormCard .pri-chip').forEach(c => c.classList.remove('selected'));
     document.getElementById('ruleFormTitle').textContent = 'Add SLA Rule';
     document.getElementById('ruleSaveText').textContent  = 'Add Rule';

@@ -112,6 +112,18 @@ class TicketController extends Controller
             ->where('status', 'In Progress')
             ->first();
 
+        // Saturday Mine-site coverage gap — see selfTriage(). Not scoped to this
+        // technician (it's unassigned/unacknowledged), so it's a global queue, not
+        // per-user like everything else on this dashboard.
+        $selfTriageQueue = $this->isSelfTriageWindow()
+            ? Tickets::where('status', 'New Request')
+                ->whereNull('date_acknowledged')
+                ->whereIn('location', self::MINE_SITE_LOCATIONS)
+                ->with('user')
+                ->orderBy('created_at')
+                ->get()
+            : collect();
+
         // Weekly stats
         // Note: resolved_at is stamped once when the tech resolves the ticket, and never
         // cleared afterward — so we key off the timestamp rather than a status string,
@@ -177,7 +189,8 @@ class TicketController extends Controller
             'freeMinutesToday',
             'freeTimeLabel',
             'withinBusinessHours',
-            'activeTicket'
+            'activeTicket',
+            'selfTriageQueue'
         ));
     }
 
@@ -621,5 +634,93 @@ class TicketController extends Controller
         if ($ticket->assigned_to !== Auth::id()) {
             abort(403, 'You are not assigned to this ticket.');
         }
+    }
+
+    // ── Mine-site Saturday coverage gap ──
+    // Mine site locations run Mon-Sat; Helpdesk and Supervisor both follow HQ's
+    // Mon-Fri schedule, so nothing acts on a New Request submitted from these
+    // locations on a Saturday. selfTriage() below lets any active Technician
+    // stand in for the normally-separate Helpdesk-acknowledge +
+    // Helpdesk/Supervisor-classify + Supervisor-assign steps, scoped narrowly to
+    // this specific gap (Saturday + Mine-site location + still-unacknowledged).
+    private const MINE_SITE_LOCATIONS = ['Zambales Site', 'Porac Site', 'Bauan Site'];
+
+    private function isSelfTriageWindow(): bool
+    {
+        return now()->timezone('Asia/Manila')->isSaturday();
+    }
+
+    // Self-triage: acknowledge + classify + self-assign a Mine-site New Request
+    // in one action. Priority/response/resolution come from the chosen SLA Rule,
+    // same as Helpdesk/Supervisor classification elsewhere — nothing about the
+    // SLA data model changes, only who is allowed to trigger it, and only under
+    // this narrow condition.
+    public function selfTriage(Request $request, Tickets $ticket)
+    {
+        if (!$this->isSelfTriageWindow()) {
+            return back()->with('error', 'Self-triage is only available on Saturdays, when Helpdesk and Supervisor are not on duty.');
+        }
+
+        if (!in_array($ticket->location, self::MINE_SITE_LOCATIONS, true)) {
+            return back()->with('error', 'Self-triage is only available for Mine site requests.');
+        }
+
+        if ($ticket->status !== 'New Request' || !is_null($ticket->date_acknowledged)) {
+            return back()->with('error', 'Only unacknowledged New Requests can be self-triaged.');
+        }
+
+        $request->validate([
+            'sla_rule_id' => 'required|exists:sla_rules,id',
+            // ── No 'auto' option here (unlike the Supervisor/Helpdesk classify flows) —
+            //    there's no schedule-conflict UI on the technician dashboard to resolve
+            //    a needs_decision prompt, so an overflow silently rolls to the next
+            //    available day rather than forcing unplanned overtime without asking.
+            'schedule_decision' => 'nullable|in:overtime,next_day',
+        ]);
+
+        $slaRule = SlaRule::findOrFail($request->sla_rule_id);
+        $technician = Auth::user();
+        $priority = $slaRule->priority;
+        $responseTime = $slaRule->response_time_minutes;
+        $resolutionTime = $slaRule->resolution_time_minutes;
+
+        $slot = TicketScheduler::commitAssignment(
+            $ticket,
+            $technician,
+            $priority,
+            $responseTime + $resolutionTime,
+            $request->input('schedule_decision', 'next_day')
+        );
+
+        $oldStatus = $ticket->status;
+
+        $ticket->update([
+            'date_acknowledged' => now()->toDateString(),
+            'time_acknowledged' => now()->toTimeString(),
+            'sla_category_id' => $slaRule->sla_category_id,
+            'subcategory_name' => $slaRule->subcategory_name,
+            'ticket_type' => $priority,
+            'response_time_minutes' => $responseTime,
+            'resolution_time_minutes' => $resolutionTime,
+            'assigned_to' => $technician->id,
+            'assigned_at' => now(),
+            'status' => 'Awaiting Support Specialist Acknowledgement',
+            'scheduled_start' => $slot['scheduled_start'],
+            'scheduled_end' => $slot['scheduled_end'],
+            'is_overtime' => $slot['is_overtime'],
+            'queued_at' => $slot['queued_at'],
+        ]);
+
+        TicketStatusHistories::create([
+            'ticket_id' => $ticket->id,
+            'old_status' => $oldStatus,
+            'new_status' => 'Awaiting Support Specialist Acknowledgement',
+            'changed_by' => Auth::id(),
+            'notes' => "Self-triaged by {$technician->name} — Helpdesk/Supervisor not on duty (Saturday, {$ticket->location})."
+                . " Classified as {$slaRule->subcategory_name} ({$priority}) and self-assigned.",
+            'changed_at' => now(),
+        ]);
+
+        return back()->with('success', "Ticket #{$ticket->ticket_number} self-triaged and assigned to you.");
     }
 }

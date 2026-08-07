@@ -86,6 +86,7 @@ class SlaRuleController extends Controller
             'response_time_minutes'   => 'required|numeric|min:5|max:43200',
             'resolution_time_minutes' => 'required|numeric|min:5|max:43200',
             'description'             => 'nullable|string|max:500',
+            'helpdesk_resolvable'     => 'nullable|boolean',
         ]);
         if ($request->response_time_minutes >= $request->resolution_time_minutes) {
             return back()->with('error', 'Response time must be less than resolution time.');
@@ -93,7 +94,7 @@ class SlaRuleController extends Controller
         SlaRule::create($request->only([
             'sla_category_id', 'subcategory_name', 'priority',
             'response_time_minutes', 'resolution_time_minutes', 'description'
-        ]) + ['is_active' => true]);
+        ]) + ['is_active' => true, 'helpdesk_resolvable' => $request->boolean('helpdesk_resolvable')]);
         return back()->with('success', "SLA rule for '{$request->subcategory_name}' created.");
     }
 
@@ -111,6 +112,7 @@ class SlaRuleController extends Controller
             'response_time_minutes'   => 'required|numeric|min:5|max:43200',
             'resolution_time_minutes' => 'required|numeric|min:5|max:43200',
             'description'             => 'nullable|string|max:500',
+            'helpdesk_resolvable'     => 'nullable|boolean',
         ]);
         if ($request->response_time_minutes >= $request->resolution_time_minutes) {
             return back()->with('error', 'Response time must be less than resolution time.');
@@ -118,7 +120,7 @@ class SlaRuleController extends Controller
         $slaRule->update($request->only([
             'sla_category_id', 'subcategory_name', 'priority',
             'response_time_minutes', 'resolution_time_minutes', 'description'
-        ]));
+        ]) + ['helpdesk_resolvable' => $request->boolean('helpdesk_resolvable')]);
         return back()->with('success', "SLA rule updated.");
     }
 

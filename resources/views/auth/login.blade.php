@@ -29,42 +29,38 @@
         <div class="left-eyebrow">
           <div class="dot"></div>IT Support Portal
         </div>
-        <h1 class="left-headline">ONE LOGIN.<br>YOUR <em>ROLE.</em><br>YOUR <em>TOOLS.</em></h1>
-        <p class="left-desc">Sign in with your company account. We'll automatically take you to the right dashboard based
-          on your role.</p>
+        <h1 class="left-headline">SUBMIT YOUR ISSUE.<br>WATCH IT <em>MOVE.</em><br>GET IT <em>RESOLVED.</em></h1>
+        <p class="left-desc">Sign in to raise a request, track it in real time, and know exactly when help is on the
+          way.</p>
 
         <div class="role-cards">
           <div class="role-card">
-            <div class="role-icon customer"><i class="bi bi-person"></i></div>
+            <div class="role-icon customer"><i class="bi bi-stopwatch"></i></div>
             <div>
-              <div class="role-title">Customer (Employee)</div>
-              <div class="role-desc">Submit and track your IT support requests</div>
+              <div class="role-title">Know What to Expect</div>
+              <div class="role-desc">Every ticket gets a response and resolution target the moment it's submitted</div>
             </div>
-            
           </div>
           <div class="role-card">
-            <div class="role-icon helpdesk"><i class="bi bi-headset"></i></div>
+            <div class="role-icon helpdesk"><i class="bi bi-activity"></i></div>
             <div>
-              <div class="role-title">Helpdesk</div>
-              <div class="role-desc">Manage the queue, assign technicians</div>
+              <div class="role-title">Live Status Tracking</div>
+              <div class="role-desc">Watch your ticket move from submitted, to assigned, to resolved</div>
             </div>
-            
           </div>
           <div class="role-card">
-            <div class="role-icon tech"><i class="bi bi-tools"></i></div>
+            <div class="role-icon tech"><i class="bi bi-person-check"></i></div>
             <div>
-              <div class="role-title">IT Support Specialist</div>
-              <div class="role-desc">Accept, work on, and resolve tickets</div>
+              <div class="role-title">Focused Attention</div>
+              <div class="role-desc">Your assigned specialist works your ticket start to finish before moving on</div>
             </div>
-            
           </div>
           <div class="role-card">
-            <div class="role-icon admin"><i class="bi bi-shield-fill"></i></div>
+            <div class="role-icon admin"><i class="bi bi-chat-dots"></i></div>
             <div>
-              <div class="role-title">IT Admin</div>
-              <div class="role-desc">Handle escalations, full system oversight</div>
+              <div class="role-title">Stay in the Loop</div>
+              <div class="role-desc">Message your specialist directly and get notified the moment anything changes</div>
             </div>
-            
           </div>
         </div>
       </div>

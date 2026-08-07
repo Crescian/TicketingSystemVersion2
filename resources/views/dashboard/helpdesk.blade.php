@@ -590,6 +590,10 @@
                 $needsClassify = (!is_null($ticket->date_acknowledged) && $ticket->status === 'New Request')
                                  || $ticket->status === 'L1 In Progress';
                 $canCancel     = in_array($ticket->status, ['New Request', 'L1 In Progress']);
+                // Classified & kept for L1 self-resolve via classify()'s "handle_myself"
+                // option — the resolve button lives here now instead of on the
+                // pre-classification stage above.
+                $canResolveMyself = $ticket->status === 'In Progress' && $ticket->assigned_to === Auth::id();
 
                 $cardClass = match(true) {
                     $needsAck                          => 'unassigned',
@@ -788,6 +792,11 @@
                                 onclick="openClassifyModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-tags me-1"></i>Classify
                         </button>
+                    @endif
+
+                    {{-- Classified and kept for L1 self-resolve — see classify()'s
+                         "handle_myself" option. --}}
+                    @if($canResolveMyself)
                         <button type="button" class="btn-resolve"
                                 onclick="openHelpdeskResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-check-circle me-1"></i>Resolve
@@ -802,7 +811,7 @@
                         </button>
                     @endif
 
-                    @if($needsAck || $canStartL1 || $needsClassify)
+                    @if($needsAck || $canStartL1 || $needsClassify || $canResolveMyself)
                         {{-- ── Chat button ── --}}
                         <button class="btn-chat"
                                 onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
@@ -1029,6 +1038,8 @@
                                         ['value' => 'Email',  'icon' => 'bi-envelope-fill', 'color' => '#2a4ab0', 'bg' => '#e8eeff'],
                                         ['value' => 'Text',   'icon' => 'bi-chat-fill',     'color' => '#7a5a00', 'bg' => '#fff4cc'],
                                         ['value' => 'Viber',  'icon' => 'bi-phone-fill',    'color' => '#5a1a7a', 'bg' => '#f0e8ff'],
+                                        ['value' => 'Microsoft Teams Chat', 'icon' => 'bi-microsoft-teams',   'color' => '#6264a7', 'bg' => '#e8e9f5'],
+                                        ['value' => 'Microsoft Teams Call', 'icon' => 'bi-camera-video-fill', 'color' => '#6264a7', 'bg' => '#e8e9f5'],
                                     ] as $method)
                                         <div class="method-opt" data-method="{{ $method['value'] }}"
                                             style="--mc:{{ $method['color'] }};--mb:{{ $method['bg'] }}">
@@ -1238,7 +1249,21 @@
                             </div>
                         </div>
 
-                        <div class="mt-3">
+                        <div id="acHandleMyselfWrap" class="d-none mb-3 p-3 rounded"
+                             style="background:#e8f5ee;border:1px solid #a8ddc0">
+                            <label class="d-flex align-items-center gap-2" style="cursor:pointer;font-weight:700;color:#1a5a3a">
+                                <input type="checkbox" name="handle_myself" id="acHandleMyself" value="1"
+                                       style="width:16px;height:16px;cursor:pointer">
+                                Handle this myself (L1)
+                            </label>
+                            <div style="font-size:11.5px;color:#1a5a3a;margin-top:4px">
+                                This subcategory is marked as Helpdesk-resolvable. Checking this keeps the
+                                ticket with you — it goes straight to In Progress instead of the Supervisor's
+                                assignment queue.
+                            </div>
+                        </div>
+
+                        <div class="mt-3" id="acNotesWrap">
                             <label class="form-label">Notes (optional)</label>
                             <textarea class="form-control" name="notes" rows="2"
                                       placeholder="Context for the Supervisor…"></textarea>
@@ -1752,6 +1777,8 @@ $(function () {
         $('#acResponseTime, #acResolutionTime').val('');
         $('#acWorkloadClass').val('');
         $('#acWorkloadManualHint').addClass('d-none');
+        $('#acHandleMyself').prop('checked', false);
+        $('#acHandleMyselfWrap').addClass('d-none');
         $('#acCategoryList .cat-main-opt').removeClass('selected');
 
         const $catList = $('#acCategoryList').empty();
@@ -1793,7 +1820,8 @@ $(function () {
             cat.subs.forEach(sub => {
                 const priColor = sub.priority === 'Critical' ? '#8b0000' : (sub.priority === 'High' ? '#e24b4a' : (sub.priority === 'Medium' ? '#f5c842' : '#4a7c4a'));
                 $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}"
-                     data-priority="${sub.priority}" data-response="${sub.response}" data-resolution="${sub.resolution}">
+                     data-priority="${sub.priority}" data-response="${sub.response}" data-resolution="${sub.resolution}"
+                     data-helpdesk-resolvable="${sub.helpdesk_resolvable ? '1' : '0'}">
                     <div class="sub-check"></div>
                     <span style="flex:1">${sub.name}</span>
                     <span style="font-size:10px;font-weight:800;color:${priColor}">${sub.priority} · ${sub.resolution}m SLA</span>
@@ -1802,6 +1830,8 @@ $(function () {
         }
         $('#acSubWrap').removeClass('d-none');
         $('#acOverrideWrap').addClass('d-none');
+        $('#acHandleMyself').prop('checked', false);
+        $('#acHandleMyselfWrap').addClass('d-none');
     });
 
     $(document).on('click', '#acSubList .cat-sub-opt', function () {
@@ -1814,6 +1844,12 @@ $(function () {
         $('#acResponseTime').val($(this).data('response'));
         $('#acResolutionTime').val($(this).data('resolution'));
         $('#acOverrideWrap').removeClass('d-none');
+
+        // "Handle this myself" only offered when IT Admin marked this exact
+        // subcategory as Helpdesk-resolvable — see SlaRule::helpdesk_resolvable.
+        const isHelpdeskResolvable = $(this).data('helpdesk-resolvable') === 1 || $(this).data('helpdesk-resolvable') === '1';
+        $('#acHandleMyself').prop('checked', false);
+        $('#acHandleMyselfWrap').toggleClass('d-none', !isHelpdeskResolvable);
     });
 
     /* ── Workload class — auto-fills response/resolution, requires manual entry

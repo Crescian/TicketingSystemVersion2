@@ -30,6 +30,7 @@ class User extends Authenticatable
         'position',
         'active',
         'org_info_updated_at',
+        'onboarded_at',
     ];
 
     /**
@@ -55,6 +56,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'active' => 'boolean',
             'org_info_updated_at' => 'datetime',
+            'onboarded_at' => 'datetime',
         ];
     }
 

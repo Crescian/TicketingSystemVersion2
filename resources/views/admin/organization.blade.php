@@ -615,7 +615,7 @@ function editBU(id, name) {
     document.getElementById('buId').value        = id;
     document.getElementById('buName').value      = name;
     document.getElementById('buMethod').value    = 'PUT';
-    document.getElementById('buForm').action     = `/admin/settings/business-units/${id}`;
+    document.getElementById('buForm').action     = `/portal/settings/business-units/${id}`;
     document.getElementById('buFormTitle').textContent = 'Edit Business Unit';
     document.getElementById('buSaveBtn').innerHTML = '<i class="bi bi-check-lg me-1"></i>Update';
     document.getElementById('buCancelBtn').classList.remove('d-none');
@@ -640,7 +640,7 @@ function editCompany(id, name, buId) {
     document.getElementById('compName').value       = name;
     document.getElementById('compBU').value         = buId;
     document.getElementById('compMethod').value     = 'PUT';
-    document.getElementById('compForm').action      = `/admin/settings/companies/${id}`;
+    document.getElementById('compForm').action      = `/portal/settings/companies/${id}`;
     document.getElementById('compFormTitle').textContent = 'Edit Company';
     document.getElementById('compSaveBtn').innerHTML = '<i class="bi bi-check-lg me-1"></i>Update';
     document.getElementById('compCancelBtn').classList.remove('d-none');
@@ -664,7 +664,7 @@ function editDept(id, name, compId) {
     document.getElementById('deptName').value       = name;
     document.getElementById('deptComp').value       = compId;
     document.getElementById('deptMethod').value     = 'PUT';
-    document.getElementById('deptForm').action      = `/admin/settings/departments/${id}`;
+    document.getElementById('deptForm').action      = `/portal/settings/departments/${id}`;
     document.getElementById('deptFormTitle').textContent = 'Edit Department';
     document.getElementById('deptSaveBtn').innerHTML = '<i class="bi bi-check-lg me-1"></i>Update';
     document.getElementById('deptCancelBtn').classList.remove('d-none');

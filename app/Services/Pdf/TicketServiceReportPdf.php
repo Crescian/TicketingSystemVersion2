@@ -133,36 +133,17 @@ class TicketServiceReportPdf
         }
         $y += $rowH;
 
-        // Row 4: Main Category (left) / Level of Request (right)
-        $row4H = 33;
-        $this->pdf->Rect($x, $y, $col2, $row4H, 'D');
-        $this->pdf->Rect($x + $col2, $y, $col2, $row4H, 'D');
+        // Row 4: Main Category / Level of Request — the determined value only, not
+        // a checklist of every possible option (previously all 6 categories / 5
+        // levels were listed with one checked off).
+        $this->labelValueCell($x, $y, $col2, $rowH, 'MAIN CATEGORY', $this->ticket->mainCategoryLabel() ?? '—');
+        $this->labelValueCell($x + $col2, $y, $col2, $rowH, 'LEVEL OF REQUEST', $this->ticket->levelOfRequest() ?? '—');
+        $y += $rowH;
 
-        $this->fieldLabel($x + 2, $y + 1.2, 'MAIN CATEGORY');
-        $this->fieldLabel($x + $col2 + 2, $y + 1.2, 'LEVEL OF REQUEST');
-
-        $mainCategory = $this->ticket->mainCategoryLabel();
-        $categories = [
-            ['Hardware', '(Workstation / Company Phone / Printer / Peripheral)'],
-            ['Software', '(OS / Applications / MAP Network / License)'],
-            ['Network', '(LAN / WiFi / VPN / Connectivity)'],
-            ['Account / Access', '(Email / M365 / Permissions)'],
-            ['Preventive Maintenance', null],
-            ['Other', null],
-        ];
-        $cy = $y + 6;
-        foreach ($categories as [$label, $sub]) {
-            $this->checkbox($x + 3, $cy, $mainCategory === $label, $label, $sub);
-            $cy += $sub ? 4.4 : 3.6;
-        }
-
-        $level = $this->ticket->levelOfRequest();
-        $ly = $y + 6;
-        foreach (['L1', 'L2', 'L3', 'L4', 'L5'] as $lvl) {
-            $this->checkbox($x + $col2 + 3, $ly, $level === $lvl, $lvl);
-            $ly += 4.2;
-        }
-        $y += $row4H;
+        // Row 5: Workload Class / Priority
+        $this->labelValueCell($x, $y, $col2, $rowH, 'WORKLOAD CLASS', $this->ticket->workloadClass?->name ?? '—');
+        $this->labelValueCell($x + $col2, $y, $col2, $rowH, 'PRIORITY', $this->ticket->ticket_type ?? '—');
+        $y += $rowH;
 
         // Ticket info row: Ticket Number / Status
         $this->labelValueCell($x, $y, $col2, $rowH, 'TICKET NUMBER', $this->ticket->ticket_number);

@@ -224,6 +224,7 @@ class TicketsController extends Controller
         ])->values()->toArray();
 
         $itTeam = $this->itTeamStatus();
+        $showOnboarding = is_null($user->onboarded_at);
 
         return view('dashboard.employee', compact(
             'tickets',
@@ -234,8 +235,19 @@ class TicketsController extends Controller
             'slaCategories',
             'slaCategoriesJson',
             'requestor',
-            'itTeam'
+            'itTeam',
+            'showOnboarding'
         ));
+    }
+
+    // Dismisses the one-time "welcome to the new system" modal — called via a
+    // background fetch from the modal itself, not a full page navigation, so
+    // dismissing it doesn't reset whatever filter/tab the employee was on.
+    public function completeOnboarding()
+    {
+        Auth::user()->update(['onboarded_at' => now()]);
+
+        return response()->noContent();
     }
 
     // Show single ticket details
@@ -291,11 +303,25 @@ class TicketsController extends Controller
     // Store new ticket
     // ── Simplified: employee modal is now Issue Type -> Review only.
     // ── Requestor info + date/time received are auto-filled server-side.
+    // Every employee self-filed ticket starts at this priority — the employee
+    // form has no category/priority picker (that's Helpdesk/Supervisor's job at
+    // classification), so nothing employee-supplied is trusted for it. Only
+    // Helpdesk's own "file on behalf of" form (which has a real category+
+    // subcategory picker wired to the SLA Rule table) can set it directly.
+    private const DEFAULT_PRIORITY = 'Medium';
+
     public function store(Request $request)
     {
+        // ── users_id is always sent by the employee modal too (hidden field, pre-filled
+        //    with their own id), so presence alone can't distinguish helpdesk-on-behalf
+        //    filing from employee self-filing — only a *different* id can. Computed
+        //    before validation so ticket_type/request_category can be required only
+        //    for the helpdesk-filing path, which is the only one with real values for them.
+        $isHelpdeskFiling = $request->filled('users_id') && $request->users_id !== Auth::id();
+
         $request->validate([
-            'ticket_type'       => 'required|string',
-            'request_category'  => 'required|string',
+            'ticket_type'       => $isHelpdeskFiling ? 'required|string' : 'nullable|string',
+            'request_category'  => $isHelpdeskFiling ? 'required|string' : 'nullable|string',
             'subject'            => 'required|string|max:255',
             'concern'            => 'required|string',
             'request_details'   => 'nullable|string',
@@ -308,10 +334,6 @@ class TicketsController extends Controller
             'attachments.*'      => 'file|max:10240|mimes:jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,txt',
         ]);
 
-        // ── users_id is always sent by the employee modal too (hidden field, pre-filled
-        //    with their own id), so presence alone can't distinguish helpdesk-on-behalf
-        //    filing from employee self-filing — only a *different* id can.
-        $isHelpdeskFiling = $request->filled('users_id') && $request->users_id !== Auth::id();
         $usersId = $isHelpdeskFiling ? $request->users_id : Auth::id();
 
         // ── For self-filed (employee) tickets: auto-fill requestor context.
@@ -322,8 +344,8 @@ class TicketsController extends Controller
         $ticket = Tickets::create([
             'ticket_number'     => Tickets::generateTicketNumber(),
             'users_id'          => $usersId,
-            'ticket_type'       => $request->ticket_type,
-            'request_category'  => $request->request_category,
+            'ticket_type'       => $isHelpdeskFiling ? $request->ticket_type : self::DEFAULT_PRIORITY,
+            'request_category'  => $isHelpdeskFiling ? $request->request_category : null,
             'subject'           => $request->subject,
             'concern'           => $request->concern,
             'request_details'   => $request->request_details,

@@ -60,6 +60,7 @@ Route::middleware(['auth', 'role:Employee', 'throttle:ticket-actions'])
         Route::patch('/tickets/{ticket}/cancel', [EmployeeTicketsController::class, 'cancel'])->name('tickets.cancel')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/feedback', [EmployeeTicketsController::class, 'storeFeedback'])->name('tickets.feedback')->middleware('idempotent:8'); // ← add this
         Route::patch('/tickets/{ticket}/acknowledge', [EmployeeTicketsController::class, 'acknowledge'])->name('tickets.acknowledge')->middleware('idempotent:8'); // ← add this
+        Route::post('/onboarding/complete', [EmployeeTicketsController::class, 'completeOnboarding'])->name('onboarding.complete');
     });
 
 Route::middleware(['auth', 'role:Helpdesk,IT Admin,Supervisor - IT Admin'])
@@ -181,6 +182,7 @@ Route::middleware(['auth', 'role:IT Support Specialist', 'throttle:ticket-action
         Route::post('/tickets/{ticket}/resolve', [TechnicianTicketController::class, 'resolve'])->name('tickets.resolve')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/escalate', [TechnicianTicketController::class, 'escalate'])->name('tickets.escalate')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/request-reclassification', [TechnicianTicketController::class, 'requestReclassification'])->name('tickets.request-reclassification')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/self-triage', [TechnicianTicketController::class, 'selfTriage'])->name('tickets.self-triage')->middleware('idempotent:8');
     });
 
 // ── IT Admin routes

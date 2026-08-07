@@ -110,6 +110,13 @@
           animation: fadeUp .35s ease both, inProgressGlow 2.4s ease-in-out .35s infinite;
       }
 
+      {{-- Saturday Mine-site self-triage panel — same amber tone as the in-progress
+           highlight above (an available action, not an error), so it reads as
+           "something to do" rather than "something's wrong". --}}
+      .self-triage-panel { background:#fffaf0; border:1.5px solid #f5c842; border-radius:14px; padding:14px 16px; margin-bottom:16px; }
+      .self-triage-row { display:flex; align-items:center; gap:12px; padding:8px 0; border-top:1px solid rgba(245,200,66,.35); }
+      .self-triage-row:first-of-type { border-top:none; }
+
       .active-ticket-banner { display:flex; align-items:center; gap:8px; background:rgba(245,200,66,.15); border:1px solid rgba(245,200,66,.4); border-radius:20px; padding:4px 12px; text-decoration:none; color:#fff; transition:background .2s; max-width:520px; line-height:1.3; }
       .active-ticket-banner:hover { background:rgba(245,200,66,.25); color:#fff; }
       .atb-pulse { width:8px; height:8px; border-radius:50%; background:#f5c842; flex-shrink:0; animation:atbPulseAnim 1.6s ease-in-out infinite; }
@@ -372,6 +379,41 @@
         <div class="alert alert-danger alert-dismissible fade show mb-3">
             <i class="bi bi-exclamation-circle me-2"></i>{{ session('error') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      @endif
+
+      {{-- Saturday Mine-site coverage gap: Helpdesk/Supervisor are both HQ Mon-Fri,
+           so nobody's around to acknowledge/classify these — any technician can
+           pick one up directly. Only ever renders on a Saturday (see
+           TicketController::isSelfTriageWindow()). --}}
+      @if($selfTriageQueue->isNotEmpty())
+        <div class="self-triage-panel">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <i class="bi bi-exclamation-triangle-fill" style="color:#b8860b"></i>
+                <span class="font-brand fw-900" style="font-size:14px;color:#7a5c00">
+                    Mine Site — Needs Triage
+                </span>
+                <span style="font-size:11px;color:#9a7b00">
+                    (Helpdesk/Supervisor aren't on duty Saturdays — any of you can pick these up)
+                </span>
+            </div>
+            @foreach($selfTriageQueue as $stTicket)
+                <div class="self-triage-row">
+                    <div class="flex-grow-1">
+                        <div style="font-weight:700;font-size:13px">
+                            #{{ $stTicket->ticket_number }} — {{ $stTicket->subject }}
+                        </div>
+                        <div style="font-size:11.5px;color:var(--tm)">
+                            {{ $stTicket->user->name ?? 'Unknown requestor' }} · {{ $stTicket->location }}
+                            · submitted {{ $stTicket->created_at->timezone('Asia/Manila')->format('g:i A') }}
+                        </div>
+                    </div>
+                    <button class="btn-start"
+                            onclick="openSelfTriageModal('{{ $stTicket->id }}', '{{ $stTicket->ticket_number }}')">
+                        <i class="bi bi-hand-index-thumb me-1"></i>Self-Triage
+                    </button>
+                </div>
+            @endforeach
         </div>
       @endif
 
@@ -1429,6 +1471,47 @@
           </div>
       </div>
 
+      {{-- Self-Triage Modal (Saturday Mine-site coverage gap) --}}
+      <div class="modal fade" id="selfTriageModal" tabindex="-1">
+          <div class="modal-dialog modal-dialog-centered modal-lg">
+              <div class="modal-content">
+                  <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                      <h5 class="mb-0">Self-Triage — <em id="stTicketRef">#TKT-0000</em></h5>
+                      <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                  </div>
+                  <form method="POST" id="selfTriageForm">
+                      @csrf
+                      <input type="hidden" name="sla_rule_id" id="stSlaRuleId">
+
+                      <div class="modal-body px-4 py-4">
+                          <div class="info-box-red p-3 mb-3">
+                              <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                              This acknowledges the request and assigns it to <strong>you</strong> directly —
+                              standing in for Helpdesk/Supervisor, who aren't on duty today. Pick the category
+                              that best matches the issue; the priority and response/resolution targets come
+                              from that category's SLA rule automatically.
+                          </div>
+
+                          <label class="form-label mb-2">Category</label>
+                          <div class="d-flex flex-wrap gap-2 mb-3" id="stCategoryList"></div>
+
+                          <div id="stSubWrap" class="d-none">
+                              <label class="form-label mb-2">Subcategory &amp; Priority</label>
+                              <div class="d-flex flex-column gap-2 mb-3" id="stSubList"></div>
+                          </div>
+                      </div>
+                      <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                          <button type="button" class="btn-cancel-modal"
+                                  data-bs-dismiss="modal">Cancel</button>
+                          <button type="submit" class="btn-start">
+                              <i class="bi bi-hand-index-thumb me-1"></i>Self-Assign This Ticket
+                          </button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      </div>
+
       {{-- Chat Modal --}}
       <div class="modal fade" id="techChatModal" tabindex="-1">
           <div class="modal-dialog modal-dialog-centered" style="max-width:480px">
@@ -1796,6 +1879,60 @@
 
         $('#reclassifyForm').on('submit', function (e) {
             if (!$('#rcSlaRuleId').val()) {
+                e.preventDefault();
+                alert('Please select a subcategory.');
+            }
+        });
+
+        /* ── Self-Triage modal (Saturday Mine-site coverage gap) ── */
+        window.openSelfTriageModal = function (ticketId, ticketNumber) {
+            $('#stTicketRef').text('#' + ticketNumber);
+            $('#selfTriageForm').attr('action', '/technician/tickets/' + ticketId + '/self-triage');
+            $('#stSlaRuleId').val('');
+            $('#stSubWrap').addClass('d-none');
+            $('#stSubList').empty();
+            $('#stCategoryList .cat-main-opt').removeClass('selected');
+
+            const $catList = $('#stCategoryList').empty();
+            slaCategories.forEach(cat => {
+                $catList.append(`<div class="cat-main-opt" data-cat-id="${cat.id}">${cat.name}</div>`);
+            });
+
+            new bootstrap.Modal('#selfTriageModal').show();
+        };
+
+        $(document).on('click', '#stCategoryList .cat-main-opt', function () {
+            $('#stCategoryList .cat-main-opt').removeClass('selected');
+            $(this).addClass('selected');
+
+            const catId = $(this).data('cat-id');
+            const cat = slaCategories.find(c => c.id === catId);
+            const $subList = $('#stSubList').empty();
+
+            if (!cat || !cat.subs.length) {
+                $subList.append(`<div style="font-size:12px;color:var(--tm)">No SLA rules defined for this category yet.</div>`);
+            } else {
+                cat.subs.forEach(sub => {
+                    const priColor = sub.priority === 'Critical' ? '#8b0000' : (sub.priority === 'High' ? '#e24b4a' : (sub.priority === 'Medium' ? '#f5c842' : '#4a7c4a'));
+                    $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}"
+                         data-priority="${sub.priority}" data-response="${sub.response}" data-resolution="${sub.resolution}">
+                        <div class="sub-check"></div>
+                        <span style="flex:1">${sub.name}</span>
+                        <span style="font-size:10px;font-weight:800;color:${priColor}">${sub.priority} · ${sub.resolution}m SLA</span>
+                    </div>`);
+                });
+            }
+            $('#stSubWrap').removeClass('d-none');
+        });
+
+        $(document).on('click', '#stSubList .cat-sub-opt', function () {
+            $('#stSubList .cat-sub-opt').removeClass('selected');
+            $(this).addClass('selected');
+            $('#stSlaRuleId').val($(this).data('rule-id'));
+        });
+
+        $('#selfTriageForm').on('submit', function (e) {
+            if (!$('#stSlaRuleId').val()) {
                 e.preventDefault();
                 alert('Please select a subcategory.');
             }

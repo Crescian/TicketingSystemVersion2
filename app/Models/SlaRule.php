@@ -18,12 +18,14 @@ class SlaRule extends Model
         'resolution_time_minutes',
         'is_active',
         'description',
+        'helpdesk_resolvable',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'response_time_minutes' => 'float',
         'resolution_time_minutes' => 'float',
+        'helpdesk_resolvable' => 'boolean',
     ];
 
     public function category()
