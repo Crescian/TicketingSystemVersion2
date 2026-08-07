@@ -207,7 +207,7 @@
                 </div>
                 <a href="{{ route('executive.tickets.index') }}"
                    style="display:inline-flex;align-items:center;gap:6px;margin-top:14px;background:var(--ex-yg);color:#161611;font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;padding:9px 20px;border-radius:50px;text-decoration:none">
-                    <i class="bi bi-inbox-fill"></i> View Ticket Queue
+                    <i class="bi bi-inbox-fill"></i> View Support Request Queue
                 </a>
             </div>
             <div class="d-flex gap-3 flex-wrap align-items-center">
@@ -253,7 +253,7 @@
         <div class="kpi-card yg">
             <div class="kpi-icon yg"><i class="bi bi-ticket-perforated"></i></div>
             <div class="kpi-value" data-kpi="totalTickets">{{ $totalTickets }}</div>
-            <div class="kpi-label">Total Tickets</div>
+            <div class="kpi-label">Total Support Requests</div>
             <span class="kpi-trend {{ $ticketChange >= 0 ? 'up' : 'down' }}" data-kpi="ticketTrend">
                 <i class="bi bi-arrow-{{ $ticketChange >= 0 ? 'up' : 'down' }}-short"></i>
                 {{ $ticketChange >= 0 ? '+' : '' }}{{ $ticketChange }}%
@@ -308,8 +308,8 @@
             <div class="chart-card h-100">
                 <div class="d-flex justify-content-between align-items-start mb-1">
                     <div>
-                        <div class="chart-title">Ticket Volume Trend</div>
-                        <div class="chart-sub" id="volumeChartSub">Tickets opened vs. resolved — {{ $rangeLabel }}</div>
+                        <div class="chart-title">Support Request Volume Trend</div>
+                        <div class="chart-sub" id="volumeChartSub">Support requests opened vs. resolved — {{ $rangeLabel }}</div>
                     </div>
                     <div class="d-flex gap-3" style="font-size:12px;font-weight:700;color:var(--ex-muted)">
                         <span><span
@@ -368,7 +368,7 @@
 
         <div class="col-lg-4">
             <div class="chart-card h-100">
-                <div class="chart-title">Tickets by Category</div>
+                <div class="chart-title">Support Requests by Category</div>
                 <div class="chart-sub">Distribution across all request types</div>
                 <div class="chart-wrap d-flex align-items-center gap-4 mt-2">
                     <canvas id="categoryChart" width="160" height="160" style="flex-shrink:0"></canvas>
@@ -404,7 +404,7 @@
 
         <div class="col-lg-4">
             <div class="chart-card h-100">
-                <div class="chart-title">Tickets by Department</div>
+                <div class="chart-title">Support Requests by Department</div>
                 <div class="chart-sub" id="deptChartSub">Volume — {{ $rangeLabel }} — color = severity</div>
                 {{-- ── Tickets by Department ── --}}
                 <div class="dept-grid mt-3" id="deptGrid">
@@ -415,7 +415,7 @@
                         <div class="dept-cell {{ $heat }}">
                             <div class="dept-name">{{ $dept->department_name }}</div>
                             <div class="dept-count {{ $heat }}">{{ $dept->total }}</div>
-                            <div class="dept-label">tickets</div>
+                            <div class="dept-label">support requests</div>
                         </div>
                     @endforeach
                 </div>
@@ -449,7 +449,7 @@
         <div class="col-lg-5">
             <div class="chart-card h-100">
                 <div class="chart-title">Technician Performance</div>
-                <div class="chart-sub" id="leaderboardSub">Ranked by tickets resolved — {{ $rangeLabel }}</div>
+                <div class="chart-sub" id="leaderboardSub">Ranked by support requests resolved — {{ $rangeLabel }}</div>
                 <table class="lb-table mt-3">
                     <thead>
                         <tr>
@@ -518,7 +518,7 @@
                             <div class="cmp-col">
                                 <div class="cmp-period" data-mom="lastMonth">Previous Period</div>
                                 <div class="cmp-val" data-mom="lastTotal">{{ $lastTotalTickets }}</div>
-                                <div class="cmp-diff" style="color:var(--ex-muted)">Total tickets</div>
+                                <div class="cmp-diff" style="color:var(--ex-muted)">Total support requests</div>
                             </div>
                             <div class="cmp-col">
                                 <div class="cmp-period" data-mom="curMonth">Current Period</div>
@@ -526,7 +526,7 @@
                                 <div class="cmp-diff {{ $totalTickets > $lastTotalTickets ? 'worse' : 'better' }}"
                                     data-mom="totalDiff">
                                     {{ $totalTickets > $lastTotalTickets ? '+' : '' }}{{ $totalTickets - $lastTotalTickets }}
-                                    tickets
+                                    support requests
                                     {{ $totalTickets > $lastTotalTickets ? '↑' : '↓' }}
                                 </div>
                             </div>
@@ -575,7 +575,7 @@
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <div>
                                     <div class="chart-title">Escalations Requiring Attention</div>
-                                    <div class="chart-sub">Critical or SLA-breached tickets this month</div>
+                                    <div class="chart-sub">Critical or SLA-breached support requests this month</div>
                                 </div>
                                 <span id="criticalBadge"
                                     style="background:rgba(248,81,73,.12);color:var(--ex-red);font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;border:1px solid rgba(248,81,73,.2)">
@@ -625,8 +625,8 @@
 
             <div class="col-lg-8">
                 <div class="chart-card">
-                    <div class="chart-title">Weekly Ticket Breakdown</div>
-                    <div class="chart-sub" id="weeklyChartSub">Tickets by status per week — {{ $rangeLabel }}</div>
+                    <div class="chart-title">Weekly Support Request Breakdown</div>
+                    <div class="chart-sub" id="weeklyChartSub">Support requests by status per week — {{ $rangeLabel }}</div>
                     <div class="chart-wrap mt-2"><canvas id="weeklyChart" height="100"></canvas></div>
                 </div>
             </div>
@@ -690,7 +690,7 @@
                                     <th>Member</th>
                                     <th>Role</th>
                                     <th>Status</th>
-                                    <th>Active Tickets</th>
+                                    <th>Active Support Requests</th>
                                     <th style="text-align:right">Availability</th>
                                 </tr>
                             </thead>
@@ -749,19 +749,19 @@
                 <div class="chart-card">
                     <div class="d-flex justify-content-between align-items-start mb-1 flex-wrap gap-2">
                         <div>
-                            <div class="chart-title">All Active Tickets</div>
-                            <div class="chart-sub">Every open ticket across the organization — click Timeline for the full history</div>
+                            <div class="chart-title">All Active Support Requests</div>
+                            <div class="chart-sub">Every open support request across the organization — click Timeline for the full history</div>
                         </div>
                         <a href="{{ route('executive.tickets.index') }}"
                            style="font-size:12px;font-weight:800;color:var(--ex-yg);text-decoration:none">
-                            View Ticket Queue <i class="bi bi-arrow-right"></i>
+                            View Support Request Queue <i class="bi bi-arrow-right"></i>
                         </a>
                     </div>
                     <div class="d-flex flex-wrap gap-2 mt-3 mb-2">
                         <div class="ex-search-wrap">
                             <i class="bi bi-search"></i>
                             <input type="text" id="activeTicketsSearch"
-                                   placeholder="Search ticket #, subject, or requester…" autocomplete="off">
+                                   placeholder="Search support request #, subject, or requester…" autocomplete="off">
                         </div>
                         <select class="ex-filter-select" id="activeTicketsStatus">
                             <option value="">All Statuses</option>
@@ -781,7 +781,7 @@
                         <table class="lb-table mt-1">
                             <thead>
                                 <tr>
-                                    <th>Ticket</th>
+                                    <th>Support Request</th>
                                     <th>Requester</th>
                                     <th>Status</th>
                                     <th>Priority</th>
@@ -873,7 +873,7 @@
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="mb-0">Ticket Timeline — <em id="timelineRef" style="color:var(--ex-yg)"></em></h5>
+                    <h5 class="mb-0">Support Request Timeline — <em id="timelineRef" style="color:var(--ex-yg)"></em></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body px-4 py-3" style="max-height:60vh;overflow-y:auto">
@@ -963,7 +963,7 @@
                             labels: data.byCategory.map(c => c.request_category),
                             datasets: [{ data: data.byCategory.map(c => c.total), backgroundColor: catColors.slice(0, data.byCategory.length), borderWidth: 0, borderRadius: 4, spacing: 2 }]
                         },
-                        options: { cutout: '65%', responsive: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + c.label + ': ' + c.raw + ' tickets' } } } }
+                        options: { cutout: '65%', responsive: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + c.label + ': ' + c.raw + ' support requests' } } } }
                     });
 
                     /* ── Resolution time bar ── */
@@ -1065,7 +1065,7 @@
                     const totalDiffEl = document.querySelector('[data-mom="totalDiff"]');
                     if (totalDiffEl) {
                         const diff = data.totalTickets - (data.lastTotalTickets ?? 0);
-                        totalDiffEl.textContent = `${diff > 0 ? '+' : ''}${diff} tickets ${diff > 0 ? '↑' : '↓'}`;
+                        totalDiffEl.textContent = `${diff > 0 ? '+' : ''}${diff} support requests ${diff > 0 ? '↑' : '↓'}`;
                         totalDiffEl.className = `cmp-diff ${diff > 0 ? 'worse' : 'better'}`;
                     }
 
@@ -1175,11 +1175,11 @@
                     if (data.rangeLabel) {
                         const subs = {
                             greetingSub: `Here's your IT Support overview for ${data.rangeLabel}.`,
-                            volumeChartSub: `Tickets opened vs. resolved — ${data.rangeLabel}`,
+                            volumeChartSub: `Support requests opened vs. resolved — ${data.rangeLabel}`,
                             slaChartSub: `By priority level — ${data.rangeLabel}`,
                             deptChartSub: `Volume — ${data.rangeLabel} — color = severity`,
-                            leaderboardSub: `Ranked by tickets resolved — ${data.rangeLabel}`,
-                            weeklyChartSub: `Tickets by status per week — ${data.rangeLabel}`,
+                            leaderboardSub: `Ranked by support requests resolved — ${data.rangeLabel}`,
+                            weeklyChartSub: `Support requests by status per week — ${data.rangeLabel}`,
                             csatChartSub: `Rating breakdown — ${data.rangeLabel}`,
                         };
                         Object.entries(subs).forEach(([id, text]) => {
@@ -1201,7 +1201,7 @@
                                 <div class="dept-cell ${heat}">
                                     <div class="dept-name">${escHtml(dept.department_name)}</div>
                                     <div class="dept-count ${heat}">${dept.total}</div>
-                                    <div class="dept-label">tickets</div>
+                                    <div class="dept-label">support requests</div>
                                 </div>`;
                         }).join('') || '<div style="color:var(--ex-muted);font-size:12px;grid-column:1/-1">No data for this period.</div>';
                     }
@@ -1287,7 +1287,7 @@
                     if (!body) return;
 
                     if (!data.tickets.length) {
-                        body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--ex-muted);padding:20px">No active tickets match your filters.</td></tr>`;
+                        body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--ex-muted);padding:20px">No active support requests match your filters.</td></tr>`;
                     } else {
                         body.innerHTML = data.tickets.map(t => `
                             <tr>

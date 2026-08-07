@@ -14,7 +14,7 @@
 @section('hero-title')
     <h1>Manager <em>QUEUE</em></h1>
 @endsection
-@section('hero-subtitle', 'Acknowledge and resolve tickets escalated from Admin Supervisors.')
+@section('hero-subtitle', 'Acknowledge and resolve support requests escalated from Admin Supervisors.')
 
 @section('hero-stats')
     <div class="d-flex gap-2 flex-wrap">
@@ -131,7 +131,7 @@
             <div class="search-wrap">
                 <i class="bi bi-search" style="color:var(--tm)"></i>
                 <input type="text" name="search" id="searchInput"
-                       placeholder="Search tickets…"
+                       placeholder="Search support requests…"
                        value="{{ $search }}" autocomplete="off">
             </div>
             <select class="sort-select" name="sort" onchange="this.form.submit()">
@@ -233,7 +233,7 @@
                                 <div class="etl-dot"></div>
                                 <div>
                                     <span class="etl-time">
-                                        {{ \Carbon\Carbon::parse($history->changed_at)->format('M d, g:i A') }}
+                                        {{ \Carbon\Carbon::parse($history->changed_at)->timezone('Asia/Manila')->format('M d, g:i A') }}
                                     </span>
                                     <span class="etl-text ms-2">{{ $history->notes }}</span>
                                 </div>
@@ -292,7 +292,7 @@
             <div class="ticket-card p-5 text-center">
                 <div style="font-size:48px;opacity:.3">✅</div>
                 <div class="mt-3 font-brand fw-900" style="font-size:18px;color:var(--tm)">
-                    No tickets in this view.
+                    No support requests in this view.
                 </div>
                 <div style="font-size:13px;color:var(--tm);margin-top:4px">
                     You're all caught up.
@@ -318,7 +318,7 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Resolve <em>Ticket</em></h5>
+                    <h5 class="mb-0">Resolve <em>Support Request</em></h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
                 <form method="POST" id="resolveForm">

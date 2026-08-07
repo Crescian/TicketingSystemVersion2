@@ -41,7 +41,7 @@
         @elseif($roleName === 'Employee')
             <div class="stat-pill">
                 <span class="num">{{ $myTickets }}</span>
-                <span class="lbl">My Tickets</span>
+                <span class="lbl">My Support Requests</span>
             </div>
             <div class="stat-pill">
                 <span class="num">{{ $myResolved }}</span>
@@ -50,7 +50,7 @@
         @else
             <div class="stat-pill">
                 <span class="num">{{ \App\Models\Tickets::count() }}</span>
-                <span class="lbl">Total Tickets</span>
+                <span class="lbl">Total Support Requests</span>
             </div>
             <div class="stat-pill">
                 <span class="num">{{ \App\Models\Tickets::where('status', 'Closed')->count() }}</span>
@@ -368,7 +368,7 @@
                     <div class="panel-head">
                         <div class="panel-head-icon"><i class="bi bi-ticket-perforated"></i></div>
                         <div>
-                            <div class="panel-head-title">My Tickets</div>
+                            <div class="panel-head-title">My Support Requests</div>
                             <div class="panel-head-sub">Lifetime summary</div>
                         </div>
                     </div>
@@ -600,7 +600,7 @@
                     </div>
                     <div>
                         <div class="panel-head-title">Recent Activity</div>
-                        <div class="panel-head-sub">Your latest 5 ticket interactions</div>
+                        <div class="panel-head-sub">Your latest 5 support request interactions</div>
                     </div>
                 </div>
                 <div class="panel-body" style="padding-top:8px;padding-bottom:8px">

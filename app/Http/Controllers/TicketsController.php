@@ -364,9 +364,11 @@ class TicketsController extends Controller
             'company'        => $isHelpdeskFiling ? $request->company        : ($requestor->department?->company?->company_name ?? null),
             'department'     => $isHelpdeskFiling ? $request->department     : ($requestor->department?->department_name ?? null),
 
-            // ── Date/time received: system timestamp for self-filed tickets
-            'date_received'  => $isHelpdeskFiling ? $request->date_received  : now()->toDateString(),
-            'time_received'  => $isHelpdeskFiling ? $request->time_received  : now()->format('H:i'),
+            // ── Date/time received: system timestamp for self-filed tickets. Plain
+            // strings, not Carbon-cast — computed as Asia/Manila wall-clock values
+            // directly, since app.timezone is UTC.
+            'date_received'  => $isHelpdeskFiling ? $request->date_received  : now()->timezone('Asia/Manila')->toDateString(),
+            'time_received'  => $isHelpdeskFiling ? $request->time_received  : now()->timezone('Asia/Manila')->format('H:i'),
 
             // ── Method: defaults to "System" for self-filed tickets
             'method'         => $isHelpdeskFiling ? $request->method : 'System',

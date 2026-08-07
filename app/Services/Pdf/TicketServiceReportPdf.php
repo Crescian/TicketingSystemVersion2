@@ -146,7 +146,7 @@ class TicketServiceReportPdf
         $y += $rowH;
 
         // Ticket info row: Ticket Number / Status
-        $this->labelValueCell($x, $y, $col2, $rowH, 'TICKET NUMBER', $this->ticket->ticket_number);
+        $this->labelValueCell($x, $y, $col2, $rowH, 'SUPPORT REQUEST NUMBER', $this->ticket->ticket_number);
 
         $this->pdf->Rect($x + $col2, $y, $col2, $rowH, 'D');
         $this->fieldLabel($x + $col2 + 2, $y + 2.2, 'STATUS');

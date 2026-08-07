@@ -44,7 +44,7 @@ class MessageController extends Controller
                     'initials' => $initials,
                     'is_me' => $msg->sender_id === Auth::id(),
                     'is_read' => $msg->is_read,
-                    'time' => \Carbon\Carbon::parse($msg->created_at)->format('M d, g:i A'),
+                    'time' => \Carbon\Carbon::parse($msg->created_at)->timezone('Asia/Manila')->format('M d, g:i A'),
                     'time_ago' => \Carbon\Carbon::parse($msg->created_at)->diffForHumans(),
                     'created_at' => $msg->created_at,
                 ];

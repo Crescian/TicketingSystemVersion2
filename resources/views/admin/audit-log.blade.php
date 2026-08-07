@@ -186,7 +186,7 @@
           <div class="search-wrap flex-grow-1" style="max-width:260px">
               <i class="bi bi-search" style="color:var(--tm)"></i>
               <input type="text" name="search" id="searchInput"
-                    placeholder="Search by user, ticket, notes…"
+                    placeholder="Search by user, support request, notes…"
                     value="{{ $search }}" autocomplete="off">
           </div>
 
@@ -301,7 +301,7 @@
                           </td>
                           <td>
                               <span class="module-chip">
-                                  <i class="bi bi-ticket-perforated me-1"></i>Ticket
+                                  <i class="bi bi-ticket-perforated me-1"></i>Support Request
                               </span>
                           </td>
                           <td style="max-width:260px;color:var(--gd);font-weight:600">
@@ -324,9 +324,9 @@
                           </td>
                           <td class="meta-cell" style="white-space:nowrap">
                               <div style="font-weight:700;color:var(--gd)">
-                                  {{ \Carbon\Carbon::parse($log->changed_at)->format('M d, Y') }}
+                                  {{ \Carbon\Carbon::parse($log->changed_at)->timezone('Asia/Manila')->format('M d, Y') }}
                               </div>
-                              <div>{{ \Carbon\Carbon::parse($log->changed_at)->format('h:i A') }}</div>
+                              <div>{{ \Carbon\Carbon::parse($log->changed_at)->timezone('Asia/Manila')->format('h:i A') }}</div>
                           </td>
                       </tr>
 
@@ -358,7 +358,7 @@
                                               </div>
                                           @endif
                                           <div class="col-md-4">
-                                              <div class="detail-label">Ticket</div>
+                                              <div class="detail-label">Support Request</div>
                                               <div class="detail-val">
                                                   #{{ $log->ticket?->ticket_number ?? '—' }}
                                               </div>
@@ -372,7 +372,7 @@
                                           <div class="col-md-4">
                                               <div class="detail-label">Exact Timestamp</div>
                                               <div class="detail-val">
-                                                  {{ \Carbon\Carbon::parse($log->changed_at)->format('D, M d Y — h:i:s A') }}
+                                                  {{ \Carbon\Carbon::parse($log->changed_at)->timezone('Asia/Manila')->format('D, M d Y — h:i:s A') }}
                                               </div>
                                           </div>
                                       </div>

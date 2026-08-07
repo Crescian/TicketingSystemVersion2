@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'IT Admin — My Tickets')
+@section('title', 'IT Admin — My Support Requests')
 
 @section('nav-role-badge')
     <span class="role-badge-admin">
@@ -19,9 +19,9 @@
 @section('nav-username', Auth::user()->name)
 
 @section('hero-title')
-    <h1><strong>ADMIN</strong> <em>TICKET</em><br>WORKSPACE</h1>
+    <h1><strong>ADMIN</strong> <em>SUPPORT REQUEST</em><br>WORKSPACE</h1>
 @endsection
-@section('hero-subtitle', 'Acknowledge, work, and resolve tickets assigned to you.')
+@section('hero-subtitle', 'Acknowledge, work, and resolve support requests assigned to you.')
 
 @section('hero-stats')
     <div class="d-flex gap-2 flex-wrap">
@@ -87,7 +87,7 @@
                 <div class="tech-av admin">{{ $selfInitials }}</div>
                 <div>
                     <div class="tech-name">{{ Auth::user()->name }} (You)</div>
-                    <div class="tech-load">{{ $selfActive }} active ticket{{ $selfActive !== 1 ? 's' : '' }}</div>
+                    <div class="tech-load">{{ $selfActive }} active support request{{ $selfActive !== 1 ? 's' : '' }}</div>
                 </div>
                 <div class="avail-dot {{ $selfActive > 0 ? 'busy' : 'free' }}"></div>
             </div>
@@ -102,7 +102,7 @@
                     <div>
                         <div class="tech-name">{{ $tech->name }}</div>
                         <div class="tech-load">
-                            {{ $tech->active_tickets }} active ticket{{ $tech->active_tickets !== 1 ? 's' : '' }}
+                            {{ $tech->active_tickets }} active support request{{ $tech->active_tickets !== 1 ? 's' : '' }}
                         </div>
                     </div>
                     <div class="avail-dot {{ $tech->availability }}"></div>
@@ -128,7 +128,7 @@
                 </span>
             </div>
             <div class="sys-stat">
-                <span style="font-size:13px;font-weight:600;color:var(--tm)">Open tickets total</span>
+                <span style="font-size:13px;font-weight:600;color:var(--tm)">Open support requests total</span>
                 <span class="sys-val ok">{{ $systemStats['total_open'] }}</span>
             </div>
             <div class="sys-stat">
@@ -173,14 +173,14 @@
         <span class="font-brand fw-900" style="font-size:22px">
             @php
                 $labels = [
-                    'active'       => 'Active Tickets',
+                    'active'       => 'Active Support Requests',
                     'awaiting-ack' => 'Awaiting Acknowledgement',
                     'ready-start'  => 'Ready to Start',
                     'in-progress'  => 'In Progress',
-                    'closed'       => 'Closed Tickets',
+                    'closed'       => 'Closed Support Requests',
                 ];
             @endphp
-            {{ $labels[$status] ?? 'Active Tickets' }}
+            {{ $labels[$status] ?? 'Active Support Requests' }}
         </span>
         <form method="GET" action="{{ route('admin.dashboard') }}"
               class="d-flex gap-2 flex-wrap" id="searchForm">
@@ -188,7 +188,7 @@
             <div class="search-wrap">
                 <i class="bi bi-search" style="color:var(--tm)"></i>
                 <input type="text" name="search" id="searchInput"
-                       placeholder="Search tickets…"
+                       placeholder="Search support requests…"
                        value="{{ $search }}" autocomplete="off">
             </div>
             <select class="sort-select" name="sort" onchange="this.form.submit()">
@@ -295,7 +295,7 @@
                                 <div class="etl-dot"></div>
                                 <div>
                                     <span class="etl-time">
-                                        {{ \Carbon\Carbon::parse($history->changed_at)->format('M d, g:i A') }}
+                                        {{ \Carbon\Carbon::parse($history->changed_at)->timezone('Asia/Manila')->format('M d, g:i A') }}
                                     </span>
                                     <span class="etl-text ms-2">{{ $history->notes }}</span>
                                 </div>
@@ -407,7 +407,7 @@
             <div class="ticket-card p-5 text-center">
                 <div style="font-size:48px;opacity:.3">✅</div>
                 <div class="mt-3 font-brand fw-900" style="font-size:18px;color:var(--tm)">
-                    No tickets in this view.
+                    No support requests in this view.
                 </div>
                 <div style="font-size:13px;color:var(--tm);margin-top:4px">
                     You're all caught up.
@@ -501,7 +501,7 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-hdr-red d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Decline <em>Ticket</em></h5>
+                    <h5 class="mb-0">Decline <em>Support Request</em></h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
                 <form method="POST" id="declineForm">
@@ -513,12 +513,12 @@
                         </div>
                         <label class="form-label">Reason <span class="text-danger">*</span></label>
                         <textarea class="form-control" name="reason" rows="2" required
-                                  placeholder="Why are you declining this ticket?"></textarea>
+                                  placeholder="Why are you declining this support request?"></textarea>
                     </div>
                     <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
                         <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn-confirm red">
-                            <i class="bi bi-x-circle me-1"></i>Decline Ticket
+                            <i class="bi bi-x-circle me-1"></i>Decline Support Request
                         </button>
                     </div>
                 </form>
@@ -563,7 +563,7 @@
                                         <div>
                                             <div class="ts-name">{{ $tech->name }}</div>
                                             <div class="ts-load">
-                                                {{ $tech->active_tickets }} active ticket{{ $tech->active_tickets !== 1 ? 's' : '' }}
+                                                {{ $tech->active_tickets }} active support request{{ $tech->active_tickets !== 1 ? 's' : '' }}
                                             </div>
                                         </div>
                                         <span class="badge-count {{ $badge['cls'] }} ms-auto">{{ $badge['label'] }}</span>
@@ -670,7 +670,7 @@
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-hdr-dark d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Full Ticket <em>History</em></h5>
+                    <h5 class="mb-0">Full Support Request <em>History</em></h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
                 <div class="modal-body px-4 py-4">

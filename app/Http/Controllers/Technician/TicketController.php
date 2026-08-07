@@ -695,8 +695,10 @@ class TicketController extends Controller
         $oldStatus = $ticket->status;
 
         $ticket->update([
-            'date_acknowledged' => now()->toDateString(),
-            'time_acknowledged' => now()->toTimeString(),
+            // Plain strings, not Carbon-cast — computed as Asia/Manila wall-clock
+            // values directly, since app.timezone is UTC.
+            'date_acknowledged' => now()->timezone('Asia/Manila')->toDateString(),
+            'time_acknowledged' => now()->timezone('Asia/Manila')->toTimeString(),
             'sla_category_id' => $slaRule->sla_category_id,
             'subcategory_name' => $slaRule->subcategory_name,
             'ticket_type' => $priority,

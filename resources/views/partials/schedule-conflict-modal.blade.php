@@ -16,7 +16,7 @@
                 </div>
                 <div class="modal-body">
                     <p>
-                        Assigning ticket <strong>#{{ $conflict['ticket_number'] }}</strong> to
+                        Assigning support request <strong>#{{ $conflict['ticket_number'] }}</strong> to
                         <strong>{{ $conflict['technician_name'] }}</strong> would run until
                         <strong>{{ $conflict['proposed_end'] }}</strong>, past today's
                         <strong>{{ $conflict['day_end'] }}</strong> cutoff

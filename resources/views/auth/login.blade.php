@@ -38,21 +38,21 @@
             <div class="role-icon customer"><i class="bi bi-stopwatch"></i></div>
             <div>
               <div class="role-title">Know What to Expect</div>
-              <div class="role-desc">Every ticket gets a response and resolution target the moment it's submitted</div>
+              <div class="role-desc">Every support request gets a response and resolution target the moment it's submitted</div>
             </div>
           </div>
           <div class="role-card">
             <div class="role-icon helpdesk"><i class="bi bi-activity"></i></div>
             <div>
               <div class="role-title">Live Status Tracking</div>
-              <div class="role-desc">Watch your ticket move from submitted, to assigned, to resolved</div>
+              <div class="role-desc">Watch your support request move from submitted, to assigned, to resolved</div>
             </div>
           </div>
           <div class="role-card">
             <div class="role-icon tech"><i class="bi bi-person-check"></i></div>
             <div>
               <div class="role-title">Focused Attention</div>
-              <div class="role-desc">Your assigned specialist works your ticket start to finish before moving on</div>
+              <div class="role-desc">Your assigned specialist works your support request start to finish before moving on</div>
             </div>
           </div>
           <div class="role-card">

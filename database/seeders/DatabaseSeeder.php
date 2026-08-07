@@ -15,7 +15,9 @@ class DatabaseSeeder extends Seeder
             DepartmentSeeder::class,
             UserSeeder::class,
             WorkloadClassSeeder::class,
-            // TicketSeeder::class,
+            SlaCategorySeeder::class,
+            SlaRuleSeeder::class,
+            TicketSeeder::class,
         ]);
     }
 }

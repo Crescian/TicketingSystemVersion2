@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'My Support Tickets — LGICT')
+@section('title', 'My Support Requests — LGICT')
 
 {{-- ── Nav ── --}}
 @section('nav-role-badge')
@@ -388,11 +388,11 @@
 
     {{-- Nav menu --}}
     <div class="sidebar-card mb-3">
-        <div class="sidebar-head">My Tickets</div>
+        <div class="sidebar-head">My Support Requests</div>
         <ul class="list-group sidebar-menu rounded-0" id="sideNav">
             <li class="list-group-item {{ $status === 'all' ? 'active' : '' }}">
                 <a href="{{ route('employee.tickets.index', ['status' => 'all']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
-                    <span><i class="bi bi-grid me-2"></i>All tickets</span>
+                    <span><i class="bi bi-grid me-2"></i>All support requests</span>
                     <span class="badge-count">{{ $counts['all'] }}</span>
                 </a>
             </li>
@@ -481,7 +481,7 @@
             <span>
                 <div class="aw-title">
                     {{ $counts['awaiting_requestor'] }}
-                    {{ Str::plural('ticket', $counts['awaiting_requestor']) }} awaiting your acknowledgment
+                    {{ Str::plural('support request', $counts['awaiting_requestor']) }} awaiting your acknowledgment
                 </div>
                 <div class="aw-sub">Confirm the resolution so we can close {{ $counts['awaiting_requestor'] === 1 ? 'it' : 'them' }} out.</div>
             </span>
@@ -508,7 +508,7 @@
         <span class="font-brand fw-900" style="font-size:22px" id="listTitle">
             @php
                 $labels = [
-                    'all'                        => 'All Tickets',
+                    'all'                        => 'All Support Requests',
                     'pending_acknowledgement'    => 'Pending Acknowledgement',
                     'classification_assignment'  => 'Classification & Assignment',
                     'in_progress'                => 'In Progress',
@@ -517,7 +517,7 @@
                     'cancelled'                  => 'Cancelled',
                 ];
             @endphp
-            {{ $labels[$status] ?? 'All Tickets' }}
+            {{ $labels[$status] ?? 'All Support Requests' }}
         </span>
         <form method="GET" action="{{ route('employee.tickets.index') }}"
               class="d-flex gap-2" id="searchForm">
@@ -525,7 +525,7 @@
             <div class="search-wrap">
                 <i class="bi bi-search" style="color:var(--tm)"></i>
                 <input type="text" name="search" id="searchInput"
-                       placeholder="Search tickets…"
+                       placeholder="Search support requests…"
                        value="{{ $search }}" autocomplete="off">
             </div>
             <select class="sort-select" name="sort" onchange="this.form.submit()">
@@ -943,13 +943,13 @@
                 <div style="font-size:48px;opacity:.3">🎫</div>
                 <div class="mt-3 font-brand fw-900"
                      style="font-size:18px;color:var(--tm)">
-                    No tickets found.
+                    No support requests found.
                 </div>
                 <div style="font-size:13px;color:var(--tm);margin-top:4px">
                     @if($status !== 'all')
-                        You have no {{ $status }} tickets.
+                        You have no {{ $status }} support requests.
                     @else
-                        You haven't submitted any tickets yet.
+                        You haven't submitted any support requests yet.
                     @endif
                 </div>
             </div>
@@ -987,21 +987,21 @@
                                 <div class="onboard-icon"><i class="bi bi-stopwatch"></i></div>
                                 <div>
                                     <div style="font-weight:800;font-size:13px">Know what to expect</div>
-                                    <div style="font-size:12px;color:var(--tm)">Every ticket gets a response and resolution target the moment it's submitted.</div>
+                                    <div style="font-size:12px;color:var(--tm)">Every support request gets a response and resolution target the moment it's submitted.</div>
                                 </div>
                             </div>
                             <div class="d-flex align-items-start gap-3">
                                 <div class="onboard-icon"><i class="bi bi-activity"></i></div>
                                 <div>
                                     <div style="font-weight:800;font-size:13px">Track it live</div>
-                                    <div style="font-size:12px;color:var(--tm)">Watch your ticket move from submitted, to assigned, to resolved — right from this dashboard.</div>
+                                    <div style="font-size:12px;color:var(--tm)">Watch your support request move from submitted, to assigned, to resolved — right from this dashboard.</div>
                                 </div>
                             </div>
                             <div class="d-flex align-items-start gap-3">
                                 <div class="onboard-icon"><i class="bi bi-chat-dots"></i></div>
                                 <div>
                                     <div style="font-weight:800;font-size:13px">Message your specialist</div>
-                                    <div style="font-size:12px;color:var(--tm)">No more back-and-forth emails — chat directly on the ticket and get notified the moment it changes.</div>
+                                    <div style="font-size:12px;color:var(--tm)">No more back-and-forth emails — chat directly on the support request and get notified the moment it changes.</div>
                                 </div>
                             </div>
                         </div>
@@ -1059,7 +1059,7 @@
                                 style="background:var(--ygl);border:1.5px solid var(--bd)">
                                 <div>
                                     <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">
-                                        Ticket Number
+                                        Support Request Number
                                     </div>
                                     <div class="font-brand fw-900" style="font-size:18px;color:var(--gd);letter-spacing:1px">
                                         Auto-generated on submit
@@ -1164,7 +1164,7 @@
 
                                 <div class="font-brand fw-900 mb-3"
                                     style="font-size:14px;color:var(--gd);text-transform:uppercase;letter-spacing:.5px">
-                                    Ticket Summary
+                                    Support Request Summary
                                 </div>
 
                                 <div class="mb-2"><b>Subject:</b> <span id="rv-subject">—</span></div>
@@ -1197,7 +1197,7 @@
                                 <div style="font-size:13px;color:var(--tm);margin-bottom:12px" id="rv-desc-preview">—</div>
                                 <div class="review-lbl mb-1">What happens next</div>
                                 <div style="font-size:13px;color:var(--tm)">
-                                    Your ticket will be assigned to an available IT Support Specialist.
+                                    Your support request will be assigned to an available IT Support Specialist.
                                     Average first response: <strong style="color:var(--gd)">under 2 hours</strong>.
                                 </div>
                             </div>
@@ -1209,7 +1209,7 @@
                                 ✅
                             </div>
                             <h5 class="font-brand fw-900 mb-1" style="font-size:22px">
-                                Ticket submitted!
+                                Support request submitted!
                             </h5>
                             <p class="mb-2" style="color:var(--tm)">
                                 Your request has been received.<br>
@@ -1220,7 +1220,7 @@
                                 <i class="bi bi-info-circle-fill me-1"></i>
                                 <strong>Double-check what you submitted.</strong>
                                 Incomplete or unclear details can delay how quickly your request gets picked up —
-                                if you missed something, add it now from your ticket's chat.
+                                if you missed something, add it now from your support request's chat.
                             </div>
                             <p style="color:var(--tm);font-size:13px">
                                 Track progress from your dashboard.<br>
@@ -1244,14 +1244,14 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Cancel <em>Ticket</em></h5>
+                    <h5 class="mb-0">Cancel <em>Support Request</em></h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
                 <div class="modal-body px-4 py-4">
                     <div class="p-3 mb-3 rounded"
                          style="background:rgba(226,75,74,.1);border:1px solid rgba(226,75,74,.3);color:#e24b4a;font-size:13px;font-weight:600">
                         <i class="bi bi-exclamation-triangle me-1"></i>
-                        Are you sure you want to cancel ticket
+                        Are you sure you want to cancel support request
                         <strong id="cancelTicketRef"></strong>?
                         This action cannot be undone.
                     </div>
@@ -1263,7 +1263,7 @@
                         @method('PATCH')
                         <button type="submit" class="btn-cancel-ticket"
                                 style="padding:10px 24px">
-                            <i class="bi bi-x-circle me-1"></i>Yes, Cancel Ticket
+                            <i class="bi bi-x-circle me-1"></i>Yes, Cancel Support Request
                         </button>
                     </form>
                 </div>
@@ -1705,7 +1705,7 @@
                 $('#btnNext')
                     .removeClass('btn-continue')
                     .addClass('btn-submit-ticket')
-                    .text('Submit ticket');
+                    .text('Submit support request');
             } else if (n === 3) {
                 $('#mFooter').hide();
             } else {

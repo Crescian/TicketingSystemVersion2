@@ -14,7 +14,7 @@
 @section('hero-title')
     <h1>Supervisor <em>DASHBOARD</em></h1>
 @endsection
-@section('hero-subtitle', 'Acknowledge, classify, and assign incoming support tickets to your specialists.')
+@section('hero-subtitle', 'Acknowledge, classify, and assign incoming support requests to your specialists.')
 
 @section('hero-stats')
     <div class="d-flex gap-2 flex-wrap">
@@ -337,7 +337,7 @@
                     'closed' => 'Closed',
                 ];
             @endphp
-            {{ $labels[$status] ?? 'All Tickets' }}
+            {{ $labels[$status] ?? 'All Support Requests' }}
         </span>
         <form method="GET" action="{{ route('supervisor.support.dashboard') }}"
               class="d-flex gap-2 flex-wrap" id="searchForm">
@@ -504,7 +504,7 @@
                                 <div class="etl-dot"></div>
                                 <div>
                                     <span class="etl-time">
-                                        {{ \Carbon\Carbon::parse($history->changed_at)->format('M d, g:i A') }}
+                                        {{ \Carbon\Carbon::parse($history->changed_at)->timezone('Asia/Manila')->format('M d, g:i A') }}
                                     </span>
                                     <span class="etl-text ms-2">{{ $history->notes }}</span>
                                 </div>
@@ -754,7 +754,7 @@
             <div class="ticket-card p-5 text-center">
                 <div style="font-size:48px;opacity:.3">🎫</div>
                 <div class="mt-3 font-brand fw-900" style="font-size:18px;color:var(--tm)">
-                    No tickets found.
+                    No support requests found.
                 </div>
             </div>
         @endforelse
@@ -799,7 +799,7 @@
                         <div id="caOverrideWrap" class="d-none mb-3">
                             <label class="form-label mb-2">
                                 SLA & Priority
-                                <span style="font-weight:400;color:var(--tm)">(defaults from the rule above — adjust if this ticket needs different targets)</span>
+                                <span style="font-weight:400;color:var(--tm)">(defaults from the rule above — adjust if this support request needs different targets)</span>
                             </label>
 
                             <div class="mb-2">
@@ -1029,8 +1029,8 @@
                     <div class="modal-body px-4 py-4">
                         <div class="resolve-info p-3 mb-3">
                             <i class="bi bi-x-octagon me-1"></i>
-                            Ticket <strong id="cannotResolveRef"></strong> —
-                            this documents why the ticket cannot be technically resolved and
+                            Support Request <strong id="cannotResolveRef"></strong> —
+                            this documents why the support request cannot be technically resolved and
                             sends it straight to Helpdesk for closure & notification.
                         </div>
                         <div class="mb-3">
@@ -1135,7 +1135,7 @@
                         <div class="resolve-info p-3 mb-3">
                             <i class="bi bi-check-circle me-1"></i>
                             Resolving <strong id="resolveRef"></strong> —
-                            this ends the SLA resolution timer and sends the ticket
+                            this ends the SLA resolution timer and sends the support request
                             for closure.
                         </div>
                         <div class="mb-3">
@@ -1262,7 +1262,7 @@
                     @csrf
                     <div class="modal-body px-4 py-4">
                         <div class="mb-3 p-2 px-3 rounded" style="background:var(--ygl);font-size:13px;color:var(--gd)">
-                            The ticket's classification will be updated to the technician's proposal and
+                            The support request's classification will be updated to the technician's proposal and
                             sent back to the classify &amp; assign queue for reassignment.
                         </div>
                         <div class="mb-3">
@@ -1295,7 +1295,7 @@
                     <div class="modal-body px-4 py-4">
                         <div class="info-box-red p-3 mb-3">
                             <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                            The ticket will be returned to the requesting technician unchanged.
+                            The support request will be returned to the requesting technician unchanged.
                         </div>
                         <div>
                             <label class="form-label">

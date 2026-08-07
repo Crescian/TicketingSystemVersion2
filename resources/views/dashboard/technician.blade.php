@@ -18,7 +18,7 @@
 @section('hero-title')
     <h1>MY <em>WORK QUEUE</em></h1>
 @endsection
-@section('hero-subtitle', 'Acknowledge, start, and resolve tickets assigned to you.')
+@section('hero-subtitle', 'Acknowledge, start, and resolve support requests assigned to you.')
 
 @section('hero-stats')
       <div class="d-flex flex-column gap-3">
@@ -312,17 +312,17 @@
           <div>
               <div class="checklist-item">
                   <div class="ck-icon done"><i class="bi bi-check"></i></div>
-                  <div><div class="ck-text">Receive assignment</div><div class="ck-sub">Supervisor assigns ticket to you</div></div>
+                  <div><div class="ck-text">Receive assignment</div><div class="ck-sub">Supervisor assigns support request to you</div></div>
               </div>
               <div class="checklist-item">
                   <div class="ck-icon {{ $counts['awaiting_ack'] > 0 ? 'active' : 'done' }}">
                       <i class="bi bi-arrow-right"></i>
                   </div>
-                  <div><div class="ck-text">Acknowledge assignment</div><div class="ck-sub">Confirm you've seen the ticket</div></div>
+                  <div><div class="ck-text">Acknowledge assignment</div><div class="ck-sub">Confirm you've seen the support request</div></div>
               </div>
               <div class="checklist-item">
                   <div class="ck-icon {{ $counts['ready_start'] > 0 ? 'active' : 'pending' }}">3</div>
-                  <div><div class="ck-text">Start ticket</div><div class="ck-sub">SLA resolution timer begins</div></div>
+                  <div><div class="ck-text">Start support request</div><div class="ck-sub">SLA resolution timer begins</div></div>
               </div>
               <div class="checklist-item">
                   <div class="ck-icon {{ $counts['in_progress'] > 0 ? 'active' : 'pending' }}">4</div>
@@ -330,7 +330,7 @@
               </div>
               <div class="checklist-item">
                   <div class="ck-icon pending">5</div>
-                  <div><div class="ck-text">Supervisor validates &amp; closes</div><div class="ck-sub">Ticket moves through validation until Closed</div></div>
+                  <div><div class="ck-text">Supervisor validates &amp; closes</div><div class="ck-sub">Support request moves through validation until Closed</div></div>
               </div>
           </div>
       </div>
@@ -340,7 +340,7 @@
           <div class="sidebar-head">This Week</div>
           <div class="p-3 d-flex flex-column gap-2">
               <div class="d-flex justify-content-between">
-                  <span style="font-size:13px;font-weight:600;color:var(--tm)">Tickets resolved</span>
+                  <span style="font-size:13px;font-weight:600;color:var(--tm)">Support requests resolved</span>
                   <span class="font-brand fw-900" style="font-size:18px">{{ $weekStats['resolved'] }}</span>
               </div>
               <div class="d-flex justify-content-between">
@@ -438,7 +438,7 @@
               <div class="search-wrap">
                   <i class="bi bi-search" style="color:var(--tm)"></i>
                   <input type="text" name="search" id="searchInput"
-                         placeholder="Search tickets…"
+                         placeholder="Search support requests…"
                          value="{{ $search }}" autocomplete="off">
               </div>
               <select class="sort-select" name="sort" onchange="this.form.submit()">
@@ -527,7 +527,7 @@
                     ->filter(fn($h) => $h->old_status === 'In Progress' && $h->new_status === 'In Progress')
                     ->sortBy('changed_at');
                 $progressDraft = $progressUpdates
-                    ->map(fn($h) => '- ' . \Carbon\Carbon::parse($h->changed_at)->format('M d, g:i A') . ': ' . $h->notes)
+                    ->map(fn($h) => '- ' . \Carbon\Carbon::parse($h->changed_at)->timezone('Asia/Manila')->format('M d, g:i A') . ': ' . $h->notes)
                     ->implode("\n");
 
                 // ── Notes left by Helpdesk (classify) and Supervisor (classify & assign) —
@@ -686,7 +686,7 @@
                           @foreach($recentHistory as $history)
                             <div class="tl-item {{ $loop->last ? 'active' : 'done' }}">
                                 <div class="tl-time">
-                                    {{ \Carbon\Carbon::parse($history->changed_at)->format('g:i A') }}
+                                    {{ \Carbon\Carbon::parse($history->changed_at)->timezone('Asia/Manila')->format('g:i A') }}
                                 </div>
                                 <div class="tl-text">{{ $history->notes }}</div>
                             </div>
@@ -846,7 +846,7 @@
                       <div class="esc-banner p-2 mb-3">
                           <i class="bi bi-exclamation-triangle-fill me-1"></i>
                           Escalated to Supervisor — awaiting reassignment or takeover.
-                          No further action required from you on this ticket.
+                          No further action required from you on this support request.
                       </div>
                 @endif
 
@@ -855,19 +855,19 @@
                       <div class="p-2 mb-3" style="background:#fff4cc;border-radius:8px;font-size:13px;color:#8a6d00">
                           <i class="bi bi-hourglass-split me-1"></i>
                           Resolved — awaiting Supervisor validation.
-                          No further action required from you on this ticket.
+                          No further action required from you on this support request.
                       </div>
                 @elseif($ticket->status === 'Pending Closure')
                       <div class="p-2 mb-3" style="background:#ffe8cc;border-radius:8px;font-size:13px;color:#8a4d00">
                           <i class="bi bi-hourglass-split me-1"></i>
                           Validated by Supervisor — sent to Helpdesk for closure.
-                          No further action required from you on this ticket.
+                          No further action required from you on this support request.
                       </div>
                 @elseif($ticket->status === 'Awaiting Requestor')
                       <div class="p-2 mb-3" style="background:#e6f0ff;border-radius:8px;font-size:13px;color:#1a4d8f">
                           <i class="bi bi-person-check me-1"></i>
                           Closed by Helpdesk — awaiting requestor confirmation before this fully closes.
-                          No further action required from you on this ticket.
+                          No further action required from you on this support request.
                       </div>
                 @endif
 
@@ -890,7 +890,7 @@
                     @if($isAcknowledged)
                           <button class="btn-start"
                                   onclick="openStartModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', '{{ $ticket->ticket_type }}', '{{ $ticket->effectiveResponseTimeMinutes() }}', '{{ $ticket->effectiveResolutionTimeMinutes() }}')">
-                              <i class="bi bi-play-circle me-1"></i>Start Ticket
+                              <i class="bi bi-play-circle me-1"></i>Start Support Request
                           </button>
                           <button class="btn-decline"
                                   onclick="openDeclineModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
@@ -952,7 +952,7 @@
                     <div class="modal-dialog modal-dialog-centered modal-lg">
                         <div class="modal-content">
                             <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                                <h5 class="mb-0">Ticket <em>#{{ $ticket->ticket_number }}</em></h5>
+                                <h5 class="mb-0">Support Request <em>#{{ $ticket->ticket_number }}</em></h5>
                                 <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                             </div>
                             <div class="modal-body px-4 py-4">
@@ -1016,7 +1016,7 @@
                                     @foreach($ticket->statusHistories->sortBy('changed_at') as $history)
                                         <div style="font-size:12px;border-left:2px solid var(--bd);padding-left:10px">
                                             <div style="color:var(--tm);font-weight:700">
-                                                {{ \Carbon\Carbon::parse($history->changed_at)->format('M d, Y g:i A') }}
+                                                {{ \Carbon\Carbon::parse($history->changed_at)->timezone('Asia/Manila')->format('M d, Y g:i A') }}
                                                 — {{ $history->changedBy->name ?? 'System' }}
                                             </div>
                                             <div>{{ $history->notes }}</div>
@@ -1035,7 +1035,7 @@
             <div class="ticket-card p-5 text-center">
                 <div style="font-size:48px;opacity:.3">🛠️</div>
                 <div class="mt-3 font-brand fw-900" style="font-size:18px;color:var(--tm)">
-                    No tickets in this view.
+                    No support requests in this view.
                 </div>
                 <div style="font-size:13px;color:var(--tm);margin-top:4px">
                     Check another tab, or wait for your supervisor to assign new tickets.
@@ -1069,7 +1069,7 @@
                               <i class="bi bi-eye me-1"></i>
                               Acknowledging <strong id="ackRef"></strong>.
                               This confirms you've seen the assignment — the SLA resolution
-                              timer will not start until you press <strong>Start Ticket</strong>.
+                              timer will not start until you press <strong>Start Support Request</strong>.
                           </div>
                           <div>
                               <label class="form-label">Notes (optional)</label>
@@ -1094,7 +1094,7 @@
           <div class="modal-dialog modal-dialog-centered">
               <div class="modal-content">
                   <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                      <h5 class="mb-0">Start <em>Ticket</em></h5>
+                      <h5 class="mb-0">Start <em>Support Request</em></h5>
                       <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                   </div>
                   <form method="POST" id="startForm">
@@ -1130,7 +1130,7 @@
                           <button type="button" class="btn-cancel-modal"
                                   data-bs-dismiss="modal">Cancel</button>
                           <button type="submit" class="btn-confirm">
-                              <i class="bi bi-play-circle me-1"></i>Start Ticket
+                              <i class="bi bi-play-circle me-1"></i>Start Support Request
                           </button>
                       </div>
                   </form>
@@ -1143,7 +1143,7 @@
           <div class="modal-dialog modal-dialog-centered">
               <div class="modal-content">
                   <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                      <h5 class="mb-0">Decline <em>Ticket</em></h5>
+                      <h5 class="mb-0">Decline <em>Support Request</em></h5>
                       <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                   </div>
                   <form method="POST" id="declineForm">
@@ -1172,7 +1172,7 @@
                           <button type="button" class="btn-cancel-modal"
                                   data-bs-dismiss="modal">Cancel</button>
                           <button type="submit" class="btn-confirm" style="background:#8b1a1a">
-                              <i class="bi bi-x-circle me-1"></i>Decline Ticket
+                              <i class="bi bi-x-circle me-1"></i>Decline Support Request
                           </button>
                       </div>
                   </form>
@@ -1265,7 +1265,7 @@
                           <div class="info-box-green p-3 mb-3">
                               <i class="bi bi-check-circle me-1"></i>
                               Resolving <strong id="resolveRef"></strong> —
-                              this ends the SLA resolution timer and sends the ticket
+                              this ends the SLA resolution timer and sends the support request
                               to your Supervisor for validation. It will move to
                               <strong>Closed</strong> once fully validated.
                           </div>
@@ -1318,7 +1318,7 @@
                                    style="background:var(--ygl);font-weight:800;color:var(--gd)">
                                   <i class="bi bi-stopwatch"></i>
                                   <span id="resolveTimeSpent">—</span>
-                                  <span style="font-weight:600;font-size:11px;color:var(--tm)">(since you started this ticket)</span>
+                                  <span style="font-weight:600;font-size:11px;color:var(--tm)">(since you started this support request)</span>
                               </div>
                           </div>
                           <div>
@@ -1410,7 +1410,7 @@
                       <div class="modal-body px-4 py-4">
                           <div class="info-box-red p-3 mb-3">
                               <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                              This ticket will be paused and sent to your Supervisor for approval. If
+                              This support request will be paused and sent to your Supervisor for approval. If
                               approved, it re-enters the classify &amp; assign queue with your proposed
                               category as the default. If rejected, it's returned to you unchanged.
                           </div>
@@ -1456,7 +1456,7 @@
                                   Reason for re-classification <span class="text-danger">*</span>
                               </label>
                               <textarea class="form-control" name="reason" rows="3" required
-                                        placeholder="Explain why this ticket is miscategorized…"></textarea>
+                                        placeholder="Explain why this support request is miscategorized…"></textarea>
                           </div>
                       </div>
                       <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
@@ -1504,7 +1504,7 @@
                           <button type="button" class="btn-cancel-modal"
                                   data-bs-dismiss="modal">Cancel</button>
                           <button type="submit" class="btn-start">
-                              <i class="bi bi-hand-index-thumb me-1"></i>Self-Assign This Ticket
+                              <i class="bi bi-hand-index-thumb me-1"></i>Self-Assign This Support Request
                           </button>
                       </div>
                   </form>

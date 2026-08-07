@@ -33,7 +33,7 @@
         @if($view === 'day')
             <div class="stat-pill warn">
                 <span class="num">{{ $rows->sum(fn($r) => $r['stats']['ticket_count']) }}</span>
-                <span class="lbl">Tickets This Day</span>
+                <span class="lbl">Support Requests This Day</span>
             </div>
             <div class="stat-pill">
                 <span class="num">{{ $rows->sum(fn($r) => $r['stats']['overtime_minutes']) > 0 ? floor($rows->sum(fn($r) => $r['stats']['overtime_minutes']) / 60) . 'h' : 0 }}</span>
@@ -68,7 +68,7 @@
             <ul class="list-group sidebar-menu rounded-0">
                 <li class="list-group-item">
                     <a href="{{ route('supervisor.support.dashboard') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
-                        <i class="bi bi-grid me-1"></i>Ticket Queue
+                        <i class="bi bi-grid me-1"></i>Support Request Queue
                     </a>
                 </li>
                 <li class="list-group-item active">
@@ -211,7 +211,7 @@
                     <div class="timeline-stats">
                         <span>Allocated: {{ floor($row['stats']['allocated_minutes'] / 60) }}h {{ $row['stats']['allocated_minutes'] % 60 }}m</span>
                         <span>Remaining: {{ floor($row['stats']['remaining_minutes'] / 60) }}h {{ $row['stats']['remaining_minutes'] % 60 }}m</span>
-                        <span>Tickets: {{ $row['stats']['ticket_count'] }}</span>
+                        <span>Support Requests: {{ $row['stats']['ticket_count'] }}</span>
                         <span>Overtime: {{ floor($row['stats']['overtime_minutes'] / 60) }}h {{ $row['stats']['overtime_minutes'] % 60 }}m</span>
                         <span class="workload-pct {{ $row['stats']['workload_pct'] >= 100 ? 'over' : '' }}">{{ $row['stats']['workload_pct'] }}% workload</span>
                     </div>
@@ -240,12 +240,12 @@
                                 <td>
                                     <a class="heatmap-cell {{ $cell['level'] }}"
                                        href="{{ route($routeName, ['view' => 'day', 'date' => $cell['date']->format('Y-m-d'), 'technician_id' => $row['technician']->id]) }}"
-                                       title="{{ $cell['date']->format('M j') }} — {{ $cell['ticket_count'] }} ticket(s)">
+                                       title="{{ $cell['date']->format('M j') }} — {{ $cell['ticket_count'] }} support request(s)">
                                         @if($cell['on_leave'])
                                             <span class="hc-leave">Leave</span>
                                         @else
                                             <span class="hc-pct">{{ $cell['workload_pct'] }}%</span>
-                                            <span class="hc-count">{{ $cell['ticket_count'] }} tix</span>
+                                            <span class="hc-count">{{ $cell['ticket_count'] }} reqs</span>
                                         @endif
                                     </a>
                                 </td>
@@ -278,13 +278,13 @@
                                 @php $cell = $weekByDow[$dow]; @endphp
                                 <a class="month-day-cell heatmap-cell {{ $cell['level'] }}"
                                    href="{{ route($routeName, ['view' => 'day', 'date' => $cell['date']->format('Y-m-d'), 'technician_id' => $row['technician']->id]) }}"
-                                   title="{{ $cell['date']->format('M j') }} — {{ $cell['ticket_count'] }} ticket(s)">
+                                   title="{{ $cell['date']->format('M j') }} — {{ $cell['ticket_count'] }} support request(s)">
                                     <span class="month-day-num">{{ $cell['date']->format('j') }}</span>
                                     @if($cell['on_leave'])
                                         <span class="hc-leave">Leave</span>
                                     @else
                                         <span class="hc-pct">{{ $cell['workload_pct'] }}%</span>
-                                        <span class="hc-count">{{ $cell['ticket_count'] }} tix</span>
+                                        <span class="hc-count">{{ $cell['ticket_count'] }} reqs</span>
                                     @endif
                                 </a>
                             @else

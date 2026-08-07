@@ -213,8 +213,11 @@ class TicketController extends Controller
         }
 
         $ticket->update([
-            'date_acknowledged' => now()->toDateString(),   // YYYY-MM-DD
-            'time_acknowledged' => now()->toTimeString(),   // HH:MM:SS
+            // Plain strings, not Carbon-cast — computed as Asia/Manila wall-clock
+            // values directly, since app.timezone is UTC and these would otherwise
+            // store (and later display) UTC time mislabeled as local time.
+            'date_acknowledged' => now()->timezone('Asia/Manila')->toDateString(),   // YYYY-MM-DD
+            'time_acknowledged' => now()->timezone('Asia/Manila')->toTimeString(),   // HH:MM:SS
         ]);
 
         TicketStatusHistories::create([

@@ -86,7 +86,7 @@
 
     {{-- Priority live counts --}}
     <div class="sidebar-card mb-3">
-        <div class="sidebar-head dark">Live Open Tickets</div>
+        <div class="sidebar-head dark">Live Open Support Requests</div>
         <div class="p-3 d-flex flex-column gap-2">
             @foreach(['Critical' => ['#fff','#8b0000'], 'High' => ['#e24b4a','#fde8e8'], 'Medium' => ['#f5c842','#fff4cc'], 'Low' => ['#4a7c4a','#d4f0d4']] as $pri => $colors)
                 <div style="background:{{ $colors[1] }};border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between">
@@ -141,7 +141,7 @@
                 <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:var(--rd)">
                     <i class="bi bi-speedometer2 me-1"></i>SLA Compliance — {{ now()->format('F Y') }}
                 </div>
-                <div style="font-size:12px;color:var(--tm);font-weight:600">{{ $totalTickets }} total tickets this month</div>
+                <div style="font-size:12px;color:var(--tm);font-weight:600">{{ $totalTickets }} total support requests this month</div>
             </div>
             <div class="sla-rate {{ $slaRate >= 90 ? 'good' : ($slaRate >= 70 ? 'warn' : 'bad') }}">
                 {{ $slaRate }}%
@@ -301,7 +301,7 @@
                             Helpdesk can resolve this directly (L1)
                         </label>
                         <div style="font-size:11px;color:var(--tm);margin-top:4px">
-                            Lets Helpdesk classify a ticket in this subcategory and keep it for themselves
+                            Lets Helpdesk classify a support request in this subcategory and keep it for themselves
                             instead of sending it to the Supervisor for technician assignment. Leave unchecked
                             for anything that genuinely needs a Support Specialist.
                         </div>
@@ -533,7 +533,7 @@
                         <label class="d-flex align-items-start gap-2" style="cursor:pointer;text-transform:none;font-size:12px;font-weight:700;color:var(--gd);line-height:1.4">
                             <input type="checkbox" name="requires_manual_resolution" id="wcManual"
                                    value="1" onchange="wcToggleManual()" style="margin-top:3px;flex-shrink:0">
-                            <span>No fixed resolution target — Helpdesk/Supervisor enters the agreed minutes per ticket
+                            <span>No fixed resolution target — Helpdesk/Supervisor enters the agreed minutes per support request
                             (e.g. vendor-committed SLA, approved project timeline)</span>
                         </label>
                     </div>

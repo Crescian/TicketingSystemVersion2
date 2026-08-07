@@ -11,7 +11,7 @@
 @section('nav-username', explode(' ', Auth::user()->name)[0] . ' ' . strtoupper(substr(explode(' ', Auth::user()->name)[1] ?? '', 0, 1)) . '.')
 
 @section('hero-title')
-    <h1>TICKET <em>DETAILS</em></h1>
+    <h1>SUPPORT REQUEST <em>DETAILS</em></h1>
 @endsection
 @section('hero-subtitle', 'Full history and status of your support request.')
 
@@ -69,10 +69,10 @@
 @section('sidebar')
     {{-- Ticket quick info --}}
     <div class="sidebar-card mb-3">
-        <div class="sidebar-head">Ticket Info</div>
+        <div class="sidebar-head">Support Request Info</div>
         <div class="p-3 d-flex flex-column gap-3">
             <div>
-                <div class="detail-lbl">Ticket Number</div>
+                <div class="detail-lbl">Support Request Number</div>
                 <div class="detail-val">#{{ $ticket->ticket_number }}</div>
             </div>
             <div>
@@ -181,7 +181,7 @@
 
     {{-- Back button --}}
     <a href="{{ route('employee.tickets.index') }}" class="btn-back-page w-100 justify-content-center">
-        <i class="bi bi-arrow-left"></i> Back to My Tickets
+        <i class="bi bi-arrow-left"></i> Back to My Support Requests
     </a>
 @endsection
 
@@ -271,7 +271,7 @@
         @if($ticket->status === 'New Request' && is_null($ticket->date_acknowledged))
             <button class="btn-cancel-ticket"
                     onclick="confirmCancel('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                <i class="bi bi-x-circle me-1"></i>Cancel This Ticket
+                <i class="bi bi-x-circle me-1"></i>Cancel This Support Request
             </button>
         @endif
     </div>
@@ -306,7 +306,7 @@
                 <div class="tl-item">
                     <div class="tl-dot {{ $dotClass }}"></div>
                     <div class="tl-time">
-                        {{ \Carbon\Carbon::parse($history->changed_at)->format('M d, Y — g:i A') }}
+                        {{ \Carbon\Carbon::parse($history->changed_at)->timezone('Asia/Manila')->format('M d, Y — g:i A') }}
                         · {{ \Carbon\Carbon::parse($history->changed_at)->diffForHumans() }}
                     </div>
                     <div class="tl-title">
@@ -335,14 +335,14 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Cancel <em>Ticket</em></h5>
+                    <h5 class="mb-0">Cancel <em>Support Request</em></h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
                 <div class="modal-body px-4 py-4">
                     <div class="p-3 rounded"
                          style="background:rgba(226,75,74,.1);border:1px solid rgba(226,75,74,.3);color:#e24b4a;font-size:13px;font-weight:600">
                         <i class="bi bi-exclamation-triangle me-1"></i>
-                        Are you sure you want to cancel ticket
+                        Are you sure you want to cancel support request
                         <strong id="cancelTicketRef"></strong>?
                         This cannot be undone.
                     </div>
@@ -354,7 +354,7 @@
                         @method('PATCH')
                         <button type="submit" class="btn-cancel-ticket"
                                 style="padding:10px 24px">
-                            <i class="bi bi-x-circle me-1"></i>Yes, Cancel Ticket
+                            <i class="bi bi-x-circle me-1"></i>Yes, Cancel Support Request
                         </button>
                     </form>
                 </div>

@@ -223,7 +223,7 @@
                     <div class="tech-av-lg">{{ $initials }}</div>
                     <div>
                         <div class="tech-name">{{ $tech->name }}</div>
-                        <div class="tech-load">{{ $tech->active_tickets }} active ticket{{ $tech->active_tickets !== 1 ? 's' : '' }}</div>
+                        <div class="tech-load">{{ $tech->active_tickets }} active support request{{ $tech->active_tickets !== 1 ? 's' : '' }}</div>
                     </div>
                     <div class="avail-dot {{ $tech->availability }}"
                          title="{{ ucfirst($tech->availability) }}"></div>
@@ -274,7 +274,7 @@
                     'closed'                            => 'Closed',
                 ];
             @endphp
-            {{ $labels[$status] ?? 'All Tickets' }}
+            {{ $labels[$status] ?? 'All Support Requests' }}
         </span>
         <form method="GET" action="{{ route('supervisor.dashboard') }}"
               class="d-flex gap-2 flex-wrap" id="searchForm">
@@ -552,7 +552,7 @@
             <div class="ticket-card p-5 text-center">
                 <div style="font-size:48px;opacity:.3">🎫</div>
                 <div class="mt-3 font-brand fw-900" style="font-size:18px;color:var(--tm)">
-                    No tickets found.
+                    No support requests found.
                 </div>
             </div>
         @endforelse
@@ -795,7 +795,7 @@
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">New <em>Support</em> Ticket</h5>
+                    <h5 class="mb-0">New <em>Support</em> Request</h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
                 <form method="POST" action="{{ route('helpdesk.tickets.store') }}" id="ticketForm">
@@ -830,7 +830,7 @@
                                 style="background:var(--ygl);border:1.5px solid var(--bd)">
                                 <div>
                                     <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">
-                                        Ticket Number
+                                        Support Request Number
                                     </div>
                                     <div class="font-brand fw-900" style="font-size:18px;color:var(--gd);letter-spacing:1px">
                                         Auto-generated on submit
@@ -969,7 +969,7 @@
 
                                 <div class="font-brand fw-900 mb-3"
                                     style="font-size:14px;color:var(--gd);text-transform:uppercase;letter-spacing:.5px">
-                                    Ticket Summary
+                                    Support Request Summary
                                 </div>
 
                                 <div class="mb-2"><b>Subject:</b> <span id="rv-subject">—</span></div>
@@ -1005,7 +1005,7 @@
                                 <div style="font-size:13px;color:var(--tm);margin-bottom:12px" id="rv-desc-preview">—</div>
                                 <div class="review-lbl mb-1">What happens next</div>
                                 <div style="font-size:13px;color:var(--tm)">
-                                    Your ticket will be assigned to an available IT Support Specialist.
+                                    Your support request will be assigned to an available IT Support Specialist.
                                     Average first response: <strong style="color:var(--gd)">under 2 hours</strong>.
                                 </div>
                             </div>
@@ -1017,7 +1017,7 @@
                                 ✅
                             </div>
                             <h5 class="font-brand fw-900 mb-1" style="font-size:22px">
-                                Ticket submitted!
+                                Support request submitted!
                             </h5>
                             <p class="mb-2" style="color:var(--tm)">
                                 Your request has been received.<br>

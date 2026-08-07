@@ -1255,8 +1255,8 @@
   <script>
     /* ── Shared: filter ── */
     function setFilter(val, labelMap) {
-      const label = labelMap || { all: 'All Tickets' };
-      $('#listTitle').text(label[val] || 'All Tickets');
+      const label = labelMap || { all: 'All Support Requests' };
+      $('#listTitle').text(label[val] || 'All Support Requests');
       $('.tab-pill').removeClass('active').filter('[data-filter="' + val + '"]').addClass('active');
       $('#sideNav .list-group-item').removeClass('active').filter('[data-filter="' + val + '"]').addClass('active');
       $('#ticketList .ticket-card').each(function () {

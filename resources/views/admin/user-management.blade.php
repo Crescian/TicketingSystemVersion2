@@ -700,7 +700,7 @@
                              style="background:var(--rdl);font-size:13px;color:var(--rd)">
                             <i class="bi bi-exclamation-triangle-fill me-1"></i>
                             Deactivating <strong id="deactUserName"></strong> will block
-                            their login. Their ticket history will be preserved.
+                            their login. Their support request history will be preserved.
                             You can reactivate them at any time.
                         </div>
                         <div>

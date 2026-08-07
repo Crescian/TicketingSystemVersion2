@@ -504,7 +504,7 @@
             <span>
                 <div class="aw-title">
                     {{ $counts['pending_closure'] }}
-                    {{ Str::plural('ticket', $counts['pending_closure']) }} pending closure
+                    {{ Str::plural('support request', $counts['pending_closure']) }} pending closure
                 </div>
                 <div class="aw-sub">Validated by Supervisor — Close &amp; Notify to finish these out.</div>
             </span>
@@ -537,7 +537,7 @@
                     'closed' => 'Closed', 'cancelled' => 'Cancelled',
                 ];
             @endphp
-            {{ $labels[$status] ?? 'All Tickets' }}
+            {{ $labels[$status] ?? 'All Support Requests' }}
         </span>
         <form method="GET" action="{{ route('helpdesk.dashboard') }}"
               class="d-flex gap-2 flex-wrap" id="searchForm">
@@ -686,7 +686,7 @@
                                 <div class="etl-dot"></div>
                                 <div>
                                     <span class="etl-time">
-                                        {{ \Carbon\Carbon::parse($history->changed_at)->format('M d, g:i A') }}
+                                        {{ \Carbon\Carbon::parse($history->changed_at)->timezone('Asia/Manila')->format('M d, g:i A') }}
                                     </span>
                                     <span class="etl-text ms-2">{{ $history->notes }}</span>
                                 </div>
@@ -901,7 +901,7 @@
             <div class="ticket-card p-5 text-center">
                 <div style="font-size:48px;opacity:.3">🎫</div>
                 <div class="mt-3 font-brand fw-900" style="font-size:18px;color:var(--tm)">
-                    No tickets found.
+                    No support requests found.
                 </div>
             </div>
         @endforelse
@@ -925,7 +925,7 @@
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">New <em>Support</em> Ticket</h5>
+                    <h5 class="mb-0">New <em>Support</em> Request</h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
                 <form method="POST" action="{{ route('helpdesk.tickets.store') }}" id="ticketForm">
@@ -960,7 +960,7 @@
                                 style="background:var(--ygl);border:1.5px solid var(--bd)">
                                 <div>
                                     <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">
-                                        Ticket Number
+                                        Support Request Number
                                     </div>
                                     <div class="font-brand fw-900" style="font-size:18px;color:var(--gd);letter-spacing:1px">
                                         Auto-generated on submit
@@ -1101,7 +1101,7 @@
 
                                 <div class="font-brand fw-900 mb-3"
                                     style="font-size:14px;color:var(--gd);text-transform:uppercase;letter-spacing:.5px">
-                                    Ticket Summary
+                                    Support Request Summary
                                 </div>
 
                                 <div class="mb-2"><b>Subject:</b> <span id="rv-subject">—</span></div>
@@ -1137,7 +1137,7 @@
                                 <div style="font-size:13px;color:var(--tm);margin-bottom:12px" id="rv-desc-preview">—</div>
                                 <div class="review-lbl mb-1">What happens next</div>
                                 <div style="font-size:13px;color:var(--tm)">
-                                    Your ticket will be assigned to an available IT Support Specialist.
+                                    Your support request will be assigned to an available IT Support Specialist.
                                     Average first response: <strong style="color:var(--gd)">under 2 hours</strong>.
                                 </div>
                             </div>
@@ -1149,7 +1149,7 @@
                                 ✅
                             </div>
                             <h5 class="font-brand fw-900 mb-1" style="font-size:22px">
-                                Ticket submitted!
+                                Support request submitted!
                             </h5>
                             <p class="mb-2" style="color:var(--tm)">
                                 Your request has been received.<br>
@@ -1258,7 +1258,7 @@
                             </label>
                             <div style="font-size:11.5px;color:#1a5a3a;margin-top:4px">
                                 This subcategory is marked as Helpdesk-resolvable. Checking this keeps the
-                                ticket with you — it goes straight to In Progress instead of the Supervisor's
+                                support request with you — it goes straight to In Progress instead of the Supervisor's
                                 assignment queue.
                             </div>
                         </div>
@@ -1293,7 +1293,7 @@
                     <div class="modal-body px-4 py-4">
                         <div class="info-box-green p-3 mb-3">
                             <i class="bi bi-check-circle me-1"></i>
-                            Resolving this ticket directly — for quick fixes that don't
+                            Resolving this support request directly — for quick fixes that don't
                             need Supervisor/Technician involvement. Sends it straight to Close &amp; Notify.
                         </div>
 
@@ -1346,7 +1346,7 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Cancel Ticket — <em id="cancelTicketRef">#TKT-0000</em></h5>
+                    <h5 class="mb-0">Cancel Support Request — <em id="cancelTicketRef">#TKT-0000</em></h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
                 <form method="POST" id="cancelTicketForm">
@@ -1354,7 +1354,7 @@
                     <div class="modal-body px-4 py-4">
                         <div class="esc-banner p-2 mb-3">
                             <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                            This will cancel the ticket before classification. This cannot be undone from here.
+                            This will cancel the support request before classification. This cannot be undone from here.
                         </div>
                         <div>
                             <label class="form-label">
@@ -1416,7 +1416,7 @@
                                         <div>
                                             <div class="ts-name">{{ $tech->name }}</div>
                                             <div class="ts-load">
-                                                {{ $tech->active_tickets }} active ticket{{ $tech->active_tickets !== 1 ? 's' : '' }}
+                                                {{ $tech->active_tickets }} active support request{{ $tech->active_tickets !== 1 ? 's' : '' }}
                                             </div>
                                         </div>
                                         <span class="ms-auto"

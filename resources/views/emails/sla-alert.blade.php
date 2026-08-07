@@ -9,12 +9,12 @@
 @if($level === 'breached')
 # SLA Breached — #{{ $ticket->ticket_number }}
 
-This ticket has exceeded its SLA resolution deadline and is still **{{ $ticket->status }}**.
+This support request has exceeded its SLA resolution deadline and is still **{{ $ticket->status }}**.
 It is currently overdue by **{{ $duration }}**.
 @else
 # SLA At Risk — #{{ $ticket->ticket_number }}
 
-This ticket has reached 75% of its SLA resolution time and is still **{{ $ticket->status }}**.
+This support request has reached 75% of its SLA resolution time and is still **{{ $ticket->status }}**.
 It has **{{ $duration }}** remaining before the SLA deadline.
 @endif
 
