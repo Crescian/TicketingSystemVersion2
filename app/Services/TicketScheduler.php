@@ -6,6 +6,7 @@ use App\Models\Leave;
 use App\Models\Tickets;
 use App\Models\User;
 use App\Support\BusinessClock;
+use App\Support\TicketStatus;
 use Carbon\Carbon;
 
 // Lays out ICT Support Specialist tickets into time slots against the 8:00 AM-5:00 PM
@@ -18,8 +19,7 @@ use Carbon\Carbon;
 class TicketScheduler
 {
     private const NOT_STARTED_STATUSES = [
-        'Awaiting Support Specialist Acknowledgement',
-        'Awaiting Start SLA',
+        TicketStatus::ASSIGNED,
     ];
 
     private const PRIORITY_RANK = [
@@ -492,11 +492,13 @@ class TicketScheduler
     }
 
     // In Progress tickets are immutable anchors — they occupy real time but can never
-    // be reordered/preempted, so the not-started queue must start after them.
+    // be reordered/preempted, so the not-started queue must start after them. Includes
+    // the drafting status too — writing up the report still occupies the anchor slot,
+    // it hasn't freed up just because the underlying fix is done.
     private static function inProgressAnchorEnd(User $technician): ?Carbon
     {
         $max = Tickets::where('assigned_to', $technician->id)
-            ->where('status', 'In Progress')
+            ->whereIn('status', [TicketStatus::IN_PROGRESS_SERVICE_REQUEST, TicketStatus::IN_PROGRESS_SERVICE_REPORT])
             ->whereNotNull('scheduled_end')
             ->max('scheduled_end');
 
@@ -509,7 +511,7 @@ class TicketScheduler
         $todayEnd = BusinessClock::dayEnd($now);
 
         $max = Tickets::where('assigned_to', $technician->id)
-            ->whereIn('status', array_merge(self::NOT_STARTED_STATUSES, ['In Progress']))
+            ->whereIn('status', array_merge(self::NOT_STARTED_STATUSES, [TicketStatus::IN_PROGRESS_SERVICE_REQUEST, TicketStatus::IN_PROGRESS_SERVICE_REPORT]))
             ->whereNotNull('scheduled_end')
             ->whereBetween('scheduled_start', [$todayStart, $todayEnd])
             ->max('scheduled_end');

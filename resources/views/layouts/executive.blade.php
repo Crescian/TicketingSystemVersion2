@@ -12,7 +12,12 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <link rel="icon" type="image/png" href="{{ asset('img/LGICT.png') }}">
+  @php
+      $faviconV = file_exists(public_path('favicon.ico')) ? filemtime(public_path('favicon.ico')) : 1;
+  @endphp
+  <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v={{ $faviconV }}">
+  <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v={{ $faviconV }}">
+  <link rel="icon" type="image/png" href="{{ asset('img/LGICT.png') }}?v={{ $faviconV }}">
   <style>
     /* ══════════════════════════════════════════
      EXECUTIVE DESIGN TOKENS
@@ -840,6 +845,46 @@
       animation-delay: .20s;
     }
 
+    /* ── Responsive: smaller laptop screens (e.g. ThinkPad L14, 1366–1440px) ── */
+    @media (max-width: 1440px) {
+      .page {
+        padding: 18px;
+      }
+
+      .greeting-strip {
+        padding: 18px 22px;
+      }
+
+      .greeting-title {
+        font-size: 21px;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+
+      .kpi-card {
+        padding: 14px 16px;
+      }
+
+      .kpi-value {
+        font-size: 28px;
+      }
+
+      .kpi-icon {
+        width: 34px;
+        height: 34px;
+        margin-bottom: 10px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
     /* ── Page-specific overrides ── */
     @yield('styles')
   </style>
@@ -867,6 +912,12 @@
       </div>
 
       <span class="top-date"><i class="bi bi-calendar3 me-1"></i>{{ now()->format('F j, Y') }}</span>
+
+      @if(!Auth::user()->hasRole('Employee') && !Route::is('my-requests.tickets.*'))
+        <a href="{{ route('my-requests.tickets.index') }}" class="btn-exec-signout">
+          <i class="bi bi-ticket-perforated me-1"></i>My Requests
+        </a>
+      @endif
 
       <div class="top-avatar">
         {{ strtoupper(collect(explode(' ', Auth::user()->name))

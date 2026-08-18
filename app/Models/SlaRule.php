@@ -19,6 +19,7 @@ class SlaRule extends Model
         'is_active',
         'description',
         'helpdesk_resolvable',
+        'admin_only',
     ];
 
     protected $casts = [
@@ -26,6 +27,7 @@ class SlaRule extends Model
         'response_time_minutes' => 'float',
         'resolution_time_minutes' => 'float',
         'helpdesk_resolvable' => 'boolean',
+        'admin_only' => 'boolean',
     ];
 
     public function category()

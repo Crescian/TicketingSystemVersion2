@@ -29,8 +29,14 @@
     };
 
     // Stop the iframe reloading the PDF (and re-requesting it) once the modal is
-    // closed — no point keeping it live in the background.
-    $('#serviceReportModal').on('hidden.bs.modal', function () {
-        $('#srModalFrame').attr('src', '');
+    // closed — no point keeping it live in the background. Deferred to
+    // DOMContentLoaded (plain JS, not $(fn)) because this component can render
+    // inside @section('modals'), which the layout outputs *before* the jQuery
+    // <script src> tag loads near the end of <body> — calling $(...) here
+    // directly would throw "$ is not defined" at parse time.
+    document.addEventListener('DOMContentLoaded', function () {
+        $('#serviceReportModal').on('hidden.bs.modal', function () {
+            $('#srModalFrame').attr('src', '');
+        });
     });
 </script>

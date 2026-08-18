@@ -1,15 +1,48 @@
 services:
-    app:
+    app_1:
         build:
             context: .
             dockerfile: docker/php/Dockerfile
-        container_name: ticketing_app
+        container_name: ticketing_app_1
         volumes:
             - .:/var/www/html
         expose:
             - "9000"
         networks:
-            - ticketing # ← ADD THIS
+            - ticketing
+            - shared_services_net
+        restart: unless-stopped
+
+    app_2:
+        build:
+            context: .
+            dockerfile: docker/php/Dockerfile
+        container_name: ticketing_app_2
+        volumes:
+            - .:/var/www/html
+        expose:
+            - "9000"
+        networks:
+            - ticketing
+            - shared_services_net
+        restart: unless-stopped
+
+    queue-worker:
+        build:
+            context: .
+            dockerfile: docker/php/Dockerfile
+        container_name: ticketing_queue_worker
+        command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+        user: "33:33"
+        volumes:
+            - .:/var/www/html
+        networks:
+            - ticketing
+            - shared_services_net
+        restart: unless-stopped
+        depends_on:
+            - pgsql
+            - redis
 
     redis:
         image: redis:latest
@@ -31,7 +64,7 @@ services:
         volumes:
             - pgdata:/var/lib/postgresql/data
         ports:
-            - "5436:5432" # ← ADD THIS (unique port per DB)
+            - "127.0.0.1:5436:5432" # localhost-only — pgAdmin via WSL2's localhost forwarding still works, network access does not
         networks:
             - ticketing
         restart: unless-stopped
@@ -39,6 +72,8 @@ services:
 networks:
     ticketing:
         driver: bridge
+    shared_services_net:
+        external: true
 
 volumes:
     pgdata:

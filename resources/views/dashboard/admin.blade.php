@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'IT Admin — My Support Requests')
+@section('title', ($counts['awaiting_ack'] > 0 ? 'For Acknowledgment (' . $counts['awaiting_ack'] . ') — ' : '') . 'IT Admin — My Support Requests')
 
 @section('nav-role-badge')
     <span class="role-badge-admin">
@@ -27,21 +27,64 @@
     <div class="d-flex gap-2 flex-wrap">
         <div class="stat-pill esc">
             <span class="num">{{ $counts['awaiting_ack'] }}</span>
-            <span class="lbl">Awaiting Ack.</span>
+            <span class="lbl">For Acknowledgment</span>
         </div>
         <div class="stat-pill warn">
             <span class="num">{{ $counts['ready_start'] }}</span>
-            <span class="lbl">Ready to Start</span>
+            <span class="lbl">Start Admin Request</span>
         </div>
         <div class="stat-pill open">
             <span class="num">{{ $counts['in_progress'] }}</span>
-            <span class="lbl">In Progress</span>
+            <span class="lbl">In Progress Service Request</span>
+        </div>
+        <div class="stat-pill open">
+            <span class="num">{{ $counts['in_progress_report'] }}</span>
+            <span class="lbl">In Progress Service Report</span>
+        </div>
+        <div class="stat-pill esc">
+            <span class="num">{{ $counts['escalated'] }}</span>
+            <span class="lbl">Escalated</span>
+        </div>
+        <div class="stat-pill warn">
+            <span class="num">{{ $counts['report_for_review'] }}</span>
+            <span class="lbl">Report For Review</span>
+        </div>
+        <div class="stat-pill warn">
+            <span class="num">{{ $counts['awaiting_requestor'] }}</span>
+            <span class="lbl">Requestor Confirmation</span>
         </div>
         <div class="stat-pill done">
             <span class="num">{{ $counts['closed'] }}</span>
             <span class="lbl">Closed</span>
         </div>
     </div>
+@endsection
+
+@section('styles')
+    {{-- Category/subcategory picker for the Request Re-classification modal —
+         same rules used by the Classify & Assign modal on the other dashboards. --}}
+    .cat-main-opt {
+        border: 1.5px solid var(--bd); border-radius: 12px; padding: 10px 16px;
+        cursor: pointer; transition: all .2s; background: var(--cr); user-select: none;
+        font-family:'Nunito',sans-serif; font-weight:800; font-size:13px; color:var(--gd);
+    }
+    .cat-main-opt:hover { border-color: var(--gl); background: var(--ygl); }
+    .cat-main-opt.selected { border-color: var(--gd); background: var(--ygl); box-shadow: 0 0 0 2px var(--yg); }
+
+    .cat-sub-opt {
+        border: 1.5px solid var(--bd); border-radius: 10px; padding: 10px 14px;
+        cursor: pointer; transition: all .2s; background: var(--cr);
+        font-size: 13px; font-weight: 600; color: var(--gd);
+        display: flex; align-items: center; gap: 8px;
+    }
+    .cat-sub-opt:hover { border-color: var(--gl); background: var(--ygl); }
+    .cat-sub-opt.selected { border-color: var(--gd); background: var(--ygl); box-shadow: 0 0 0 2px var(--yg); font-weight: 700; }
+    .cat-sub-opt .sub-check {
+        width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--bd);
+        flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+        font-size: 10px; transition: all .2s;
+    }
+    .cat-sub-opt.selected .sub-check { background: var(--gd); border-color: var(--gd); color: var(--yg); }
 @endsection
 
 {{-- ══ SIDEBAR ══ --}}
@@ -56,14 +99,18 @@
             @php
                 $sideItems = [
                     ['key' => 'active',       'icon' => 'bi-grid',              'label' => 'Active',            'count' => $counts['active'],       'cls' => 'dark'],
-                    ['key' => 'awaiting-ack', 'icon' => 'bi-hourglass-split',   'label' => 'Awaiting Ack.',     'count' => $counts['awaiting_ack'], 'cls' => 'red'],
-                    ['key' => 'ready-start',  'icon' => 'bi-stopwatch',        'label' => 'Ready to Start',    'count' => $counts['ready_start'],  'cls' => 'red'],
-                    ['key' => 'in-progress',  'icon' => 'bi-gear-fill',        'label' => 'In Progress',       'count' => $counts['in_progress'],  'cls' => 'green'],
+                    ['key' => 'awaiting-ack', 'icon' => 'bi-hourglass-split',   'label' => 'For Acknowledgment',     'count' => $counts['awaiting_ack'], 'cls' => 'red', 'glow' => true],
+                    ['key' => 'ready-start',  'icon' => 'bi-stopwatch',        'label' => 'Start Admin Request',    'count' => $counts['ready_start'],  'cls' => 'red'],
+                    ['key' => 'in-progress',  'icon' => 'bi-gear-fill',        'label' => 'In Progress Service Request',       'count' => $counts['in_progress'],  'cls' => 'green'],
+                    ['key' => 'in-progress-report', 'icon' => 'bi-file-earmark-text', 'label' => 'In Progress Service Report', 'count' => $counts['in_progress_report'], 'cls' => 'green'],
+                    ['key' => 'escalated', 'icon' => 'bi-exclamation-triangle', 'label' => 'Escalated', 'count' => $counts['escalated'], 'cls' => 'red'],
+                    ['key' => 'report-for-review', 'icon' => 'bi-clock-history', 'label' => 'Report For Review', 'count' => $counts['report_for_review'], 'cls' => 'green'],
+                    ['key' => 'awaiting-requestor', 'icon' => 'bi-person-check', 'label' => 'Requestor Confirmation', 'count' => $counts['awaiting_requestor'], 'cls' => 'green'],
                     ['key' => 'closed',       'icon' => 'bi-check-circle',     'label' => 'Closed',            'count' => $counts['closed'],       'cls' => 'green'],
                 ];
             @endphp
             @foreach($sideItems as $item)
-                <li class="list-group-item {{ $status === $item['key'] ? 'active' : '' }}">
+                <li class="list-group-item {{ $status === $item['key'] ? 'active' : '' }} {{ (($item['glow'] ?? false) && $item['count'] > 0) ? 'queue-glow' : '' }}">
                     <a href="{{ route('admin.dashboard', ['status' => $item['key']]) }}"
                        class="d-flex justify-content-between align-items-center text-decoration-none">
                         <span><i class="bi {{ $item['icon'] }} me-2"></i>{{ $item['label'] }}</span>
@@ -71,6 +118,17 @@
                     </a>
                 </li>
             @endforeach
+        </ul>
+    </div>
+
+    {{-- Work Hours Calendar --}}
+    <div class="sidebar-card mb-3">
+        <ul class="list-group sidebar-menu rounded-0">
+            <li class="list-group-item">
+                <a href="{{ route('admin.calendar') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                    <i class="bi bi-calendar3-week me-1"></i>My Work Hours Calendar
+                </a>
+            </li>
         </ul>
     </div>
 
@@ -167,6 +225,17 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
+    @if($errors->any())
+        <div class="alert alert-danger alert-dismissible fade show mb-3">
+            <i class="bi bi-exclamation-circle me-2"></i>
+            @foreach($errors->all() as $error)
+                {{ $error }}@if(!$loop->last)<br>@endif
+            @endforeach
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
+    @include('partials.schedule-conflict-modal')
 
     {{-- Controls --}}
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
@@ -174,9 +243,13 @@
             @php
                 $labels = [
                     'active'       => 'Active Support Requests',
-                    'awaiting-ack' => 'Awaiting Acknowledgement',
-                    'ready-start'  => 'Ready to Start',
-                    'in-progress'  => 'In Progress',
+                    'awaiting-ack' => 'For Acknowledgment',
+                    'ready-start'  => 'Start Admin Request',
+                    'in-progress'  => 'In Progress Service Request',
+                    'in-progress-report' => 'In Progress Service Report',
+                    'escalated' => 'Escalated',
+                    'report-for-review' => 'Report For Review',
+                    'awaiting-requestor' => 'Requestor Confirmation',
                     'closed'       => 'Closed Support Requests',
                 ];
             @endphp
@@ -204,9 +277,13 @@
         @php
             $tabs = [
                 'active'       => ['label' => 'Active',       'count' => $counts['active'],       'red' => false],
-                'awaiting-ack' => ['label' => 'Awaiting Ack.', 'count' => $counts['awaiting_ack'], 'red' => true],
-                'ready-start'  => ['label' => 'Ready to Start','count' => $counts['ready_start'],  'red' => true],
-                'in-progress'  => ['label' => 'In Progress',   'count' => $counts['in_progress'],  'red' => false],
+                'awaiting-ack' => ['label' => 'For Acknowledgment', 'count' => $counts['awaiting_ack'], 'red' => true],
+                'ready-start'  => ['label' => 'Start Admin Request','count' => $counts['ready_start'],  'red' => true],
+                'in-progress'  => ['label' => 'In Progress Service Request',   'count' => $counts['in_progress'],  'red' => false],
+                'in-progress-report' => ['label' => 'In Progress Service Report', 'count' => $counts['in_progress_report'], 'red' => false],
+                'escalated' => ['label' => 'Escalated', 'count' => $counts['escalated'], 'red' => true],
+                'report-for-review' => ['label' => 'Report For Review', 'count' => $counts['report_for_review'], 'red' => false],
+                'awaiting-requestor' => ['label' => 'Requestor Confirmation', 'count' => $counts['awaiting_requestor'], 'red' => false],
                 'closed'       => ['label' => 'Closed',        'count' => $counts['closed'],       'red' => false],
             ];
         @endphp
@@ -223,26 +300,56 @@
 
         @forelse($tickets as $ticket)
             @php
-                $cardClass = match($ticket->status) {
-                    'Awaiting Administrator Acknowledgement' => 'awaiting-ack',
-                    'Awaiting Administrator SLA Start'       => 'ready-start',
-                    'Admin In Progress'                      => 'admin-progress',
-                    'Closed'                                 => 'closed',
-                    default                                  => 'awaiting-ack'
+                // 'Awaiting Administrator Acknowledgement' and 'Awaiting Administrator SLA
+                // Start' both collapsed into the single 'Assigned' status (see
+                // App\Support\TicketStatus) — acknowledging no longer moves status, it only
+                // stamps tech_acknowledged_at (same field/pattern the Technician track uses),
+                // so the two are now told apart by that timestamp instead of by status string.
+                $isAwaitingAck = $ticket->status === 'Assigned' && is_null($ticket->tech_acknowledged_at);
+                $isReadyStart  = $ticket->status === 'Assigned' && !is_null($ticket->tech_acknowledged_at);
+
+                $cardClass = match(true) {
+                    $isAwaitingAck                                     => 'awaiting-ack',
+                    $isReadyStart                                      => 'ready-start',
+                    $ticket->status === 'In Progress Service Request'  => 'admin-progress',
+                    $ticket->status === 'Closed Service Request'       => 'admin-progress',
+                    $ticket->status === 'In Progress Service Report'   => 'admin-progress',
+                    $ticket->status === 'Done Service Report'          => 'admin-progress',
+                    $ticket->status === 'Report For Review'            => 'admin-progress',
+                    $ticket->status === 'Approved Service Report'      => 'admin-progress',
+                    $ticket->status === 'Requestor Confirmation'       => 'admin-progress',
+                    $ticket->status === 'Closed'                       => 'closed',
+                    default                                            => 'awaiting-ack'
                 };
-                $badgeClass = match($ticket->status) {
-                    'Awaiting Administrator Acknowledgement' => 'bs-await-ack',
-                    'Awaiting Administrator SLA Start'       => 'bs-ready-start',
-                    'Admin In Progress'                      => 'bs-admin-progress',
-                    'Closed'                                 => 'bs-closed',
-                    default                                  => ''
+                $badgeClass = match(true) {
+                    $isAwaitingAck                                     => 'bs-await-ack',
+                    $isReadyStart                                      => 'bs-ready-start',
+                    $ticket->status === 'In Progress Service Request'  => 'bs-admin-progress',
+                    $ticket->status === 'Closed Service Request'       => 'bs-admin-progress',
+                    $ticket->status === 'In Progress Service Report'   => 'bs-admin-progress',
+                    $ticket->status === 'Done Service Report'          => 'bs-admin-progress',
+                    $ticket->status === 'Report For Review'            => 'bs-admin-progress',
+                    $ticket->status === 'Approved Service Report'      => 'bs-admin-progress',
+                    $ticket->status === 'Requestor Confirmation'       => 'bs-admin-progress',
+                    $ticket->status === 'Closed'                       => 'bs-closed',
+                    default                                            => ''
                 };
-                $badgeLabel = match($ticket->status) {
-                    'Awaiting Administrator Acknowledgement' => '<i class="bi bi-hourglass-split me-1"></i>Awaiting Your Ack.',
-                    'Awaiting Administrator SLA Start'       => '<i class="bi bi-stopwatch me-1"></i>Ready to Start',
-                    'Admin In Progress'                      => '<i class="bi bi-gear-fill me-1"></i>In Progress',
-                    'Closed'                                 => '<i class="bi bi-check-circle me-1"></i>Closed',
-                    default                                  => '● ' . $ticket->status
+                // In Progress Service Report / Done Service Report / Report For Review /
+                // Approved Service Report are isolated from the underlying "actively fixing
+                // it" In Progress Service Request status (see TicketReportProgress) — real
+                // statuses now, not a derived label.
+                $badgeLabel = match(true) {
+                    $isAwaitingAck                                     => '<i class="bi bi-hourglass-split me-1"></i>Awaiting Your Ack.',
+                    $isReadyStart                                      => '<i class="bi bi-stopwatch me-1"></i>Start Admin Request',
+                    $ticket->status === 'In Progress Service Request'  => '<i class="bi bi-gear-fill me-1"></i>In Progress Service Request',
+                    $ticket->status === 'Closed Service Request'       => '<i class="bi bi-gear-fill me-1"></i>In Progress Service Request',
+                    $ticket->status === 'In Progress Service Report'   => '<i class="bi bi-file-earmark-text me-1"></i>Preparing Report',
+                    $ticket->status === 'Done Service Report'          => '<i class="bi bi-clock-history me-1"></i>Done Service Report',
+                    $ticket->status === 'Report For Review'            => '<i class="bi bi-clock-history me-1"></i>Report For Review',
+                    $ticket->status === 'Approved Service Report'      => '<i class="bi bi-clock-history me-1"></i>Approved Service Report',
+                    $ticket->status === 'Requestor Confirmation'       => '<i class="bi bi-person-check me-1"></i>Requestor Confirmation',
+                    $ticket->status === 'Closed'                       => '<i class="bi bi-check-circle me-1"></i>Closed',
+                    default                                            => '● ' . $ticket->status
                 };
                 $priorityClass = match($ticket->ticket_type) {
                     'Critical' => 'pri-critical',
@@ -332,8 +439,8 @@
                 {{-- Action buttons --}}
                 <div class="d-flex gap-2 flex-wrap">
 
-                    {{-- Awaiting Administrator Acknowledgement --}}
-                    @if($ticket->status === 'Awaiting Administrator Acknowledgement')
+                    {{-- Assigned, not yet acknowledged --}}
+                    @if($isAwaitingAck)
                         <button class="btn-resolve-a"
                                 onclick="openAckModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-check2-circle me-1"></i>Acknowledge
@@ -344,10 +451,10 @@
                         </button>
                     @endif
 
-                    {{-- Awaiting Administrator SLA Start --}}
-                    @if($ticket->status === 'Awaiting Administrator SLA Start')
+                    {{-- Assigned, acknowledged — ready to start SLA --}}
+                    @if($isReadyStart)
                         <button class="btn-resolve-a"
-                                onclick="openStartModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                onclick="openStartModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', '{{ $ticket->ticket_type }}', '{{ $ticket->effectiveResponseTimeMinutes() }}', '{{ $ticket->effectiveResolutionTimeMinutes() }}')">
                             <i class="bi bi-play-circle me-1"></i>Start Work
                         </button>
                         <button class="btn-reassign-a"
@@ -360,19 +467,35 @@
                         </button>
                     @endif
 
-                    {{-- Admin In Progress --}}
-                    @if($ticket->status === 'Admin In Progress')
+                    {{-- In Progress Service Request / In Progress Service Report --}}
+                    @if(in_array($ticket->status, ['In Progress Service Request', 'In Progress Service Report']))
                         <button class="btn-reassign-a"
                                 onclick="openReassignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-arrow-left-right me-1"></i>Reassign
                         </button>
-                        <button class="btn-resolve-a"
-                                onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-check-circle me-1"></i>Resolve & Close
-                        </button>
+                        {{-- Fix is done — mark it so, separate from writing up the report. --}}
+                        @if($ticket->status === 'In Progress Service Request')
+                            <form method="POST" action="{{ route('admin.tickets.start-report', $ticket) }}">
+                                @csrf
+                                <button type="submit" class="btn-resolve-a">
+                                    <i class="bi bi-check2 me-1"></i>Mark Fixed
+                                </button>
+                            </form>
+                        @endif
+                        {{-- Fix already marked done — now prepare & submit the service report. --}}
+                        @if($ticket->status === 'In Progress Service Report')
+                            <button class="btn-resolve-a"
+                                    onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', '{{ $ticket->started_at?->toIso8601String() }}')">
+                                <i class="bi bi-file-earmark-text me-1"></i>Prepare Service Report
+                            </button>
+                        @endif
                         <button class="btn-cancel-modal"
                                 onclick="openEscModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-exclamation-triangle me-1"></i>Escalate
+                        </button>
+                        <button class="btn-cancel-modal"
+                                onclick="openReclassifyModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-tags me-1"></i>Request Re-classification
                         </button>
                     @endif
 
@@ -471,15 +594,19 @@
                             <i class="bi bi-stopwatch me-1"></i>
                             Starting <strong id="startRef"></strong> begins the SLA resolution timer.
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Estimated time to resolve <span class="text-danger">*</span></label>
-                            <select class="form-select" name="estimated_time" required>
-                                <option value="Under 1 hour">Under 1 hour</option>
-                                <option value="1-2 hours">1-2 hours</option>
-                                <option value="2-4 hours">2-4 hours</option>
-                                <option value="4-8 hours">4-8 hours</option>
-                                <option value="More than 1 day">More than 1 day</option>
-                            </select>
+                        <div class="d-flex gap-2 flex-wrap mb-3">
+                            <div style="flex:1;min-width:100px;background:var(--ygl);border-radius:10px;padding:10px 12px;text-align:center">
+                                <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.4px">Priority</div>
+                                <div class="font-brand fw-900" id="startPriority" style="font-size:14px;color:var(--gd)">—</div>
+                            </div>
+                            <div style="flex:1;min-width:100px;background:var(--ygl);border-radius:10px;padding:10px 12px;text-align:center">
+                                <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.4px">Response Time</div>
+                                <div class="font-brand fw-900" id="startResponseTime" style="font-size:14px;color:var(--gd)">—</div>
+                            </div>
+                            <div style="flex:1;min-width:100px;background:var(--ygl);border-radius:10px;padding:10px 12px;text-align:center">
+                                <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.4px">Resolution Time</div>
+                                <div class="font-brand fw-900" id="startResolutionTime" style="font-size:14px;color:var(--gd)">—</div>
+                            </div>
                         </div>
                         <label class="form-label">Notes (optional)</label>
                         <textarea class="form-control" name="notes" rows="2"
@@ -591,6 +718,81 @@
         </div>
     </div>
 
+    {{-- Request Re-classification modal --}}
+    <div class="modal fade" id="reclassifyModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-hdr-dark d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Request Re-classification — <em id="rcTicketRef">#TKT-0000</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="reclassifyForm">
+                    @csrf
+                    <input type="hidden" name="sla_rule_id" id="rcSlaRuleId">
+
+                    <div class="modal-body px-4 py-4">
+                        <div class="info-box-red p-3 mb-3">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            This ticket will be paused and sent to your Admin Supervisor for approval. If
+                            approved, it re-enters the classify &amp; assign queue with your proposed
+                            category as the default. If rejected, it's returned to you unchanged.
+                        </div>
+
+                        <label class="form-label mb-2">Proposed Category</label>
+                        <div class="d-flex flex-wrap gap-2 mb-3" id="rcCategoryList"></div>
+
+                        <div id="rcSubWrap" class="d-none">
+                            <label class="form-label mb-2">Subcategory &amp; Priority</label>
+                            <div class="d-flex flex-column gap-2 mb-3" id="rcSubList"></div>
+                        </div>
+
+                        <div id="rcOverrideWrap" class="d-none mb-3">
+                            <label class="form-label mb-2">
+                                SLA &amp; Priority
+                                <span style="font-weight:400;color:var(--tm)">(defaults from the rule above — adjust if needed)</span>
+                            </label>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <div style="flex:1;min-width:110px">
+                                    <label class="form-label" style="font-size:11px">Priority</label>
+                                    <select class="form-select form-select-sm" name="priority" id="rcPriority">
+                                        <option value="Critical">Critical</option>
+                                        <option value="High">High</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="Low">Low</option>
+                                    </select>
+                                </div>
+                                <div style="flex:1;min-width:130px">
+                                    <label class="form-label" style="font-size:11px">Response Time (min)</label>
+                                    <input type="number" class="form-control form-control-sm" name="response_time_minutes"
+                                           id="rcResponseTime" min="5" max="43200">
+                                </div>
+                                <div style="flex:1;min-width:130px">
+                                    <label class="form-label" style="font-size:11px">Resolution Time (min)</label>
+                                    <input type="number" class="form-control form-control-sm" name="resolution_time_minutes"
+                                           id="rcResolutionTime" min="5" max="43200">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="form-label">
+                                Reason for re-classification <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" name="reason" rows="3" required
+                                      placeholder="Explain why this ticket is miscategorized…"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm red">
+                            <i class="bi bi-tags me-1"></i>Submit for Approval
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {{-- Resolve modal --}}
     <div class="modal fade" id="resolveModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -599,19 +801,37 @@
                     <h5 class="mb-0">Resolve <em>& Close</em></h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
-                <form method="POST" id="resolveForm">
+                <form method="POST" id="resolveForm" enctype="multipart/form-data">
                     @csrf
                     <div class="modal-body px-4 py-4">
                         <div class="info-box-green p-3 mb-3">
                             <i class="bi bi-check-circle me-1"></i>
-                            Resolving <strong id="resolveRef"></strong> will close the ticket immediately.
+                            Resolving <strong id="resolveRef"></strong> —
+                            this sends the service report to your Supervisor for review. It will
+                            move to <strong>Closed</strong> once fully validated.
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Service Type <span class="text-danger">*</span>
+                            </label>
+                            <div class="d-flex gap-3 flex-wrap" style="font-size:13px;font-weight:600">
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="service_type" value="Onsite" checked>Onsite
+                                </label>
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="service_type" value="Remote">Remote
+                                </label>
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="service_type" value="Preventive">Preventive
+                                </label>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Resolution summary <span class="text-danger">*</span></label>
                             <textarea class="form-control" name="resolution_notes" rows="3" required
                                       placeholder="Describe what was done, root cause, and how it was resolved…"></textarea>
                         </div>
-                        <div>
+                        <div class="mb-3">
                             <label class="form-label">Root cause category</label>
                             <select class="form-select" name="root_cause" required>
                                 <option value="Hardware failure — replacement required">Hardware failure — replacement required</option>
@@ -620,7 +840,42 @@
                                 <option value="User access / permissions">User access / permissions</option>
                                 <option value="Third-party vendor issue">Third-party vendor issue</option>
                                 <option value="Human error">Human error</option>
+                                <option value="Others">Others</option>
                             </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Findings & Analysis <span style="font-weight:400;color:var(--tm)">(optional)</span>
+                            </label>
+                            <textarea class="form-control" name="findings"
+                                      rows="2"
+                                      placeholder="Root cause, diagnostics, what was found…"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Other Observation / Recommendation <span style="font-weight:400;color:var(--tm)">(optional)</span>
+                            </label>
+                            <textarea class="form-control" name="recommendation"
+                                      rows="2"
+                                      placeholder="Follow-up suggestions, preventive advice…"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Time spent</label>
+                            <div class="p-2 px-3 rounded d-flex align-items-center gap-2"
+                                 style="background:var(--ygl);font-weight:800;color:var(--gd)">
+                                <i class="bi bi-stopwatch"></i>
+                                <span id="resolveTimeSpent">—</span>
+                                <span style="font-weight:600;font-size:11px;color:var(--tm)">(since you started this ticket)</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="form-label">Supporting files <span style="font-weight:400;color:var(--tm)">(optional)</span></label>
+                            <input type="file" class="form-control" id="rAttachments" name="attachments[]"
+                                   multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                            <div style="font-size:11px;color:var(--tm);margin-top:4px">
+                                Up to 5 files, 10MB each. Screenshots, logs, or documents that support the resolution.
+                            </div>
+                            <div id="resolveAttachmentList" class="d-flex flex-column gap-1 mt-2"></div>
                         </div>
                     </div>
                     <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
@@ -760,9 +1015,12 @@ $(function () {
     };
 
     /* ── Start modal ── */
-    window.openStartModal = function (ticketId, ticketNumber) {
+    window.openStartModal = function (ticketId, ticketNumber, priority, responseMinutes, resolutionMinutes) {
         $('#startRef').text('#' + ticketNumber);
         $('#startForm').attr('action', '/admin/tickets/' + ticketId + '/start');
+        $('#startPriority').text(priority || '—');
+        $('#startResponseTime').text(responseMinutes ? responseMinutes + 'm' : 'N/A');
+        $('#startResolutionTime').text(resolutionMinutes ? resolutionMinutes + 'm' : 'N/A');
         new bootstrap.Modal('#startModal').show();
     };
 
@@ -781,11 +1039,70 @@ $(function () {
     };
 
     /* ── Resolve modal ── */
-    window.openResolveModal = function (ticketId, ticketNumber) {
+    let resolveTimeSpentTimer = null;
+
+    window.openResolveModal = function (ticketId, ticketNumber, startedAt) {
         $('#resolveRef').text('#' + ticketNumber);
         $('#resolveForm').attr('action', '/admin/tickets/' + ticketId + '/resolve');
+        $('#rAttachments').val('');
+        $('#resolveAttachmentList').empty();
+        $('#resolveForm textarea[name="resolution_notes"], #resolveForm textarea[name="findings"], #resolveForm textarea[name="recommendation"]').val('');
+        $('#resolveForm input[name="service_type"][value="Onsite"]').prop('checked', true);
+        $('#resolveForm select[name="root_cause"]').prop('selectedIndex', 0);
+
+        clearInterval(resolveTimeSpentTimer);
+        const startedMs = startedAt ? new Date(startedAt).getTime() : null;
+
+        const renderTimeSpent = () => {
+            if (!startedMs) { $('#resolveTimeSpent').text('—'); return; }
+            const totalMinutes = Math.max(0, Math.floor((Date.now() - startedMs) / 60000));
+            const h = Math.floor(totalMinutes / 60);
+            const m = totalMinutes % 60;
+            $('#resolveTimeSpent').text(h > 0 ? `${h}h ${m}m` : `${m}m`);
+        };
+
+        renderTimeSpent();
+        resolveTimeSpentTimer = setInterval(renderTimeSpent, 1000);
+
         new bootstrap.Modal('#resolveModal').show();
     };
+
+    $('#resolveModal').on('hidden.bs.modal', function () {
+        clearInterval(resolveTimeSpentTimer);
+    });
+
+    /* ── Resolve modal attachment picker: client-side limits + preview list ── */
+    const RESOLVE_MAX_ATTACHMENTS = 5;
+    const RESOLVE_MAX_ATTACHMENT_MB = 10;
+
+    $('#rAttachments').on('change', function () {
+        const files = Array.from(this.files);
+        const list  = $('#resolveAttachmentList').empty();
+
+        if (files.length > RESOLVE_MAX_ATTACHMENTS) {
+            alert(`You can attach up to ${RESOLVE_MAX_ATTACHMENTS} files. Only the first ${RESOLVE_MAX_ATTACHMENTS} will be kept.`);
+        }
+
+        const oversize = files.find(f => f.size > RESOLVE_MAX_ATTACHMENT_MB * 1024 * 1024);
+        if (oversize) {
+            alert(`"${oversize.name}" exceeds the ${RESOLVE_MAX_ATTACHMENT_MB}MB limit and will be removed.`);
+        }
+
+        const kept = files
+            .filter(f => f.size <= RESOLVE_MAX_ATTACHMENT_MB * 1024 * 1024)
+            .slice(0, RESOLVE_MAX_ATTACHMENTS);
+
+        const dt = new DataTransfer();
+        kept.forEach(f => dt.items.add(f));
+        this.files = dt.files;
+
+        kept.forEach(f => {
+            const sizeKb = (f.size / 1024).toFixed(0);
+            list.append(
+                `<div style="font-size:12px;color:var(--tm)"><i class="bi bi-paperclip me-1"></i>${$('<div>').text(f.name).html()} <span style="color:var(--tm)">(${sizeKb} KB)</span></div>`
+            );
+        });
+    });
 
     /* ── Escalate modal ── */
     window.openEscModal = function (ticketId, ticketNumber) {
@@ -793,6 +1110,70 @@ $(function () {
         $('#escForm').attr('action', '/admin/tickets/' + ticketId + '/escalate');
         new bootstrap.Modal('#escModal').show();
     };
+
+    /* ── Request Re-classification modal ── */
+    const slaCategories = @json($slaCategoriesJson);
+
+    window.openReclassifyModal = function (ticketId, ticketNumber) {
+        $('#rcTicketRef').text('#' + ticketNumber);
+        $('#reclassifyForm').attr('action', '/admin/tickets/' + ticketId + '/request-reclassification');
+        $('#rcSlaRuleId').val('');
+        $('#rcSubWrap, #rcOverrideWrap').addClass('d-none');
+        $('#rcSubList').empty();
+        $('#rcResponseTime, #rcResolutionTime').val('');
+        $('#reclassifyForm textarea[name="reason"]').val('');
+        $('#rcCategoryList .cat-main-opt').removeClass('selected');
+
+        const $catList = $('#rcCategoryList').empty();
+        slaCategories.forEach(cat => {
+            $catList.append(`<div class="cat-main-opt" data-cat-id="${cat.id}">${cat.name}</div>`);
+        });
+
+        new bootstrap.Modal('#reclassifyModal').show();
+    };
+
+    $(document).on('click', '#rcCategoryList .cat-main-opt', function () {
+        $('#rcCategoryList .cat-main-opt').removeClass('selected');
+        $(this).addClass('selected');
+
+        const catId = $(this).data('cat-id');
+        const cat = slaCategories.find(c => c.id === catId);
+        const $subList = $('#rcSubList').empty();
+
+        if (!cat || !cat.subs.length) {
+            $subList.append(`<div style="font-size:12px;color:var(--tm)">No SLA rules defined for this category yet.</div>`);
+        } else {
+            cat.subs.forEach(sub => {
+                const priColor = sub.priority === 'Critical' ? '#8b0000' : (sub.priority === 'High' ? '#e24b4a' : (sub.priority === 'Medium' ? '#f5c842' : '#4a7c4a'));
+                $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}"
+                     data-priority="${sub.priority}" data-response="${sub.response}" data-resolution="${sub.resolution}">
+                    <div class="sub-check"></div>
+                    <span style="flex:1">${sub.name}</span>
+                    <span style="font-size:10px;font-weight:800;color:${priColor}">${sub.priority} · ${sub.resolution}m SLA</span>
+                </div>`);
+            });
+        }
+        $('#rcSubWrap').removeClass('d-none');
+        $('#rcOverrideWrap').addClass('d-none');
+    });
+
+    $(document).on('click', '#rcSubList .cat-sub-opt', function () {
+        $('#rcSubList .cat-sub-opt').removeClass('selected');
+        $(this).addClass('selected');
+        $('#rcSlaRuleId').val($(this).data('rule-id'));
+
+        $('#rcPriority').val($(this).data('priority'));
+        $('#rcResponseTime').val($(this).data('response'));
+        $('#rcResolutionTime').val($(this).data('resolution'));
+        $('#rcOverrideWrap').removeClass('d-none');
+    });
+
+    $('#reclassifyForm').on('submit', function (e) {
+        if (!$('#rcSlaRuleId').val()) {
+            e.preventDefault();
+            alert('Please select a subcategory.');
+        }
+    });
 
     /* ── History modal ── */
     window.openHistoryModal = function (ticketId, ticketNumber) {
@@ -814,10 +1195,21 @@ $(function () {
                     return;
                 }
                 const iconMap = {
+                    // Current status values (App\Support\TicketStatus) going forward.
+                    'Assigned':                    { icon: 'bi-hourglass-split',   cls: 'assigned'  },
+                    'In Progress Service Request': { icon: 'bi-gear-fill',         cls: 'working'   },
+                    'Closed Service Request':      { icon: 'bi-gear-fill',         cls: 'working'   },
+                    'In Progress Service Report':  { icon: 'bi-file-earmark-text', cls: 'working'   },
+                    'Done Service Report':         { icon: 'bi-clock-history',     cls: 'working'   },
+                    'Report For Review':           { icon: 'bi-clock-history',     cls: 'working'   },
+                    'Approved Service Report':     { icon: 'bi-clock-history',     cls: 'working'   },
+                    'Requestor Confirmation':      { icon: 'bi-person-check',      cls: 'working'   },
+                    'Closed':                      { icon: 'bi-check-circle',      cls: 'resolved'  },
+                    // Legacy status strings — pre-migration ticket_status_histories rows keep
+                    // these forever (historical audit log, never rewritten), so map them too.
                     'Awaiting Administrator Acknowledgement': { icon: 'bi-hourglass-split', cls: 'assigned'  },
                     'Awaiting Administrator SLA Start':       { icon: 'bi-stopwatch',        cls: 'working'   },
                     'Admin In Progress':                      { icon: 'bi-gear-fill',        cls: 'working'   },
-                    'Closed':                                 { icon: 'bi-check-circle',     cls: 'resolved'  },
                 };
                 let html = '';
                 histories.forEach(h => {
@@ -1000,13 +1392,24 @@ function silentRefresh() {
         const parser = new DOMParser();
         const doc    = parser.parseFromString(html, 'text/html');
 
+        const ackLink  = doc.querySelector("a[href*='status=awaiting-ack']");
+        const ackCount = ackLink ? parseInt((ackLink.querySelector('.badge-count') || {}).textContent || '0', 10) : 0;
+        document.title = ackCount > 0 ? `For Acknowledgment (${ackCount}) — IT Admin — My Support Requests` : 'IT Admin — My Support Requests';
+        setFaviconBadge(ackCount);
+
         const newList = doc.getElementById('ticketList');
         const curList = document.getElementById('ticketList');
         if (newList && curList) curList.innerHTML = newList.innerHTML;
 
         doc.querySelectorAll('.badge-count').forEach((newEl, i) => {
             const curEl = document.querySelectorAll('.badge-count')[i];
-            if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) {
+            if (!curEl) return;
+
+            const newLi = newEl.closest('li.list-group-item');
+            const curLi = curEl.closest('li.list-group-item');
+            if (newLi && curLi) curLi.classList.toggle('queue-glow', newLi.classList.contains('queue-glow'));
+
+            if (curEl.textContent.trim() !== newEl.textContent.trim()) {
                 curEl.textContent = newEl.textContent;
                 curEl.classList.add('badge-pulse');
                 setTimeout(() => curEl.classList.remove('badge-pulse'), 600);
@@ -1030,6 +1433,7 @@ function silentRefresh() {
     .catch(() => {});
 }
 
+setFaviconBadge({{ $counts['awaiting_ack'] }});
 silentRefreshTimer = setInterval(silentRefresh, 30000);
 document.addEventListener('show.bs.modal', () => { isModalOpen = true; });
 document.addEventListener('hidden.bs.modal', () => { isModalOpen = false; });

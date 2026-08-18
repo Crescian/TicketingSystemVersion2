@@ -53,8 +53,16 @@
         </div>
     </div>
     <script>
-        $(function () {
-            new bootstrap.Modal('#scheduleConflictModal').show();
+        // Plain DOMContentLoaded, not jQuery's $(fn) — this partial is included
+        // inside @section('content'), which the layout renders *before* the
+        // jQuery/Bootstrap <script src> tags near the end of <body>. $(...) would
+        // throw "$ is not defined" the instant the parser reaches this tag; the
+        // event listener itself only needs `document` (always available), and its
+        // callback doesn't run until DOMContentLoaded — by which point every
+        // earlier synchronous <script src>, jQuery/Bootstrap included, has already
+        // executed.
+        document.addEventListener('DOMContentLoaded', function () {
+            new bootstrap.Modal(document.getElementById('scheduleConflictModal')).show();
         });
     </script>
 @endif

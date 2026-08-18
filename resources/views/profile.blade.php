@@ -221,7 +221,7 @@
                     strtoupper(substr($user->name, strpos($user->name, ' ') + 1, 1));
         $totalAssigned  = \App\Models\Tickets::where('assigned_to', $user->id)->count();
         $totalSubmitted = \App\Models\Tickets::where('users_id', $user->id)->count();
-        $totalResolved  = \App\Models\Tickets::where('assigned_to', $user->id)->where('status', 'Resolved')->count();
+        $totalResolved  = \App\Models\Tickets::where('assigned_to', $user->id)->where('status', 'Closed')->count();
         $totalEsc       = \App\Models\Tickets::where('assigned_to', $user->id)->where('status', 'Escalated')->count();
         $avgRating      = \Illuminate\Support\Facades\DB::table('ticket_feed_backs')
             ->whereIn('ticket_id', \App\Models\Tickets::where('assigned_to', $user->id)->pluck('id'))
@@ -379,11 +379,11 @@
                                 <div class="sb-lbl">Submitted</div>
                             </div>
                             <div class="stat-box">
-                                <div class="sb-num">{{ \App\Models\Tickets::where('users_id', $user->id)->where('status', 'Resolved')->count() }}</div>
+                                <div class="sb-num">{{ \App\Models\Tickets::where('users_id', $user->id)->where('status', 'Closed')->count() }}</div>
                                 <div class="sb-lbl">Resolved</div>
                             </div>
                             <div class="stat-box">
-                                <div class="sb-num">{{ \App\Models\Tickets::where('users_id', $user->id)->where('status', 'Open')->count() }}</div>
+                                <div class="sb-num">{{ \App\Models\Tickets::where('users_id', $user->id)->whereNotIn('status', ['Closed', 'Cancelled'])->count() }}</div>
                                 <div class="sb-lbl">Open</div>
                             </div>
                         </div>
@@ -606,33 +606,44 @@
                 <div class="panel-body" style="padding-top:8px;padding-bottom:8px">
                     @forelse($recentTickets as $ticket)
                         @php
-                            $dotClass = match($ticket->status) {
-                                'Open'        => 'open',
-                                'In Progress' => 'progress',
-                                'Escalated'   => 'escalated',
-                                'Resolved'    => 'resolved',
-                                default       => 'cancelled',
+                            // Buckets all 12 standard internal statuses (App\Support\TicketStatus)
+                            // into the 4 existing visual states (open/progress/escalated/resolved),
+                            // plus Cancelled as its own explicit bucket — this widget is shared
+                            // across every role, so it needs to style every status sensibly rather
+                            // than let anything fall through to the "cancelled" default. Fixes a
+                            // pre-existing bug where 'Closed' had no branch of its own and fell
+                            // through to the dead 'Resolved' default (shown as cancelled/red).
+                            $openStatuses     = ['For Acknowledgment', 'Classified'];
+                            $progressStatuses = ['Assigned', 'In Progress Service Request', 'Closed Service Request', 'In Progress Service Report'];
+                            $resolvedStatuses = ['Done Service Report', 'Report For Review', 'Approved Service Report', 'Requestor Confirmation', 'Closed'];
+
+                            $dotClass = match(true) {
+                                in_array($ticket->status, $openStatuses, true)     => 'open',
+                                in_array($ticket->status, $progressStatuses, true) => 'progress',
+                                $ticket->status === 'Escalated'                    => 'escalated',
+                                in_array($ticket->status, $resolvedStatuses, true) => 'resolved',
+                                default                                            => 'cancelled',
                             };
-                            $dotIcon = match($ticket->status) {
-                                'Open'        => 'bi-circle',
-                                'In Progress' => 'bi-arrow-repeat',
-                                'Escalated'   => 'bi-exclamation-triangle',
-                                'Resolved'    => 'bi-check-circle',
-                                default       => 'bi-x-circle',
+                            $dotIcon = match(true) {
+                                in_array($ticket->status, $openStatuses, true)     => 'bi-circle',
+                                in_array($ticket->status, $progressStatuses, true) => 'bi-arrow-repeat',
+                                $ticket->status === 'Escalated'                    => 'bi-exclamation-triangle',
+                                in_array($ticket->status, $resolvedStatuses, true) => 'bi-check-circle',
+                                default                                            => 'bi-x-circle',
                             };
-                            $badgeBg = match($ticket->status) {
-                                'Open'        => 'var(--ygl)',
-                                'In Progress' => '#fff4cc',
-                                'Escalated'   => '#fde8e8',
-                                'Resolved'    => '#d4f0d4',
-                                default       => 'var(--bd)',
+                            $badgeBg = match(true) {
+                                in_array($ticket->status, $openStatuses, true)     => 'var(--ygl)',
+                                in_array($ticket->status, $progressStatuses, true) => '#fff4cc',
+                                $ticket->status === 'Escalated'                    => '#fde8e8',
+                                in_array($ticket->status, $resolvedStatuses, true) => '#d4f0d4',
+                                default                                            => 'var(--bd)',
                             };
-                            $badgeColor = match($ticket->status) {
-                                'Open'        => 'var(--gd)',
-                                'In Progress' => '#7a5a00',
-                                'Escalated'   => '#8b1a1a',
-                                'Resolved'    => '#1a5a3a',
-                                default       => 'var(--tm)',
+                            $badgeColor = match(true) {
+                                in_array($ticket->status, $openStatuses, true)     => 'var(--gd)',
+                                in_array($ticket->status, $progressStatuses, true) => '#7a5a00',
+                                $ticket->status === 'Escalated'                    => '#8b1a1a',
+                                in_array($ticket->status, $resolvedStatuses, true) => '#1a5a3a',
+                                default                                            => 'var(--tm)',
                             };
                         @endphp
                         <div class="activity-item">

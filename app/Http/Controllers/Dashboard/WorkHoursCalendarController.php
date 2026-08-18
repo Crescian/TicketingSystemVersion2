@@ -23,16 +23,39 @@ class WorkHoursCalendarController extends Controller
             ? Carbon::parse($request->get('date'), 'Asia/Manila')->startOfDay()
             : now('Asia/Manila')->startOfDay();
 
-        // A specialist viewing their own calendar can only ever see themselves —
-        // ignore any technician_id tampering in the query string rather than letting
-        // them browse a colleague's schedule.
-        $isOwnCalendar = $request->user()->hasRole('IT Support Specialist');
+        // A specialist/admin viewing their own calendar can only ever see
+        // themselves — ignore any technician_id tampering in the query string
+        // rather than letting them browse a colleague's schedule. Two tracks
+        // share this one controller/view now: IT Support Specialist (own) /
+        // Supervisor - Support Specialist (team), and IT Admin (own) /
+        // Supervisor - IT Admin (team) — TicketScheduler itself is role-agnostic,
+        // it just needed a track to scope the technician_id lookup by.
+        $user = $request->user();
+        $isOwnCalendar = $user->hasRole('IT Support Specialist') || $user->hasRole('IT Admin');
+        $targetRole = $user->hasRole('IT Admin') || $user->hasRole('Supervisor - IT Admin')
+            ? 'IT Admin'
+            : 'IT Support Specialist';
+
+        // Display-only labels/routes that differ per track — kept out of the
+        // shared view's markup so dashboard.support.calendar doesn't need to
+        // know which track it's rendering for.
+        $isAdminTrack = $targetRole === 'IT Admin';
+        $roleBadgeIcon = $isAdminTrack ? 'bi-shield-lock' : 'bi-tools';
+        $roleBadgeLabel = $isAdminTrack ? 'IT Admin' : 'IT Support Specialist';
+        $peopleLabel = $isAdminTrack ? 'IT Admins' : 'Specialists';
+        $personLabel = $isAdminTrack ? 'IT Admin' : 'Technician';
+        $ownDashboardRoute = $isAdminTrack ? 'admin.dashboard' : 'technician.dashboard';
+        $ownCalendarRoute = $isAdminTrack ? 'admin.calendar' : 'technician.calendar';
+        $ownQueueLabel = $isAdminTrack ? 'My Support Requests' : 'My Work Queue';
+        $teamDashboardRoute = $isAdminTrack ? 'supervisor.dashboard' : 'supervisor.support.dashboard';
+        $teamCalendarRoute = $isAdminTrack ? 'supervisor.calendar' : 'supervisor.support.calendar';
+        $teamQueueLabel = $isAdminTrack ? 'Admin Ticket Queue' : 'Support Request Queue';
 
         if ($isOwnCalendar) {
-            $technicians = collect([$request->user()]);
+            $technicians = collect([$user]);
             $allTechnicians = $technicians;
         } else {
-            $technicianQuery = User::whereHas('role', fn ($q) => $q->where('role_name', 'IT Support Specialist'))
+            $technicianQuery = User::whereHas('role', fn ($q) => $q->where('role_name', $targetRole))
                 ->orderBy('name');
 
             if ($request->filled('technician_id')) {
@@ -41,7 +64,7 @@ class WorkHoursCalendarController extends Controller
 
             $technicians = $technicianQuery->get();
             $allTechnicians = $request->filled('technician_id')
-                ? User::whereHas('role', fn ($q) => $q->where('role_name', 'IT Support Specialist'))->orderBy('name')->get()
+                ? User::whereHas('role', fn ($q) => $q->where('role_name', $targetRole))->orderBy('name')->get()
                 : $technicians;
         }
 
@@ -53,7 +76,12 @@ class WorkHoursCalendarController extends Controller
         $routeName = $request->route()->getName();
 
         return view('dashboard.support.calendar', array_merge(
-            compact('view', 'date', 'technicians', 'allTechnicians', 'nav', 'isOwnCalendar', 'routeName'),
+            compact(
+                'view', 'date', 'technicians', 'allTechnicians', 'nav', 'isOwnCalendar', 'routeName',
+                'roleBadgeIcon', 'roleBadgeLabel', 'peopleLabel', 'personLabel',
+                'ownDashboardRoute', 'ownCalendarRoute', 'ownQueueLabel',
+                'teamDashboardRoute', 'teamCalendarRoute', 'teamQueueLabel', 'isAdminTrack'
+            ),
             $data
         ));
     }

@@ -2,9 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Models\WorkloadClass;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
+// IDs match the live dev database's workload_classes table, since TicketSeeder
+// hardcodes these exact workload_class_id values against real captured tickets.
 class WorkloadClassSeeder extends Seeder
 {
     // Targets are stored in business minutes (App\Support\BusinessClock — 9-hour
@@ -14,6 +16,7 @@ class WorkloadClassSeeder extends Seeder
     {
         $classes = [
             [
+                'id' => '019fb21d-7356-71ec-bf63-5c973e527f90',
                 'name' => 'Quick Fix',
                 'typical_application' => 'Password reset, Wi-Fi account issue, peripheral swap, licence assignment, straightforward how-to guidance',
                 'response_minutes' => 15,
@@ -24,6 +27,7 @@ class WorkloadClassSeeder extends Seeder
                 'sort_order' => 1,
             ],
             [
+                'id' => '019fb21d-735b-73e2-ac86-3ae9cb66fce6',
                 'name' => 'Standard',
                 'typical_application' => 'Desktop and laptop troubleshooting, software installation, account creation, access modification, printer configuration',
                 'response_minutes' => 30,
@@ -34,6 +38,7 @@ class WorkloadClassSeeder extends Seeder
                 'sort_order' => 2,
             ],
             [
+                'id' => '019fb21d-735e-71e7-9b26-01b47b7f0803',
                 'name' => 'Complex',
                 'typical_application' => 'New computer deployment, ERP issue investigation, storage and NVR concerns, report development, multi-component diagnosis',
                 'response_minutes' => 60, // 1 business hour
@@ -44,6 +49,7 @@ class WorkloadClassSeeder extends Seeder
                 'sort_order' => 3,
             ],
             [
+                'id' => '019fb21d-7360-72fa-94a4-c3ffa1f7b666',
                 'name' => 'Major',
                 'typical_application' => 'Server-level incidents, enterprise-wide outages, security incidents requiring containment and forensic review, infrastructure remediation',
                 'response_minutes' => 60, // 1 business hour
@@ -54,6 +60,7 @@ class WorkloadClassSeeder extends Seeder
                 'sort_order' => 4,
             ],
             [
+                'id' => '019fb21d-7363-72aa-8052-dff5233c0088',
                 'name' => 'Project / Planned Activity',
                 'typical_application' => 'Deployments, migrations, rollouts, scheduled preventive maintenance, and all approved project work',
                 'response_minutes' => 540, // 1 business day
@@ -64,6 +71,7 @@ class WorkloadClassSeeder extends Seeder
                 'sort_order' => 5,
             ],
             [
+                'id' => '019fb21d-7366-7062-991f-9a0054fb24d1',
                 'name' => 'Vendor Dependent',
                 'typical_application' => 'Warranty claims, vendor-supported hardware repair, licence procurement, third-party system faults',
                 'response_minutes' => 60, // 1 business hour (acknowledgement & escalation)
@@ -75,8 +83,14 @@ class WorkloadClassSeeder extends Seeder
             ],
         ];
 
-        foreach ($classes as $class) {
-            WorkloadClass::updateOrCreate(['name' => $class['name']], $class);
+        $now = now();
+
+        foreach ($classes as &$class) {
+            $class['is_active'] = true;
+            $class['created_at'] = $now;
+            $class['updated_at'] = $now;
         }
+
+        DB::table('workload_classes')->insert($classes);
     }
 }

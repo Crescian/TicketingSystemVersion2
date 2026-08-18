@@ -11,7 +11,61 @@
     rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link rel="icon" type="image/png" href="{{ asset('img/LGICT.png') }}">
+  @php
+      $faviconV = file_exists(public_path('favicon.ico')) ? filemtime(public_path('favicon.ico')) : 1;
+  @endphp
+  <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v={{ $faviconV }}">
+  <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v={{ $faviconV }}">
+  <link rel="icon" type="image/png" href="{{ asset('img/LGICT.png') }}?v={{ $faviconV }}">
+  <script>
+    // ── Draw a red notification-count badge onto the favicon (tab icon)
+    (function () {
+        const baseHref = "{{ asset('img/LGICT.png') }}?v={{ $faviconV }}";
+        let baseImg = null;
+
+        function render(count) {
+            const size = 64;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, size, size);
+
+            const scale = Math.min(size / baseImg.width, size / baseImg.height);
+            const w = baseImg.width * scale, h = baseImg.height * scale;
+            ctx.drawImage(baseImg, (size - w) / 2, (size - h) / 2, w, h);
+
+            if (count > 0) {
+                const label = count > 99 ? '99+' : String(count);
+                const r = label.length > 2 ? 20 : 17;
+                const cx = size - r - 1, cy = r + 1;
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.fillStyle = '#e24b4a';
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#fff';
+                ctx.stroke();
+                ctx.fillStyle = '#fff';
+                ctx.font = `bold ${label.length > 2 ? 17 : 22}px Arial, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(label, cx, cy + 1);
+            }
+
+            const dataUrl = canvas.toDataURL('image/png');
+            document.querySelectorAll("link[rel~='icon']").forEach(link => { link.href = dataUrl; });
+        }
+
+        window.setFaviconBadge = function (count) {
+            if (baseImg) { render(count); return; }
+            const img = new Image();
+            img.onload = () => { baseImg = img; render(count); };
+            img.src = baseHref;
+        };
+    })();
+  </script>
   <style>
     /* ══════════════════════════════════════════
      ADMIN DESIGN TOKENS
@@ -289,10 +343,22 @@
       color: var(--gd);
     }
 
+    .sidebar-menu .list-group-item.active {
+      background: transparent;
+      border-color: var(--bd);
+      color: var(--gd);
+    }
+
     .sidebar-menu .list-group-item.active a {
       background: var(--ygl);
       border-left: 4px solid var(--yg);
       font-weight: 700;
+    }
+
+    .sidebar-menu .list-group-item a:focus,
+    .sidebar-menu .list-group-item a:focus-visible {
+      outline: none;
+      box-shadow: inset 0 0 0 2px var(--gl);
     }
 
     .badge-count {
@@ -316,6 +382,16 @@
     .badge-count.dark {
       background: var(--gd);
       color: var(--yg);
+    }
+
+    /* ── For Acknowledgment attention loop ── */
+    @keyframes queueGlow {
+      0%, 100%   { background: rgba(200, 230, 60, .06); }
+      50%        { background: rgba(200, 230, 60, .32); }
+    }
+
+    .sidebar-menu .list-group-item.queue-glow a {
+      animation: queueGlow 1.8s ease-in-out infinite;
     }
 
     /* Tech panel rows */
@@ -1168,6 +1244,64 @@
       animation: badgePulse .6s ease;
     }
 
+    /* ── Responsive: smaller laptop screens (e.g. ThinkPad L14, 1366–1440px) ── */
+    @media (max-width: 1440px) {
+      .navbar-brand {
+        font-size: 19px;
+      }
+
+      #hero {
+        padding: 1.1rem 1.25rem;
+      }
+
+      #hero h1 {
+        font-size: 26px;
+      }
+
+      #hero .hero-sub {
+        font-size: 13px;
+      }
+
+      .stat-pill {
+        padding: 10px 14px;
+        min-width: 74px;
+      }
+
+      .stat-pill .num {
+        font-size: 20px;
+      }
+
+      .stat-pill .lbl {
+        font-size: 9px;
+      }
+
+      #pageBody {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+      }
+
+      #pageBody .row {
+        --bs-gutter-x: 1rem;
+        --bs-gutter-y: 1rem;
+      }
+    }
+
+    /* ── Responsive: short viewports (browser chrome + 14" screen height) ── */
+    @media (max-height: 800px) {
+      #hero {
+        padding: .8rem 1.25rem;
+      }
+
+      #hero h1 {
+        font-size: 22px;
+        margin-bottom: .1rem;
+      }
+
+      .stat-pill {
+        padding: 7px 12px;
+      }
+    }
+
     /* ── Page-specific styles injected per view ── */
     @yield('styles')
   </style>
@@ -1205,6 +1339,11 @@
                 <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
             </a>
         @endif
+        @if(!$user->hasRole('Employee') && !Route::is('my-requests.tickets.*'))
+            <a href="{{ route('my-requests.tickets.index') }}" class="btn-back-dashboard">
+                <i class="bi bi-ticket-perforated me-1"></i>My Requests
+            </a>
+        @endif
         @yield('nav-role-badge')
         <a href="{{ route('profile') }}" class="d-flex align-items-center gap-2 text-decoration-none text-reset">
           <div class="avatar-chip-admin">@yield('avatar-initials', 'MA')</div>
@@ -1229,7 +1368,7 @@
   </div>
 
   {{-- ── PAGE BODY ── --}}
-  <div class="container-fluid py-4 px-2" style="max-width:1500px">
+  <div id="pageBody" class="container-fluid py-4 px-2" style="max-width:1500px">
     <div class="row g-4">
 
       {{-- Sidebar --}}

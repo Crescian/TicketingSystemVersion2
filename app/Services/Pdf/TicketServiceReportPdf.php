@@ -3,6 +3,7 @@
 namespace App\Services\Pdf;
 
 use App\Models\Tickets;
+use App\Support\TicketStatus;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use TCPDF;
@@ -18,7 +19,6 @@ class TicketServiceReportPdf
     private const CONTENT_WIDTH = 190; // 210 - 10 - 10
     private const BORDER = 0.3;
     private const GRAY_FILL = [230, 230, 230];
-    private const CHECKBOX_SIZE = 3;
 
     private TCPDF $pdf;
     private Tickets $ticket;
@@ -61,24 +61,31 @@ class TicketServiceReportPdf
         $this->pdf->SetDrawColor(0, 0, 0);
     }
 
-    // ── Header: logo, title, and subtitle all centered as one block, with a
-    //    separating rule before the report body — a letterhead layout rather than
-    //    the previous left-aligned logo-beside-title arrangement. ──
+    // ── Header: title/subtitle centered on the page, logo left-aligned beside
+    //    them (excluded from the centering so the text is the true page
+    //    center, not the center of the logo+text group). ──
     private function renderHeader(float $y): float
     {
         // LGICT.png is a wide horizontal wordmark (~3.7:1), not a square icon —
-        // constrain by width (not height) and center it within the content width.
+        // constrain by width (not height).
         $logoPath = public_path('img/LGICT.png');
-        $logoWidth = 30;
+        $hasLogo = is_file($logoPath);
+        $logoWidth = 26;
         $logoHeight = 0;
-        if (is_file($logoPath)) {
+        if ($hasLogo) {
             $imgSize = @getimagesize($logoPath);
-            $logoHeight = $imgSize ? $logoWidth * ($imgSize[1] / $imgSize[0]) : 8.1;
-            $logoX = self::MARGIN + (self::CONTENT_WIDTH - $logoWidth) / 2;
-            $this->pdf->Image($logoPath, $logoX, $y, $logoWidth, $logoHeight);
+            $logoHeight = $imgSize ? $logoWidth * ($imgSize[1] / $imgSize[0]) : 7;
         }
 
-        $textY = $y + $logoHeight + 3;
+        $textBlockHeight = 12; // title cell (7) + subtitle cell (5)
+        $rowHeight = max($logoHeight, $textBlockHeight);
+
+        if ($hasLogo) {
+            $logoY = $y + ($rowHeight - $logoHeight) / 2;
+            $this->pdf->Image($logoPath, self::MARGIN, $logoY, $logoWidth, $logoHeight);
+        }
+
+        $textY = $y + ($rowHeight - $textBlockHeight) / 2;
         $this->pdf->SetXY(self::MARGIN, $textY);
         $this->pdf->SetFont('helvetica', 'B', 14);
         $this->pdf->Cell(self::CONTENT_WIDTH, 7, 'ICT SERVICE REQUEST REPORT', 0, 1, 'C');
@@ -89,12 +96,7 @@ class TicketServiceReportPdf
         $this->pdf->Cell(self::CONTENT_WIDTH, 5, 'TECHNICAL SUPPORT SPECIALIST', 0, 1, 'C');
         $this->pdf->SetTextColor(0, 0, 0);
 
-        $ruleY = $textY + 14;
-        $this->pdf->SetLineWidth(0.4);
-        $this->pdf->Line(self::MARGIN, $ruleY, self::MARGIN + self::CONTENT_WIDTH, $ruleY);
-        $this->pdf->SetLineWidth(self::BORDER);
-
-        return $ruleY + 4;
+        return $y + $rowHeight + 8;
     }
 
     // ── Section 1: Service Details ──
@@ -120,17 +122,11 @@ class TicketServiceReportPdf
         $this->labelValueCell($x + $col2, $y, $col2, $rowH, 'BU / DEPARTMENT', $buDept ?: '—');
         $y += $rowH;
 
-        // Row 3: Asset Details / Service Type
+        // Row 3: Asset Details / Service Type — the determined value only, not a
+        // checklist of every option (previously all three service types were
+        // listed with one checked off).
         $this->labelValueCell($x, $y, $col2, $rowH, 'ASSET DETAILS', $this->ticket->asset ?? '—');
-
-        $this->pdf->Rect($x + $col2, $y, $col2, $rowH, 'D');
-        $this->fieldLabel($x + $col2 + 2, $y + 1.2, 'SERVICE TYPE');
-        $svcY = $y + 4.6;
-        $svcX = $x + $col2 + 3;
-        foreach (['Onsite', 'Remote', 'Preventive'] as $option) {
-            $this->checkbox($svcX, $svcY, $this->ticket->service_type === $option, $option);
-            $svcX += 20;
-        }
+        $this->labelValueCell($x + $col2, $y, $col2, $rowH, 'SERVICE TYPE', $this->ticket->service_type ?? '—');
         $y += $rowH;
 
         // Row 4: Main Category / Level of Request — the determined value only, not
@@ -145,33 +141,54 @@ class TicketServiceReportPdf
         $this->labelValueCell($x + $col2, $y, $col2, $rowH, 'PRIORITY', $this->ticket->ticket_type ?? '—');
         $y += $rowH;
 
-        // Ticket info row: Ticket Number / Status
+        // Ticket info row: Ticket Number / Status — the determined value only, not
+        // a checklist of every status (previously Completed / Pending / Escalated
+        // were listed with one or two checked off).
         $this->labelValueCell($x, $y, $col2, $rowH, 'SUPPORT REQUEST NUMBER', $this->ticket->ticket_number);
-
-        $this->pdf->Rect($x + $col2, $y, $col2, $rowH, 'D');
-        $this->fieldLabel($x + $col2 + 2, $y + 2.2, 'STATUS');
         $isEscalated = $this->ticket->escalations()->exists();
-        $statuses = ['Completed' => true, 'Pending' => false, 'Escalated' => $isEscalated];
-        $stX = $x + $col2 + 24;
-        foreach ($statuses as $label => $checked) {
-            $this->checkbox($stX, $y + 2.2, $checked, $label);
-            $stX += 22;
-        }
+        $this->labelValueCell($x + $col2, $y, $col2, $rowH, 'STATUS', $isEscalated ? 'Escalated' : 'Completed');
         $y += $rowH;
 
         return $y;
     }
 
-    // ── Issue Description table: 3 equal columns ──
+    // Standard row height — the fixed format. All three columns share one
+    // row, so it only grows past standard when the tallest of the three
+    // actually needs more room than that.
+    private function issueDescriptionBodyHeight(): float
+    {
+        $w = self::CONTENT_WIDTH;
+        $descW = $w / 2;
+        $methodW = ($w - $descW) / 2;
+        $dateW = $w - $descW - $methodW;
+
+        $this->pdf->SetFont('helvetica', '', 8);
+        return max(
+            18, // standard row height
+            $this->neededHeight($descW - 4, $this->ticket->concern ?? '—'),
+            $this->neededHeight($methodW - 4, $this->ticket->method ?? '—'),
+            $this->neededHeight($dateW - 4, $this->issueDateReceived()),
+        );
+    }
+
+    private function issueDateReceived(): string
+    {
+        return $this->ticket->date_received
+            ? \Carbon\Carbon::parse($this->ticket->date_received)->format('M d, Y')
+            : '—';
+    }
+
+    // ── Issue Description table ──
     private function renderIssueDescription(float $y): float
     {
         $x = self::MARGIN;
         $w = self::CONTENT_WIDTH;
-        $descW = 100;
-        $methodW = 45;
-        $dateW = 45;
+        // descW matches the col2 width used throughout SERVICE DETAILS (w / 2)
+        // so this table's first divider lines up with the one above it.
+        $descW = $w / 2;
+        $methodW = ($w - $descW) / 2;
+        $dateW = $w - $descW - $methodW;
         $headerH = 6;
-        $bodyH = 18;
 
         $this->pdf->SetFillColor(...self::GRAY_FILL);
         $this->pdf->SetFont('helvetica', 'B', 7);
@@ -180,24 +197,43 @@ class TicketServiceReportPdf
         $this->pdf->Cell($methodW, $headerH, 'METHOD', 1, 0, 'C', true);
         $this->pdf->Cell($dateW, $headerH, 'DATE RECEIVED', 1, 1, 'C', true);
 
+        $concern = $this->ticket->concern ?? '—';
+        $method = $this->ticket->method ?? '—';
+        $dateReceived = $this->issueDateReceived();
+
+        $this->pdf->SetFont('helvetica', '', 8);
+        $bodyH = $this->issueDescriptionBodyHeight();
+
         $bodyY = $y + $headerH;
         $this->pdf->Rect($x, $bodyY, $descW, $bodyH, 'D');
         $this->pdf->Rect($x + $descW, $bodyY, $methodW, $bodyH, 'D');
         $this->pdf->Rect($x + $descW + $methodW, $bodyY, $dateW, $bodyH, 'D');
 
-        $this->pdf->SetFont('helvetica', '', 8);
         $this->pdf->SetXY($x + 2, $bodyY + 1.5);
-        $this->pdf->MultiCell($descW - 4, $bodyH - 3, $this->ticket->concern ?? '—', 0, 'L');
+        $this->pdf->MultiCell($descW - 4, $bodyH - 3, $concern, 0, 'L');
 
         $this->pdf->SetXY($x + $descW + 2, $bodyY + 1.5);
-        $this->pdf->MultiCell($methodW - 4, $bodyH - 3, $this->ticket->method ?? '—', 0, 'L');
+        $this->pdf->MultiCell($methodW - 4, $bodyH - 3, $method, 0, 'L');
 
         $this->pdf->SetXY($x + $descW + $methodW + 2, $bodyY + 1.5);
-        $this->pdf->MultiCell($dateW - 4, $bodyH - 3, $this->ticket->date_received
-            ? \Carbon\Carbon::parse($this->ticket->date_received)->format('M d, Y')
-            : '—', 0, 'L');
+        $this->pdf->MultiCell($dateW - 4, $bodyH - 3, $dateReceived, 0, 'L');
 
         return $bodyY + $bodyH;
+    }
+
+    // Standard box height — the fixed format. Both columns share one row, so
+    // it only grows past standard when the taller of the two actually needs
+    // more room than that.
+    private function workDetailsBoxHeight(): float
+    {
+        $col2 = self::CONTENT_WIDTH / 2;
+
+        $this->pdf->SetFont('helvetica', '', 8);
+        return max(
+            75, // standard box height
+            $this->neededHeight($col2 - 4, $this->ticket->resolution_notes ?? '—', 4),
+            $this->neededHeight($col2 - 4, $this->ticket->findings ?: '—', 4),
+        );
     }
 
     // ── Work Details: Action Taken (left) / Findings & Analysis (right) ──
@@ -207,7 +243,6 @@ class TicketServiceReportPdf
         $w = self::CONTENT_WIDTH;
         $col2 = $w / 2;
         $headerH = 6;
-        $boxH = 75;
 
         $this->pdf->SetFillColor(...self::GRAY_FILL);
         $this->pdf->SetFont('helvetica', 'B', 7);
@@ -215,18 +250,31 @@ class TicketServiceReportPdf
         $this->pdf->Cell($col2, $headerH, 'SERVICE DETAILS / ACTION TAKEN', 1, 0, 'C', true);
         $this->pdf->Cell($col2, $headerH, 'FINDINGS & ANALYSIS', 1, 1, 'C', true);
 
+        $actionTaken = $this->ticket->resolution_notes ?? '—';
+        $findings = $this->ticket->findings ?: '—';
+
+        $this->pdf->SetFont('helvetica', '', 8);
+        $boxH = $this->workDetailsBoxHeight();
+
         $bodyY = $y + $headerH;
         $this->pdf->Rect($x, $bodyY, $col2, $boxH, 'D');
         $this->pdf->Rect($x + $col2, $bodyY, $col2, $boxH, 'D');
 
-        $this->pdf->SetFont('helvetica', '', 8);
         $this->pdf->SetXY($x + 2, $bodyY + 2);
-        $this->pdf->MultiCell($col2 - 4, $boxH - 4, $this->ticket->resolution_notes ?? '—', 0, 'L');
+        $this->pdf->MultiCell($col2 - 4, $boxH - 4, $actionTaken, 0, 'L');
 
         $this->pdf->SetXY($x + $col2 + 2, $bodyY + 2);
-        $this->pdf->MultiCell($col2 - 4, $boxH - 4, $this->ticket->findings ?: '—', 0, 'L');
+        $this->pdf->MultiCell($col2 - 4, $boxH - 4, $findings, 0, 'L');
 
         return $bodyY + $boxH;
+    }
+
+    // Standard box height — the fixed format. Only grows past standard when
+    // the recommendation text actually needs more room than that.
+    private function recommendationBoxHeight(): float
+    {
+        $this->pdf->SetFont('helvetica', '', 8);
+        return max(28, $this->neededHeight(self::CONTENT_WIDTH - 4, $this->ticket->recommendation ?: '—', 4));
     }
 
     // ── Other Observation / Recommendation ──
@@ -234,14 +282,16 @@ class TicketServiceReportPdf
     {
         $x = self::MARGIN;
         $w = self::CONTENT_WIDTH;
-        $boxH = 28;
 
         $y = $this->sectionHeader($x, $y, $w, 'OTHER OBSERVATION / RECOMMENDATION');
 
-        $this->pdf->Rect($x, $y, $w, $boxH, 'D');
+        $recommendation = $this->ticket->recommendation ?: '—';
         $this->pdf->SetFont('helvetica', '', 8);
+        $boxH = $this->recommendationBoxHeight();
+
+        $this->pdf->Rect($x, $y, $w, $boxH, 'D');
         $this->pdf->SetXY($x + 2, $y + 2);
-        $this->pdf->MultiCell($w - 4, $boxH - 4, $this->ticket->recommendation ?: '—', 0, 'L');
+        $this->pdf->MultiCell($w - 4, $boxH - 4, $recommendation, 0, 'L');
 
         return $y + $boxH;
     }
@@ -257,7 +307,7 @@ class TicketServiceReportPdf
         $y = $this->sectionHeader($x, $y, $w, 'DOCUMENT VALIDATION');
 
         $supervisor = $this->ticket->statusHistories()
-            ->where('new_status', 'Pending Closure')
+            ->where('new_status', TicketStatus::APPROVED_SERVICE_REPORT)
             ->latest('changed_at')
             ->first()?->changedBy?->name;
 
@@ -441,6 +491,15 @@ class TicketServiceReportPdf
         return $dt?->copy()->setTimezone('Asia/Manila')->format($format);
     }
 
+    // How tall $text needs to wrap at $width under the current font, plus
+    // top/bottom padding — callers max() this against the section's standard
+    // fixed height, so a box only grows past the standard format when
+    // content actually needs more room than it allows.
+    private function neededHeight(float $width, string $text, float $padding = 3): float
+    {
+        return $this->pdf->getStringHeight($width, $text) + $padding;
+    }
+
     private function sectionHeader(float $x, float $y, float $w, string $label): float
     {
         $h = 6;
@@ -455,49 +514,23 @@ class TicketServiceReportPdf
     {
         $this->pdf->Rect($x, $y, $w, $h, 'D');
 
+        // Center the label+value block vertically so the gap above the label
+        // matches the gap below the value, instead of the fixed 1.2 / 4.5
+        // offsets that left almost no room under the value.
+        $labelH = 3;
+        $valueH = 3.3;
+        $innerGap = 0.3;
+        $padding = ($h - ($labelH + $innerGap + $valueH)) / 2;
+
         $this->pdf->SetFont('helvetica', '', 6.5);
         $this->pdf->SetTextColor(120, 120, 120);
-        $this->pdf->SetXY($x + 2, $y + 1.2);
-        $this->pdf->Cell($w - 4, 3, $label, 0, 0, 'L');
+        $this->pdf->SetXY($x + 2, $y + $padding);
+        $this->pdf->Cell($w - 4, $labelH, $label, 0, 0, 'L');
         $this->pdf->SetTextColor(0, 0, 0);
 
         $this->pdf->SetFont('helvetica', 'B', 8);
-        $this->pdf->SetXY($x + 2, $y + 4.5);
-        $this->pdf->Cell($w - 4, 3.3, $value, 0, 0, 'L');
+        $this->pdf->SetXY($x + 2, $y + $padding + $labelH + $innerGap);
+        $this->pdf->Cell($w - 4, $valueH, $value, 0, 0, 'L');
     }
 
-    // Standalone small-caps field label (no boxed value below it, e.g. "SERVICE
-    // TYPE" above a row of checkboxes) — same muted styling as labelValueCell's
-    // label, so every field header in the report reads consistently.
-    private function fieldLabel(float $x, float $y, string $text): void
-    {
-        $this->pdf->SetFont('helvetica', '', 6.5);
-        $this->pdf->SetTextColor(120, 120, 120);
-        $this->pdf->SetXY($x, $y);
-        $this->pdf->Cell(60, 3, $text, 0, 0, 'L');
-        $this->pdf->SetTextColor(0, 0, 0);
-    }
-
-    private function checkbox(float $x, float $y, bool $checked, string $label, ?string $sublabel = null): void
-    {
-        $box = self::CHECKBOX_SIZE;
-        $this->pdf->Rect($x, $y + 0.3, $box, $box, 'D');
-        if ($checked) {
-            $this->pdf->SetFont('helvetica', 'B', 7);
-            $this->pdf->SetXY($x - 0.1, $y - 0.3);
-            $this->pdf->Cell($box, $box, 'X', 0, 0, 'C');
-        }
-
-        $this->pdf->SetFont('helvetica', $checked ? 'B' : '', 7);
-        $this->pdf->SetXY($x + $box + 1.3, $y - 0.4);
-        $this->pdf->Cell(60, 3.5, $label, 0, 0, 'L');
-
-        if ($sublabel) {
-            $this->pdf->SetFont('helvetica', '', 6);
-            $this->pdf->SetTextColor(110, 110, 110);
-            $this->pdf->SetXY($x + $box + 1.3, $y + 2.3);
-            $this->pdf->Cell(85, 3, $sublabel, 0, 0, 'L');
-            $this->pdf->SetTextColor(0, 0, 0);
-        }
-    }
 }

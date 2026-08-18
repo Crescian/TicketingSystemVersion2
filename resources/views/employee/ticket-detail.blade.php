@@ -17,21 +17,43 @@
 
 @section('hero-stats')
     @php
+        // Badge treatment for the 12 standard internal statuses (App\Support\TicketStatus)
+        // plus Cancelled. 'For Acknowledgment'/'Classified' read as "queued, not yet
+        // started" (open); 'Assigned' through 'In Progress Service Report' read as active
+        // work (in-progress); 'Done Service Report' through 'Requestor Confirmation' read
+        // as meaningful progress toward completion, same treatment 'Awaiting Requestor'
+        // (now Requestor Confirmation) always got.
         $badgeIcon = match($ticket->status) {
-            'Open'        => '●',
-            'In Progress' => '⟳',
-            'Escalated'   => '⚠',
-            'Resolved'    => '✓',
-            'Cancelled'   => '✕',
-            default       => ''
+            'For Acknowledgment'          => '●',
+            'Classified'                  => '◆',
+            'Assigned'                    => '→',
+            'In Progress Service Request' => '⟳',
+            'Closed Service Request'      => '⟳',
+            'In Progress Service Report'  => '⟳',
+            'Done Service Report'         => '⏳',
+            'Report For Review'           => '⏳',
+            'Approved Service Report'     => '⏳',
+            'Escalated'                   => '⚠',
+            'Requestor Confirmation'      => '⏳',
+            'Closed'                      => '✓',
+            'Cancelled'                   => '✕',
+            default                       => ''
         };
         $badgeClass = match($ticket->status) {
-            'Open'        => 'badge-open',
-            'In Progress' => 'badge-in-progress',
-            'Escalated'   => 'badge-escalated',
-            'Resolved'    => 'badge-resolved',
-            'Cancelled'   => 'badge-cancelled',
-            default       => ''
+            'For Acknowledgment'          => 'badge-open',
+            'Classified'                  => 'badge-open',
+            'Assigned'                    => 'badge-in-progress',
+            'In Progress Service Request' => 'badge-in-progress',
+            'Closed Service Request'      => 'badge-in-progress',
+            'In Progress Service Report'  => 'badge-in-progress',
+            'Done Service Report'         => 'badge-awaiting-requestor',
+            'Report For Review'           => 'badge-awaiting-requestor',
+            'Approved Service Report'     => 'badge-awaiting-requestor',
+            'Escalated'                   => 'badge-escalated',
+            'Requestor Confirmation'      => 'badge-awaiting-requestor',
+            'Closed'                      => 'badge-resolved',
+            'Cancelled'                   => 'badge-cancelled',
+            default                       => ''
         };
     @endphp
     <div class="d-flex gap-2 flex-wrap align-items-center">
@@ -80,21 +102,6 @@
                 <span class="badge-status {{ $badgeClass }}">
                     {{ $badgeIcon }} {{ $ticket->status }}
                 </span>
-            </div>
-            <div>
-                <div class="detail-lbl">Priority</div>
-                @php
-                    $priColor = match($ticket->ticket_type) {
-                        'Critical' => '#8b0000',
-                        'High'     => '#e24b4a',
-                        'Medium'   => '#f5c842',
-                        'Low'      => '#4a7c4a',
-                        default    => 'var(--tm)'
-                    };
-                @endphp
-                <div class="detail-val" style="color:{{ $priColor }}">
-                    {{ $ticket->ticket_type }}
-                </div>
             </div>
             <div>
                 <div class="detail-lbl">Category</div>
@@ -180,7 +187,7 @@
     @endif
 
     {{-- Back button --}}
-    <a href="{{ route('employee.tickets.index') }}" class="btn-back-page w-100 justify-content-center">
+    <a href="{{ route($routePrefix.'tickets.index') }}" class="btn-back-page w-100 justify-content-center">
         <i class="bi bi-arrow-left"></i> Back to My Support Requests
     </a>
 @endsection
@@ -268,7 +275,7 @@
         @endif
 
         {{-- Cancel button — only while Helpdesk hasn't acknowledged the request yet --}}
-        @if($ticket->status === 'New Request' && is_null($ticket->date_acknowledged))
+        @if($ticket->status === 'For Acknowledgment' && $ticket->pending_role === 'Helpdesk' && is_null($ticket->date_acknowledged))
             <button class="btn-cancel-ticket"
                     onclick="confirmCancel('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                 <i class="bi bi-x-circle me-1"></i>Cancel This Support Request
@@ -293,13 +300,10 @@
                         $history->new_status === 'Cancelled' => 'cancelled',
                         $history->new_status === 'Escalated' => 'escalated',
                         in_array($history->new_status, [
-                            'Closed', 'Pending Supervisor Approval', 'Pending Closure',
-                            'Awaiting Requestor', 'Pending Admin Supervisor Approval',
+                            'Closed', 'Report For Review',
+                            'Requestor Confirmation',
                         ], true) => 'resolved',
-                        in_array($history->new_status, [
-                            'New Request', 'L1 In Progress', 'Awaiting Supervisor',
-                            'Awaiting Admin Classification', 'Awaiting Admin Supervisor', 'Awaiting Manager',
-                        ], true) => 'open',
+                        $history->new_status === 'For Acknowledgment' => 'open',
                         default => 'in-progress',
                     };
                 @endphp
@@ -369,7 +373,7 @@
 <script>
 window.confirmCancel = function (ticketId, ticketNumber) {
     $('#cancelTicketRef').text('#' + ticketNumber);
-    $('#cancelForm').attr('action', '{{ url("employee/tickets") }}/' + ticketId + '/cancel');
+    $('#cancelForm').attr('action', '{{ url(rtrim($routePrefix, '.') . '/tickets') }}/' + ticketId + '/cancel');
     new bootstrap.Modal('#cancelModal').show();
 };
 </script>

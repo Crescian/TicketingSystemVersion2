@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dashboard;
 use App\Http\Controllers\Controller;
 use App\Models\Tickets;
 use App\Models\User;
+use App\Support\TicketStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +24,7 @@ class ExecutiveDashboardController extends Controller
 
     private const ONLINE_WINDOW_MINUTES = 5;
 
-    private const ACTIVE_TICKET_EXCLUDED_STATUSES = ['Closed', 'Cancelled'];
+    private const ACTIVE_TICKET_EXCLUDED_STATUSES = [TicketStatus::CLOSED, TicketStatus::CANCELLED];
 
     public function index(Request $request)
     {
@@ -220,7 +221,7 @@ class ExecutiveDashboardController extends Controller
             $weeklyData[] = [
                 'label' => $b['start']->format('M d') . '–' . $b['end']->format('d'),
                 'resolved' => DB::table('tickets')->whereBetween('created_at', [$b['start'], $b['end']])->where('status', 'Closed')->count(),
-                'inProgress' => DB::table('tickets')->whereBetween('created_at', [$b['start'], $b['end']])->where('status', 'In Progress')->count(),
+                'inProgress' => DB::table('tickets')->whereBetween('created_at', [$b['start'], $b['end']])->where('status', TicketStatus::IN_PROGRESS_SERVICE_REQUEST)->count(),
                 'escalated' => DB::table('tickets')->whereBetween('created_at', [$b['start'], $b['end']])->where('status', 'Escalated')->count(),
             ];
         }

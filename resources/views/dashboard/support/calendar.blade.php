@@ -4,7 +4,7 @@
 
 @section('nav-role-badge')
     @if($isOwnCalendar)
-        <span class="role-badge dark"><i class="bi bi-tools me-1"></i>IT Support Specialist</span>
+        <span class="role-badge dark"><i class="bi {{ $roleBadgeIcon }} me-1"></i>{{ $roleBadgeLabel }}</span>
     @else
         <span class="role-badge"><i class="bi bi-person-check-fill me-1"></i>Supervisor</span>
     @endif
@@ -27,7 +27,7 @@
         @unless($isOwnCalendar)
             <div class="stat-pill">
                 <span class="num">{{ $technicians->count() }}</span>
-                <span class="lbl">Specialists</span>
+                <span class="lbl">{{ $peopleLabel }}</span>
             </div>
         @endunless
         @if($view === 'day')
@@ -52,12 +52,12 @@
         <div class="sidebar-card mb-3">
             <ul class="list-group sidebar-menu rounded-0">
                 <li class="list-group-item">
-                    <a href="{{ route('technician.dashboard') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
-                        <i class="bi bi-grid me-1"></i>My Work Queue
+                    <a href="{{ route($ownDashboardRoute) }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                        <i class="bi bi-grid me-1"></i>{{ $ownQueueLabel }}
                     </a>
                 </li>
                 <li class="list-group-item active">
-                    <a href="{{ route('technician.calendar') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                    <a href="{{ route($ownCalendarRoute) }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
                         <i class="bi bi-calendar3-week me-1"></i>My Work Hours Calendar
                     </a>
                 </li>
@@ -67,12 +67,12 @@
         <div class="sidebar-card mb-3">
             <ul class="list-group sidebar-menu rounded-0">
                 <li class="list-group-item">
-                    <a href="{{ route('supervisor.support.dashboard') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
-                        <i class="bi bi-grid me-1"></i>Support Request Queue
+                    <a href="{{ route($teamDashboardRoute) }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                        <i class="bi bi-grid me-1"></i>{{ $teamQueueLabel }}
                     </a>
                 </li>
                 <li class="list-group-item active">
-                    <a href="{{ route('supervisor.support.calendar') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                    <a href="{{ route($teamCalendarRoute) }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
                         <i class="bi bi-calendar3-week me-1"></i>Work Hours Calendar
                     </a>
                 </li>
@@ -153,7 +153,7 @@
                 <input type="hidden" name="view" value="{{ $view }}">
                 <input type="hidden" name="date" value="{{ $date->format('Y-m-d') }}">
                 <select class="sort-select" name="technician_id" onchange="this.form.submit()">
-                    <option value="">All Technicians</option>
+                    <option value="">All {{ $peopleLabel }}</option>
                     @foreach($allTechnicians as $t)
                         <option value="{{ $t->id }}" {{ request('technician_id') === $t->id ? 'selected' : '' }}>{{ $t->name }}</option>
                     @endforeach
@@ -218,7 +218,7 @@
                 @endif
             </div>
         @empty
-            <div class="p-4 text-center" style="color:var(--tm)">No technicians found.</div>
+            <div class="p-4 text-center" style="color:var(--tm)">No {{ $peopleLabel }} found.</div>
         @endforelse
     @elseif($view === 'week')
         {{-- Week view: workload heatmap matrix — only 5 columns, never wide enough to need scrolling --}}
@@ -226,7 +226,7 @@
             <table class="heatmap-table">
                 <thead>
                     <tr>
-                        <th>Technician</th>
+                        <th>{{ $personLabel }}</th>
                         @foreach($columns as $col)
                             <th>{{ $col->format('D, M j') }}</th>
                         @endforeach
@@ -252,7 +252,7 @@
                             @endforeach
                         </tr>
                     @empty
-                        <tr><td colspan="99" class="p-4 text-center" style="color:var(--tm)">No technicians found.</td></tr>
+                        <tr><td colspan="99" class="p-4 text-center" style="color:var(--tm)">No {{ $peopleLabel }} found.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -295,7 +295,7 @@
                 @endforeach
             </div>
         @empty
-            <div class="p-4 text-center" style="color:var(--tm)">No technicians found.</div>
+            <div class="p-4 text-center" style="color:var(--tm)">No {{ $peopleLabel }} found.</div>
         @endforelse
     @endif
 

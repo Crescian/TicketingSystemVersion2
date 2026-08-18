@@ -3,7 +3,7 @@
 @section('title', 'SLA Rules — LGICT')
 
 @section('nav-role-badge')
-    @php $canManageOrg = in_array(Auth::user()->role?->role_name, ['Helpdesk', 'IT Admin', 'Supervisor - IT Admin']); @endphp
+    @php $canManageOrg = in_array(Auth::user()->role?->role_name, ['Helpdesk', 'IT Admin', 'Supervisor - IT Admin', 'Supervisor - Support Specialist']); @endphp
     <span class="role-badge-admin"><i class="bi bi-shield-fill me-1"></i>{{ Auth::user()->role?->role_name ?? 'IT Admin' }}</span>
     @if($canManageOrg)
         <a href="{{ route('portal.users.index') }}" style="text-decoration:none">
@@ -307,6 +307,20 @@
                         </div>
                     </div>
 
+                    {{-- Admin-only (L3) --}}
+                    <div class="sf-field">
+                        <label class="d-flex align-items-center gap-2" style="cursor:pointer;font-weight:600">
+                            <input type="checkbox" name="admin_only" id="ruleAdminOnly" value="1"
+                                   style="width:16px;height:16px;cursor:pointer">
+                            This subcategory is Admin-only (L3)
+                        </label>
+                        <div style="font-size:11px;color:var(--tm);margin-top:4px">
+                            When Helpdesk classifies a ticket under this subcategory, it goes straight to the
+                            Supervisor - IT Admin queue, skipping the Support Supervisor entirely. Use this only
+                            for work that genuinely can't be handled by an IT Support Specialist.
+                        </div>
+                    </div>
+
                     {{-- Preview --}}
                     <div class="rule-preview" id="rulePreview">
                         <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Preview</div>
@@ -419,6 +433,12 @@
                                                                 L1
                                                             </span>
                                                         @endif
+                                                        @if($rule->admin_only)
+                                                            <span title="Routes directly to Supervisor - IT Admin (L3)"
+                                                                  style="font-size:9px;font-weight:800;background:#eef0ff;color:#2a2a8a;border:1px solid #b8bcf0;border-radius:20px;padding:1px 7px;letter-spacing:.3px">
+                                                                L3
+                                                            </span>
+                                                        @endif
                                                     </div>
                                                     @if($rule->description)
                                                         <div class="sub-desc">{{ Str::limit($rule->description, 40) }}</div>
@@ -460,7 +480,8 @@
                                                                     {{ $rule->response_time_minutes }},
                                                                     {{ $rule->resolution_time_minutes }},
                                                                     '{{ addslashes($rule->description ?? '') }}',
-                                                                    {{ $rule->helpdesk_resolvable ? 'true' : 'false' }}
+                                                                    {{ $rule->helpdesk_resolvable ? 'true' : 'false' }},
+                                                                    {{ $rule->admin_only ? 'true' : 'false' }}
                                                                 )"
                                                                 title="Edit">
                                                             <i class="bi bi-pencil"></i>
@@ -894,7 +915,7 @@ function resetCatForm() {
 }
 
 /* ── Edit rule ── */
-function editRule(id, catId, subcat, priority, respMins, resMins, desc, helpdeskResolvable) {
+function editRule(id, catId, subcat, priority, respMins, resMins, desc, helpdeskResolvable, adminOnly) {
     document.getElementById('ruleForm').action          =
         '{{ route("portal.sla-rules.rule.update", ["slaRule" => "__ID__"]) }}'.replace('__ID__', id);
     document.getElementById('ruleMethod').value         = 'PUT';
@@ -904,6 +925,7 @@ function editRule(id, catId, subcat, priority, respMins, resMins, desc, helpdesk
     document.getElementById('ruleResolution').value     = resMins;
     document.getElementById('ruleDescription').value    = desc;
     document.getElementById('ruleHelpdeskResolvable').checked = helpdeskResolvable;
+    document.getElementById('ruleAdminOnly').checked    = adminOnly;
 
     syncTimeUnit('ruleResponse',   'ruleResponseUnit');
     syncTimeUnit('ruleResolution', 'ruleResolutionUnit');
@@ -938,6 +960,7 @@ function resetRuleForm() {
     document.getElementById('ruleDescription').value    = '';
     document.getElementById('rulePriority').value       = '';
     document.getElementById('ruleHelpdeskResolvable').checked = false;
+    document.getElementById('ruleAdminOnly').checked    = false;
     document.querySelectorAll('#ruleFormCard .pri-chip').forEach(c => c.classList.remove('selected'));
     document.getElementById('ruleFormTitle').textContent = 'Add SLA Rule';
     document.getElementById('ruleSaveText').textContent  = 'Add Rule';
@@ -950,6 +973,14 @@ function resetRuleForm() {
     document.querySelectorAll('.qbtn').forEach(b => b.classList.remove('active'));
     document.getElementById('subcatHint').textContent = '';
 }
+
+/* ── Helpdesk-resolvable (L1) and Admin-only (L3) are mutually exclusive ── */
+document.getElementById('ruleHelpdeskResolvable').addEventListener('change', function () {
+    if (this.checked) document.getElementById('ruleAdminOnly').checked = false;
+});
+document.getElementById('ruleAdminOnly').addEventListener('change', function () {
+    if (this.checked) document.getElementById('ruleHelpdeskResolvable').checked = false;
+});
 
 /* ── Workload Classes ── */
 function wcToggleManual() {

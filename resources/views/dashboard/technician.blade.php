@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'My Work Queue — LGICT')
+@section('title', ($counts['awaiting_ack'] > 0 ? 'For Acknowledgment (' . $counts['awaiting_ack'] . ') — ' : '') . 'My Work Queue — LGICT')
 
 @section('nav-role-badge')
     <span class="role-badge dark"><i class="bi bi-tools me-1"></i>IT Support Specialist</span>
@@ -80,15 +80,15 @@
         <div class="d-flex gap-2 flex-wrap">
             <div class="stat-pill danger">
                 <span class="num">{{ $counts['awaiting_ack'] }}</span>
-                <span class="lbl">Awaiting Ack.</span>
+                <span class="lbl">For Ack.</span>
             </div>
-            <div class="stat-pill warn">
+            <div class="stat-pill">
                 <span class="num">{{ $counts['ready_start'] }}</span>
-                <span class="lbl">Starts SLA</span>
+                <span class="lbl">Start Support Request</span>
             </div>
             <div class="stat-pill warn">
                 <span class="num">{{ $counts['in_progress'] }}</span>
-                <span class="lbl">In Progress</span>
+                <span class="lbl">In Progress Service Request</span>
             </div>
             <div class="stat-pill">
                 <span class="num">{{ $counts['closed'] }}</span>
@@ -261,25 +261,32 @@
                       <span class="badge-count">{{ $counts['active'] }}</span>
                   </a>
               </li>
-              <li class="list-group-item {{ $status === 'awaiting-ack' ? 'active' : '' }}">
+              <li class="list-group-item {{ $status === 'awaiting-ack' ? 'active' : '' }} {{ $counts['awaiting_ack'] > 0 ? 'queue-glow' : '' }}">
                   <a href="{{ route('technician.dashboard', ['status' => 'awaiting-ack']) }}"
                      class="d-flex justify-content-between align-items-center text-decoration-none">
-                      <span><i class="bi bi-bell me-2"></i>Awaiting Acknowledgement</span>
+                      <span><i class="bi bi-bell me-2"></i>For Acknowledgment</span>
                       <span class="badge-count red">{{ $counts['awaiting_ack'] }}</span>
                   </a>
               </li>
               <li class="list-group-item {{ $status === 'ready-start' ? 'active' : '' }}">
                   <a href="{{ route('technician.dashboard', ['status' => 'ready-start']) }}"
                      class="d-flex justify-content-between align-items-center text-decoration-none">
-                      <span><i class="bi bi-eye me-2"></i>Starts SLA</span>
+                      <span><i class="bi bi-eye me-2"></i>Start Support Request</span>
                       <span class="badge-count">{{ $counts['ready_start'] }}</span>
                   </a>
               </li>
               <li class="list-group-item {{ $status === 'in-progress' ? 'active' : '' }}">
                   <a href="{{ route('technician.dashboard', ['status' => 'in-progress']) }}"
                      class="d-flex justify-content-between align-items-center text-decoration-none">
-                      <span><i class="bi bi-arrow-repeat me-2"></i>In Progress</span>
+                      <span><i class="bi bi-arrow-repeat me-2"></i>In Progress Service Request</span>
                       <span class="badge-count">{{ $counts['in_progress'] }}</span>
+                  </a>
+              </li>
+              <li class="list-group-item {{ $status === 'preparing-report' ? 'active' : '' }}">
+                  <a href="{{ route('technician.dashboard', ['status' => 'preparing-report']) }}"
+                     class="d-flex justify-content-between align-items-center text-decoration-none">
+                      <span><i class="bi bi-file-earmark-text me-2"></i>In Progress Service Report</span>
+                      <span class="badge-count">{{ $counts['preparing_report'] }}</span>
                   </a>
               </li>
               <li class="list-group-item {{ $status === 'escalated' ? 'active' : '' }}">
@@ -289,10 +296,17 @@
                       <span class="badge-count red">{{ $counts['escalated'] }}</span>
                   </a>
               </li>
+              <li class="list-group-item {{ $status === 'report-for-review' ? 'active' : '' }}">
+                  <a href="{{ route('technician.dashboard', ['status' => 'report-for-review']) }}"
+                     class="d-flex justify-content-between align-items-center text-decoration-none">
+                      <span><i class="bi bi-clock-history me-2"></i>Report For Review</span>
+                      <span class="badge-count">{{ $counts['report_for_review'] }}</span>
+                  </a>
+              </li>
               <li class="list-group-item {{ $status === 'awaiting-closure' ? 'active' : '' }}">
                   <a href="{{ route('technician.dashboard', ['status' => 'awaiting-closure']) }}"
                      class="d-flex justify-content-between align-items-center text-decoration-none">
-                      <span><i class="bi bi-hourglass-split me-2"></i>Awaiting Closure</span>
+                      <span><i class="bi bi-hourglass-split me-2"></i>Requestor Confirmation</span>
                       <span class="badge-count">{{ $counts['awaiting_closure'] }}</span>
                   </a>
               </li>
@@ -422,11 +436,13 @@
               @php
                 $labels = [
                     'active' => 'My Active Queue',
-                    'awaiting-ack' => 'Awaiting Acknowledgement',
-                    'ready-start' => 'Starts SLA — Ready to Start',
-                    'in-progress' => 'In Progress',
+                    'awaiting-ack' => 'For Acknowledgment',
+                    'ready-start' => 'Start Support Request — Ready to Start',
+                    'in-progress' => 'In Progress Service Request',
+                    'preparing-report' => 'In Progress Service Report',
                     'escalated' => 'Escalated',
-                    'awaiting-closure' => 'Awaiting Closure',
+                    'report-for-review' => 'Report For Review',
+                    'awaiting-closure' => 'Requestor Confirmation',
                     'closed' => 'Closed',
                 ];
               @endphp
@@ -453,11 +469,13 @@
           @php
             $tabs = [
                 'active' => ['label' => 'Active Queue', 'count' => $counts['active']],
-                'awaiting-ack' => ['label' => 'Awaiting Acknowledgement', 'count' => $counts['awaiting_ack']],
-                'ready-start' => ['label' => 'Starts SLA', 'count' => $counts['ready_start']],
-                'in-progress' => ['label' => 'In Progress', 'count' => $counts['in_progress']],
+                'awaiting-ack' => ['label' => 'For Acknowledgment', 'count' => $counts['awaiting_ack']],
+                'ready-start' => ['label' => 'Start Support Request', 'count' => $counts['ready_start']],
+                'in-progress' => ['label' => 'In Progress Service Request', 'count' => $counts['in_progress']],
+                'preparing-report' => ['label' => 'In Progress Service Report', 'count' => $counts['preparing_report']],
                 'escalated' => ['label' => 'Escalated', 'count' => $counts['escalated']],
-                'awaiting-closure' => ['label' => 'Awaiting Closure', 'count' => $counts['awaiting_closure']],
+                'report-for-review' => ['label' => 'Report For Review', 'count' => $counts['report_for_review']],
+                'awaiting-closure' => ['label' => 'Requestor Confirmation', 'count' => $counts['awaiting_closure']],
                 'closed' => ['label' => 'Closed', 'count' => $counts['closed']],
             ];
           @endphp
@@ -474,14 +492,35 @@
 
           @forelse($tickets as $ticket)
             @php
-                $isNew        = $ticket->status === 'Awaiting Support Specialist Acknowledgement';
-                $isAcknowledged = $ticket->status === 'Awaiting Start SLA';
-                $isInProgress = $ticket->status === 'In Progress';
+                // 'Assigned' and 'Assigned' both
+                // collapsed into the single 'Assigned' status (see App\Support\TicketStatus) —
+                // acknowledging no longer moves status, it only stamps date_acknowledged
+                // (same pattern as Helpdesk's own acknowledge()), so the two are now told
+                // apart by that timestamp instead of by status string.
+                $isNew          = $ticket->status === 'Assigned' && is_null($ticket->tech_acknowledged_at);
+                $isAcknowledged = $ticket->status === 'Assigned' && !is_null($ticket->tech_acknowledged_at);
+                // In Progress Service Report is isolated from the underlying "actively
+                // fixing it" In Progress Service Request status (see TicketReportProgress) —
+                // folded into the same $isInProgress bucket so Add Update/SLA/tracker logic
+                // below doesn't have to know about it separately. $canMarkFixed/$canPrepareReport
+                // below split it back out for the two deliberate actions (mark the fix
+                // done, then separately prepare & submit the report).
+                $isInProgress = in_array($ticket->status, ['In Progress Service Request', 'In Progress Service Report'], true);
+                $canMarkFixed     = $ticket->status === 'In Progress Service Request';
+                $canPrepareReport = $ticket->status === 'In Progress Service Report';
                 $isEscalated  = $ticket->status === 'Escalated';
-                $isClosed     = in_array($ticket->status, ['Closed', 'Pending Supervisor Approval', 'Pending Closure', 'Awaiting Requestor']);
+                // Once the report leaves the tech's hands (Done Service Report) it's with the
+                // Supervisor for review/approval, then the requestor — none of those remaining
+                // statuses are actionable by the tech, same "no longer mine" bucket as before.
+                $isClosed     = in_array($ticket->status, [
+                    'Closed', 'Done Service Report', 'Report For Review',
+                    'Approved Service Report', 'Requestor Confirmation',
+                ]);
                 // ── Resolved but not yet Closed: still tracked in the tech's queue, just no
                 //    longer actionable by them — Supervisor/Helpdesk/requestor own the remaining steps.
-                $isAwaitingClosure = in_array($ticket->status, ['Pending Supervisor Approval', 'Pending Closure', 'Awaiting Requestor']);
+                $isAwaitingClosure = in_array($ticket->status, [
+                    'Done Service Report', 'Report For Review', 'Approved Service Report', 'Requestor Confirmation',
+                ]);
 
                 $cardClass = match (true) {
                     $isNew => 'new-assigned',
@@ -520,11 +559,12 @@
                 $recentHistory = $ticket->statusHistories->sortByDesc('changed_at')->take(3)->reverse();
 
                 // ── Draft "Service Details / Action Taken" from this tech's own Add Update
-                //    log — old_status === new_status === 'In Progress' is exactly how those
-                //    entries are marked (vs. the "ticket started" transition or others), so
-                //    they don't have to retype everything they already logged when resolving.
+                //    log — old_status === new_status is exactly how those entries are
+                //    marked (vs. the "ticket started"/startReport() transitions or others),
+                //    so they don't have to retype everything they already logged when resolving.
                 $progressUpdates = $ticket->statusHistories
-                    ->filter(fn($h) => $h->old_status === 'In Progress' && $h->new_status === 'In Progress')
+                    ->filter(fn($h) => $h->old_status === $h->new_status
+                        && in_array($h->old_status, ['In Progress Service Request', 'In Progress Service Report'], true))
                     ->sortBy('changed_at');
                 $progressDraft = $progressUpdates
                     ->map(fn($h) => '- ' . \Carbon\Carbon::parse($h->changed_at)->timezone('Asia/Manila')->format('M d, g:i A') . ': ' . $h->notes)
@@ -533,8 +573,8 @@
                 // ── Notes left by Helpdesk (classify) and Supervisor (classify & assign) —
                 //    everything the tech needs to see before deciding to Acknowledge.
                 $sortedHistory = $ticket->statusHistories->sortByDesc('changed_at');
-                $helpdeskNote = $sortedHistory->first(fn($h) => $h->new_status === 'Awaiting Supervisor');
-                $supervisorNote = $sortedHistory->first(fn($h) => $h->new_status === 'Awaiting Support Specialist Acknowledgement');
+                $helpdeskNote = $sortedHistory->first(fn($h) => $h->new_status === 'For Acknowledgment');
+                $supervisorNote = $sortedHistory->first(fn($h) => $h->new_status === 'Assigned');
 
                 // ── SLA countdown (In Progress only) ──
                 $slaSecondsLeft = $isInProgress ? $ticket->slaSecondsRemaining() : null;
@@ -570,31 +610,38 @@
                     </div>
                     @if($isNew)
                           <span class="badge-status badge-new">
-                              <i class="bi bi-bell me-1"></i>Awaiting Acknowledgement
+                              <i class="bi bi-bell me-1"></i>For Acknowledgment
                           </span>
                     @elseif($isAcknowledged)
                           <span class="badge-status badge-acknowledged" style="background:var(--ygl);color:var(--gd)">
-                              <i class="bi bi-eye me-1"></i>Starts SLA — Ready to Start
+                              <i class="bi bi-eye me-1"></i>Start Support Request — Ready to Start
+                          </span>
+                    @elseif($ticket->status === 'In Progress Service Report')
+                          <span class="badge-status badge-in-progress">
+                              <i class="bi bi-file-earmark-text me-1"></i>In Progress Service Report
                           </span>
                     @elseif($isInProgress)
                           <span class="badge-status badge-in-progress">
-                              <i class="bi bi-arrow-repeat me-1"></i>In Progress
+                              <i class="bi bi-arrow-repeat me-1"></i>In Progress Service Request
                           </span>
                     @elseif($isEscalated)
                           <span class="badge-status badge-escalated">
                               <i class="bi bi-exclamation-triangle me-1"></i>Escalated
                           </span>
-                    @elseif($ticket->status === 'Pending Supervisor Approval')
+                    {{-- Done Service Report is a transient pass-through status (cascades
+                         straight to Report For Review, see resolve()) so the actual resting
+                         "with the supervisor" state to key off is Report For Review. --}}
+                    @elseif($ticket->status === 'Report For Review')
                           <span class="badge-status" style="background:#fff4cc;color:#8a6d00">
-                              <i class="bi bi-hourglass-split me-1"></i>Pending Supervisor Approval
+                              <i class="bi bi-hourglass-split me-1"></i>Report For Review
                           </span>
-                    @elseif($ticket->status === 'Pending Closure')
-                          <span class="badge-status" style="background:#ffe8cc;color:#8a4d00">
-                              <i class="bi bi-hourglass-split me-1"></i>Pending Closure
+                    @elseif($ticket->status === 'Approved Service Report')
+                          <span class="badge-status" style="background:#fff4cc;color:#8a6d00">
+                              <i class="bi bi-hourglass-split me-1"></i>Approved Service Report
                           </span>
-                    @elseif($ticket->status === 'Awaiting Requestor')
+                    @elseif($ticket->status === 'Requestor Confirmation')
                           <span class="badge-status" style="background:#e6f0ff;color:#1a4d8f">
-                              <i class="bi bi-person-check me-1"></i>Awaiting Requestor Confirmation
+                              <i class="bi bi-person-check me-1"></i>Requestor Confirmation
                           </span>
                     @elseif($isClosed)
                           <span class="badge-status badge-resolved">
@@ -850,23 +897,20 @@
                       </div>
                 @endif
 
-                {{-- Awaiting closure banner --}}
-                @if($ticket->status === 'Pending Supervisor Approval')
+                {{-- Awaiting closure banner. Done Service Report is a transient
+                     pass-through status (cascades straight to Report For Review, see
+                     resolve()) so the resting states to key off are Report For Review /
+                     Approved Service Report. --}}
+                @if(in_array($ticket->status, ['Report For Review', 'Approved Service Report']))
                       <div class="p-2 mb-3" style="background:#fff4cc;border-radius:8px;font-size:13px;color:#8a6d00">
                           <i class="bi bi-hourglass-split me-1"></i>
                           Resolved — awaiting Supervisor validation.
                           No further action required from you on this support request.
                       </div>
-                @elseif($ticket->status === 'Pending Closure')
-                      <div class="p-2 mb-3" style="background:#ffe8cc;border-radius:8px;font-size:13px;color:#8a4d00">
-                          <i class="bi bi-hourglass-split me-1"></i>
-                          Validated by Supervisor — sent to Helpdesk for closure.
-                          No further action required from you on this support request.
-                      </div>
-                @elseif($ticket->status === 'Awaiting Requestor')
+                @elseif($ticket->status === 'Requestor Confirmation')
                       <div class="p-2 mb-3" style="background:#e6f0ff;border-radius:8px;font-size:13px;color:#1a4d8f">
                           <i class="bi bi-person-check me-1"></i>
-                          Closed by Helpdesk — awaiting requestor confirmation before this fully closes.
+                          Validated by Supervisor — awaiting requestor confirmation before this fully closes.
                           No further action required from you on this support request.
                       </div>
                 @endif
@@ -898,17 +942,27 @@
                           </button>
                     @endif
 
-                    {{-- In Progress: Update + Resolve + Escalate + Message --}}
+                    {{-- In Progress: Update + Mark Fixed/Prepare Report + Escalate + Message --}}
                     @if($isInProgress)
                         <button class="btn-update"
                                 onclick="openUpdateModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-pencil me-1"></i>Add Update
                         </button>
-                        <button class="btn-resolve-t"
-                                data-progress-draft="{{ $progressDraft }}"
-                                onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', '{{ $ticket->started_at?->toIso8601String() }}', this.dataset.progressDraft)">
-                            <i class="bi bi-check-circle me-1"></i>Mark Resolved
-                        </button>
+                        @if($canMarkFixed)
+                            <form method="POST" action="{{ route('technician.tickets.start-report', $ticket) }}">
+                                @csrf
+                                <button type="submit" class="btn-resolve-t">
+                                    <i class="bi bi-check2 me-1"></i>Mark Fixed
+                                </button>
+                            </form>
+                        @endif
+                        @if($canPrepareReport)
+                            <button class="btn-resolve-t"
+                                    data-progress-draft="{{ $progressDraft }}"
+                                    onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', '{{ $ticket->started_at?->toIso8601String() }}', this.dataset.progressDraft)">
+                                <i class="bi bi-file-earmark-text me-1"></i>Prepare Service Report
+                            </button>
+                        @endif
                         <button class="btn-escalate-t"
                                 onclick="openEscModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-exclamation-triangle me-1"></i>Escalate
@@ -1103,7 +1157,7 @@
                           <div class="info-box-green p-3 mb-3">
                               <i class="bi bi-play-circle me-1"></i>
                               Starting <strong id="startRef"></strong>.
-                              Status will update to <strong>In Progress</strong> and the
+                              Status will update to <strong>In Progress Service Request</strong> and the
                               SLA resolution timer begins now.
                           </div>
                           <div class="d-flex gap-2 flex-wrap mb-3">
@@ -1960,13 +2014,24 @@
             const parser = new DOMParser();
             const doc    = parser.parseFromString(html, 'text/html');
 
+            const ackLink  = doc.querySelector("a[href*='status=awaiting-ack']");
+            const ackCount = ackLink ? parseInt((ackLink.querySelector('.badge-count') || {}).textContent || '0', 10) : 0;
+            document.title = ackCount > 0 ? `For Acknowledgment (${ackCount}) — My Work Queue — LGICT` : 'My Work Queue — LGICT';
+            setFaviconBadge(ackCount);
+
             const newList = doc.getElementById('ticketList');
             const curList = document.getElementById('ticketList');
             if (newList && curList) curList.innerHTML = newList.innerHTML;
 
             doc.querySelectorAll('.badge-count').forEach((newEl, i) => {
                 const curEl = document.querySelectorAll('.badge-count')[i];
-                if (curEl && curEl.textContent.trim() !== newEl.textContent.trim()) {
+                if (!curEl) return;
+
+                const newLi = newEl.closest('li.list-group-item');
+                const curLi = curEl.closest('li.list-group-item');
+                if (newLi && curLi) curLi.classList.toggle('queue-glow', newLi.classList.contains('queue-glow'));
+
+                if (curEl.textContent.trim() !== newEl.textContent.trim()) {
                     curEl.textContent = newEl.textContent;
                     curEl.classList.add('badge-pulse');
                     setTimeout(() => curEl.classList.remove('badge-pulse'), 600);
@@ -1986,6 +2051,7 @@
         .catch(() => {});
     }
 
+    setFaviconBadge({{ $counts['awaiting_ack'] }});
     silentRefreshTimer = setInterval(silentRefresh, 30000);
     document.addEventListener('show.bs.modal',   () => { isModalOpen = true; });
     document.addEventListener('hidden.bs.modal', () => { isModalOpen = false; });

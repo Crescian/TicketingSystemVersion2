@@ -20,12 +20,12 @@
 @section('hero-stats')
     <div class="d-flex gap-2 flex-wrap">
         <div class="stat-pill">
-            <span class="num" id="cnt-open">{{ $counts['pending_acknowledgement'] }}</span>
-            <span class="lbl">Pending Ack.</span>
+            <span class="num" id="cnt-open">{{ $counts['submitted'] }}</span>
+            <span class="lbl">Submitted</span>
         </div>
         <div class="stat-pill">
-            <span class="num" id="cnt-class">{{ $counts['classification_assignment'] }}</span>
-            <span class="lbl">Classification</span>
+            <span class="num" id="cnt-class">{{ $counts['scheduled'] }}</span>
+            <span class="lbl">Scheduled</span>
         </div>
         <div class="stat-pill warn">
             <span class="num" id="cnt-prog">{{ $counts['in_progress'] }}</span>
@@ -33,7 +33,7 @@
         </div>
         <div class="stat-pill info">
             <span class="num" id="cnt-await">{{ $counts['awaiting_requestor'] }}</span>
-            <span class="lbl">Awaiting You</span>
+            <span class="lbl">Awaiting Your Confirmation</span>
         </div>
         <div class="stat-pill">
             <span class="num" id="cnt-done">{{ $counts['closed'] }}</span>
@@ -359,8 +359,9 @@
 
 {{-- ══ SIDEBAR ══ --}}
 @section('sidebar')
-    {{-- Available IT — who's online right now, from Helpdesk + IT Support
-         Specialist. Refreshed every 30s via /employee/it-team/presence. --}}
+    {{-- Available IT — who's online right now, from Helpdesk, IT Support
+         Specialist, IT Admin, and their Supervisors. Refreshed every 30s via
+         /employee/it-team/presence. --}}
     <div class="sidebar-card mb-3">
         <div class="sidebar-head">Available IT</div>
         <div class="p-2 d-flex flex-column gap-1" id="itTeamList">
@@ -391,37 +392,37 @@
         <div class="sidebar-head">My Support Requests</div>
         <ul class="list-group sidebar-menu rounded-0" id="sideNav">
             <li class="list-group-item {{ $status === 'all' ? 'active' : '' }}">
-                <a href="{{ route('employee.tickets.index', ['status' => 'all']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
+                <a href="{{ route($routePrefix.'tickets.index', ['status' => 'all']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
                     <span><i class="bi bi-grid me-2"></i>All support requests</span>
                     <span class="badge-count">{{ $counts['all'] }}</span>
                 </a>
             </li>
-            <li class="list-group-item {{ $status === 'pending_acknowledgement' ? 'active' : '' }}">
-                <a href="{{ route('employee.tickets.index', ['status' => 'pending_acknowledgement']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
-                    <span><i class="bi bi-circle me-2"></i>Pending Acknowledgement</span>
-                    <span class="badge-count">{{ $counts['pending_acknowledgement'] }}</span>
+            <li class="list-group-item {{ $status === 'submitted' ? 'active' : '' }}">
+                <a href="{{ route($routePrefix.'tickets.index', ['status' => 'submitted']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
+                    <span><i class="bi bi-circle me-2"></i>Submitted</span>
+                    <span class="badge-count">{{ $counts['submitted'] }}</span>
                 </a>
             </li>
-            <li class="list-group-item {{ $status === 'classification_assignment' ? 'active' : '' }}">
-                <a href="{{ route('employee.tickets.index', ['status' => 'classification_assignment']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
-                    <span><i class="bi bi-diagram-3 me-2"></i>Classification &amp; Assignment</span>
-                    <span class="badge-count">{{ $counts['classification_assignment'] }}</span>
+            <li class="list-group-item {{ $status === 'scheduled' ? 'active' : '' }}">
+                <a href="{{ route($routePrefix.'tickets.index', ['status' => 'scheduled']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
+                    <span><i class="bi bi-diagram-3 me-2"></i>Scheduled</span>
+                    <span class="badge-count">{{ $counts['scheduled'] }}</span>
                 </a>
             </li>
             <li class="list-group-item {{ $status === 'in_progress' ? 'active' : '' }}">
-                <a href="{{ route('employee.tickets.index', ['status' => 'in_progress']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
+                <a href="{{ route($routePrefix.'tickets.index', ['status' => 'in_progress']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
                     <span><i class="bi bi-arrow-repeat me-2"></i>In progress</span>
                     <span class="badge-count">{{ $counts['in_progress'] }}</span>
                 </a>
             </li>
             <li class="list-group-item {{ $status === 'awaiting_requestor' ? 'active' : '' }}">
-                <a href="{{ route('employee.tickets.index', ['status' => 'awaiting_requestor']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
-                    <span><i class="bi bi-hourglass-split me-2"></i>Awaiting you</span>
+                <a href="{{ route($routePrefix.'tickets.index', ['status' => 'awaiting_requestor']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
+                    <span><i class="bi bi-hourglass-split me-2"></i>Awaiting Your Confirmation</span>
                     <span class="badge-count">{{ $counts['awaiting_requestor'] }}</span>
                 </a>
             </li>
             <li class="list-group-item {{ $status === 'closed' ? 'active' : '' }}">
-                <a href="{{ route('employee.tickets.index', ['status' => 'closed']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
+                <a href="{{ route($routePrefix.'tickets.index', ['status' => 'closed']) }}" class="d-flex justify-content-between align-items-center text-decoration-none w-100">
                     <span><i class="bi bi-check-circle me-2"></i>Closed</span>
                     <span class="badge-count">{{ $counts['closed'] }}</span>
                 </a>
@@ -432,7 +433,7 @@
     {{-- Filter card --}}
     <div class="sidebar-card filter-card">
         <div class="sidebar-head">Filter</div>
-        <form method="GET" action="{{ route('employee.tickets.index') }}" class="p-3 d-flex flex-column gap-2">
+        <form method="GET" action="{{ route($routePrefix.'tickets.index') }}" class="p-3 d-flex flex-column gap-2">
             <input type="hidden" name="status" value="{{ $status }}">
             <div>
                 <label class="form-label mb-1">Category</label>
@@ -459,7 +460,7 @@
                 Apply filters
             </button>
             @if(request('category') || request('from_date') || request('to_date'))
-                <a href="{{ route('employee.tickets.index', ['status' => $status]) }}"
+                <a href="{{ route($routePrefix.'tickets.index', ['status' => $status]) }}"
                    class="btn btn-sm btn-outline-secondary w-100">
                     Clear filters
                 </a>
@@ -475,7 +476,7 @@
          acknowledge before they can close, so this stays up (not dismissible)
          for as long as any ticket is sitting in that state. --}}
     @if($counts['awaiting_requestor'] > 0)
-        <a href="{{ route('employee.tickets.index', ['status' => 'awaiting_requestor']) }}"
+        <a href="{{ route($routePrefix.'tickets.index', ['status' => 'awaiting_requestor']) }}"
            class="awaiting-banner">
             <span class="aw-icon"><i class="bi bi-exclamation-lg"></i></span>
             <span>
@@ -509,17 +510,17 @@
             @php
                 $labels = [
                     'all'                        => 'All Support Requests',
-                    'pending_acknowledgement'    => 'Pending Acknowledgement',
-                    'classification_assignment'  => 'Classification & Assignment',
+                    'submitted'                  => 'Submitted',
+                    'scheduled'                  => 'Scheduled',
                     'in_progress'                => 'In Progress',
-                    'awaiting_requestor'         => 'Awaiting Your Acknowledgment',
+                    'awaiting_requestor'         => 'Awaiting Your Confirmation',
                     'closed'                     => 'Closed',
                     'cancelled'                  => 'Cancelled',
                 ];
             @endphp
             {{ $labels[$status] ?? 'All Support Requests' }}
         </span>
-        <form method="GET" action="{{ route('employee.tickets.index') }}"
+        <form method="GET" action="{{ route($routePrefix.'tickets.index') }}"
               class="d-flex gap-2" id="searchForm">
             <input type="hidden" name="status" value="{{ $status }}">
             <div class="search-wrap">
@@ -531,7 +532,6 @@
             <select class="sort-select" name="sort" onchange="this.form.submit()">
                 <option value="newest" {{ request('sort') === 'newest' ? 'selected' : '' }}>Newest first</option>
                 <option value="oldest" {{ request('sort') === 'oldest' ? 'selected' : '' }}>Oldest first</option>
-                <option value="priority" {{ request('sort') === 'priority' ? 'selected' : '' }}>Priority</option>
             </select>
         </form>
     </div>
@@ -541,16 +541,16 @@
         @php
             $tabs = [
                 'all'                        => ['label' => 'All',                    'count' => $counts['all']],
-                'pending_acknowledgement'    => ['label' => 'Pending Acknowledgement', 'count' => $counts['pending_acknowledgement']],
-                'classification_assignment'  => ['label' => 'Classification',         'count' => $counts['classification_assignment']],
+                'submitted'                  => ['label' => 'Submitted',              'count' => $counts['submitted']],
+                'scheduled'                  => ['label' => 'Scheduled',              'count' => $counts['scheduled']],
                 'in_progress'                => ['label' => 'In Progress',            'count' => $counts['in_progress']],
-                'awaiting_requestor'         => ['label' => 'Awaiting You',           'count' => $counts['awaiting_requestor']],
+                'awaiting_requestor'         => ['label' => 'Awaiting Your Confirmation', 'count' => $counts['awaiting_requestor']],
                 'closed'                     => ['label' => 'Closed',                 'count' => $counts['closed']],
                 'cancelled'                  => ['label' => 'Cancelled',              'count' => $counts['cancelled']],
             ];
         @endphp
         @foreach($tabs as $key => $tab)
-            <a href="{{ route('employee.tickets.index', array_merge(request()->except('status'), ['status' => $key])) }}"
+            <a href="{{ route($routePrefix.'tickets.index', array_merge(request()->except('status'), ['status' => $key])) }}"
                class="tab-pill {{ $status === $key ? 'active' : '' }}">
                 {{ $tab['label'] }} ({{ $tab['count'] }})
             </a>
@@ -562,117 +562,108 @@
 
         @forelse($tickets as $ticket)
             @php
-                $statusClass = match($ticket->status) {
-                    'Open'                => 'open',
-                    'In Progress'         => 'in-progress',
-                    'Escalated'           => 'escalated',
-                    'Awaiting Requestor'  => 'awaiting-requestor',
-                    'Closed'              => 'closed',
-                    'Cancelled'           => 'cancelled',
-                    default               => ''
+                // ── Full lifecycle tracker: Submitted -> Scheduled -> In Progress ->
+                // Awaiting Your Confirmation -> Closed. Deliberately simplified — the
+                // employee side doesn't show the detailed internal workflow (see
+                // App\Support\TicketStatus for the 12 internal statuses staff work with).
+                //
+                // MUST STAY IN SYNC with App\Support\TicketTrackerStep::highestReached() —
+                // same statuses, same step numbers. Change one, change the other. The
+                // status badge on the card (below) is derived from these same phase
+                // flags, not the raw internal status, so the badge text and the
+                // tracker underneath it never disagree.
+                $isCancelled = $ticket->status === 'Cancelled';
+
+                // Mirrors TicketTrackerStep::SCHEDULED_STATUSES.
+                $isScheduledPhase = $ticket->status === 'Assigned';
+                // Mirrors TicketTrackerStep::IN_PROGRESS_STATUSES.
+                $isInProgressPhase = in_array($ticket->status, [
+                    'In Progress Service Request',
+                    'Closed Service Request',
+                    'In Progress Service Report',
+                    'Done Service Report',
+                    'Report For Review',
+                    'Approved Service Report',
+                    'Escalated',
+                ], true);
+                $isAwaitingRequestorT = $ticket->status === 'Requestor Confirmation';
+                $isClosedT = $ticket->status === 'Closed';
+
+                // Mirrors TicketTrackerStep::highestReached() — the highest step (1-5)
+                // this ticket has reached, given its current status.
+                $highestStep = match(true) {
+                    $isClosedT => 5,
+                    $isAwaitingRequestorT => 4,
+                    $isInProgressPhase => 3,
+                    $isScheduledPhase => 2,
+                    default => 1,
                 };
-                $badgeClass = match($ticket->status) {
-                    'Open'                => 'badge-open',
-                    'In Progress'         => 'badge-in-progress',
-                    'Escalated'           => 'badge-escalated',
-                    'Awaiting Requestor'  => 'badge-awaiting',
-                    'Closed'              => 'badge-closed',
-                    'Cancelled'           => 'badge-cancelled',
-                    default               => ''
+
+                // Card badge — same 5-phase vocabulary as the tracker below, not the
+                // raw internal status (e.g. never shows "Report For Review" or
+                // "Escalated" — those all read as "In Progress" here, same as they
+                // do in the tracker).
+                $badgeText = match(true) {
+                    $isCancelled => 'Cancelled',
+                    $isClosedT => 'Closed',
+                    $isAwaitingRequestorT => 'Awaiting Your Confirmation',
+                    $isInProgressPhase => 'In Progress',
+                    $isScheduledPhase => 'Scheduled',
+                    default => 'Submitted',
                 };
-                $badgeIcon = match($ticket->status) {
-                    'Open'                => '●',
-                    'In Progress'         => '⟳',
-                    'Escalated'           => '⚠',
-                    'Awaiting Requestor'  => '⏳',
-                    'Closed'              => '✓',
-                    'Cancelled'           => '✕',
-                    default               => ''
+                $statusClass = match(true) {
+                    $isCancelled => 'cancelled',
+                    $isClosedT => 'closed',
+                    $isAwaitingRequestorT => 'awaiting-requestor',
+                    $isInProgressPhase => 'in-progress',
+                    $isScheduledPhase => 'in-progress',
+                    default => 'open',
+                };
+                $badgeClass = match(true) {
+                    $isCancelled => 'badge-cancelled',
+                    $isClosedT => 'badge-closed',
+                    $isAwaitingRequestorT => 'badge-awaiting',
+                    $isInProgressPhase => 'badge-in-progress',
+                    $isScheduledPhase => 'badge-in-progress',
+                    default => 'badge-open',
+                };
+                $badgeIcon = match(true) {
+                    $isCancelled => '✕',
+                    $isClosedT => '✓',
+                    $isAwaitingRequestorT => '⏳',
+                    $isInProgressPhase => '⟳',
+                    $isScheduledPhase => '→',
+                    default => '●',
                 };
                 $initials = $ticket->assignedTo
                     ? strtoupper(substr($ticket->assignedTo->name, 0, 1)) . strtoupper(substr($ticket->assignedTo->name, strpos($ticket->assignedTo->name, ' ') + 1, 1))
                     : '—';
 
-                // ── Full lifecycle tracker: Submitted -> Acknowledged -> Classified & Assigned ->
-                // In Progress -> Done Service Support -> Preparing Service Report ->
-                // Awaiting Your Confirmation -> Closed. Collapses the many internal handoff
-                // statuses (supervisor classification, technician acknowledgement, admin
-                // validation, etc.) into the 8 phases that actually matter to the requestor.
-                $isCancelled = $ticket->status === 'Cancelled';
-                $isClosedT   = $ticket->status === 'Closed';
-                $isAwaitingRequestorT = $ticket->status === 'Awaiting Requestor';
-                // ── Split out of what used to be a single combined "Resolved" step — the
-                //    technician finishing their work (Pending Supervisor Approval) and the
-                //    supervisor finalizing the paperwork (Pending Closure) are visibly
-                //    different waits from the requestor's side, so each gets its own step.
-                $isDoneServiceSupport = $ticket->status === 'Pending Supervisor Approval';
-                $isPreparingReport    = in_array($ticket->status, ['Pending Closure', 'Resolved']);
-                $isResolvedPhase = $isDoneServiceSupport || $isPreparingReport;
-                // ── Everything from "assigned, waiting on the technician to start" through
-                //    active work — mirrors the 'in_progress' phase filter in
-                //    TicketsController@index (minus the resolved-phase tail, which gets its
-                //    own "Resolved" step below) so the "In Progress" tab and this step never
-                //    disagree about which tickets belong to this phase.
-                $isInProgressPhase = in_array($ticket->status, [
-                    'Awaiting Support Specialist Acknowledgement', 'Awaiting Start SLA',
-                    'Awaiting Admin Classification', 'Awaiting Admin Supervisor', 'Awaiting Administrator Acknowledgement',
-                    'Awaiting Administrator SLA Start', 'Awaiting Manager',
-                    'In Progress', 'Admin In Progress', 'Manager In Progress', 'Escalated', 'Pending Reclassification',
-                ]);
-                // ── Waiting on Helpdesk/Supervisor (ICT Support Specialist) to classify the
-                //    ticket and assign it to a technician — mirrors the 'classification_assignment'
-                //    phase filter in TicketsController@index so the "Classification" tab and this
-                //    step never disagree about which tickets belong to this phase.
-                $isAwaitingClassification = ($ticket->status === 'New Request' && !is_null($ticket->date_acknowledged))
-                    || in_array($ticket->status, ['L1 In Progress', 'Awaiting Supervisor']);
-                $isAcknowledged = !is_null($ticket->date_acknowledged);
+                // Steps 2-4: 'done' once passed, 'active' at the current step, '' if not
+                // reached yet. Step 5 (Closed) is terminal — it's marked 'done' the instant
+                // it's reached rather than ever showing 'active', mirroring how a ticket never
+                // "sits" at Closed the way it sits at earlier steps.
+                $stepClass = fn (int $step) => match(true) {
+                    $step === 5 => $highestStep >= 5 ? 'done' : '',
+                    $highestStep > $step => 'done',
+                    $highestStep === $step => 'active',
+                    default => '',
+                };
 
-                $tStep2 = $isAcknowledged ? 'done' : 'active'; // Acknowledged by Helpdesk
-                $tStep3 = match(true) {
-                    $isAwaitingClassification => 'active',
-                    $isInProgressPhase || $isResolvedPhase || $isAwaitingRequestorT || $isClosedT => 'done',
-                    default => ''
-                };
-                $tStep4 = match(true) {
-                    $isInProgressPhase => 'active',
-                    $isResolvedPhase || $isAwaitingRequestorT || $isClosedT => 'done',
-                    default => ''
-                };
-                $tStep5 = match(true) {
-                    $isDoneServiceSupport => 'active',
-                    $isPreparingReport || $isAwaitingRequestorT || $isClosedT => 'done',
-                    default => ''
-                };
-                $tStep6 = match(true) {
-                    $isPreparingReport => 'active',
-                    $isAwaitingRequestorT || $isClosedT => 'done',
-                    default => ''
-                };
-                // ── Ticket is resolved and needs the requestor to acknowledge it before it
-                //    can close — its own step so it's clear the ball is in the employee's
-                //    court, rather than reading as part of the "Closed" step itself.
-                $tStep7 = match(true) {
-                    $isAwaitingRequestorT => 'active',
-                    $isClosedT => 'done',
-                    default => ''
-                };
-                $tStep8 = match(true) {
-                    $isClosedT => 'done',
-                    default => ''
-                };
+                $tStep2 = $stepClass(2);
+                $tStep3 = $stepClass(3);
+                $tStep4 = $stepClass(4);
+                $tStep5 = $stepClass(5);
                 $tLine1 = $tStep2 !== '' ? 'done' : '';
                 $tLine2 = $tStep3 !== '' ? 'done' : '';
                 $tLine3 = $tStep4 !== '' ? 'done' : '';
                 $tLine4 = $tStep5 !== '' ? 'done' : '';
-                $tLine5 = $tStep6 !== '' ? 'done' : '';
-                $tLine6 = $tStep7 !== '' ? 'done' : '';
-                $tLine7 = $tStep8 !== '' ? 'done' : '';
 
                 // ── Ticket was investigated but couldn't be technically fixed — jumps
-                //    straight from Escalated to Pending Closure (never Pending Supervisor
-                //    Approval), so the failure marker belongs on "Preparing Service Report",
-                //    the step whose status it actually reaches.
-                $isUnresolved = $ticket->cannot_resolve && $tStep6 !== '';
+                //    straight from Escalated to Requestor Confirmation, so the failure
+                //    marker belongs on "In Progress", the step it passes through on its
+                //    way there.
+                $isUnresolved = $ticket->cannot_resolve && $tStep3 !== '';
             @endphp
 
             <div class="ticket-card {{ $statusClass }} p-3"
@@ -684,21 +675,9 @@
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                         <span class="ticket-id">#{{ $ticket->ticket_number }}</span>
                         <span class="badge-type">{{ $ticket->request_category }}</span>
-                        @php
-                            $priColor = match($ticket->ticket_type) {
-                                'Critical' => '#8b0000',
-                                'High'     => '#e24b4a',
-                                'Medium'   => '#f5c842',
-                                'Low'      => '#4a7c4a',
-                                default    => 'var(--tm)'
-                            };
-                        @endphp
-                        <span class="meta-item" style="color:{{ $priColor }};font-weight:700">
-                            ● {{ $ticket->ticket_type }}
-                        </span>
                     </div>
                     <span class="badge-status {{ $badgeClass }}">
-                        {{ $badgeIcon }} {{ $ticket->status }}
+                        {{ $badgeIcon }} {{ $badgeText }}
                     </span>
                 </div>
 
@@ -714,54 +693,33 @@
                             <div class="ps-dot {{ $tStep2 }}">
                                 @if($tStep2 === 'done') <i class="bi bi-check"></i> @else 2 @endif
                             </div>
-                            <div class="ps-lbl {{ $tStep2 }}">Acknowledged</div>
+                            <div class="ps-lbl {{ $tStep2 }}">Scheduled</div>
                         </div>
                         <div class="ps-line {{ $tLine2 }}"></div>
                         <div class="ps-step">
-                            <div class="ps-dot {{ $tStep3 }}">
-                                @if($tStep3 === 'done') <i class="bi bi-check"></i> @else 3 @endif
-                            </div>
-                            <div class="ps-lbl {{ $tStep3 }}">Classified &amp; Assigned</div>
+                            @if($isUnresolved)
+                                <div class="ps-dot failed"><i class="bi bi-x-lg"></i></div>
+                                <div class="ps-lbl failed">Unresolved</div>
+                            @else
+                                <div class="ps-dot {{ $tStep3 }}">
+                                    @if($tStep3 === 'done') <i class="bi bi-check"></i> @else 3 @endif
+                                </div>
+                                <div class="ps-lbl {{ $tStep3 }}">In Progress</div>
+                            @endif
                         </div>
                         <div class="ps-line {{ $tLine3 }}"></div>
                         <div class="ps-step">
                             <div class="ps-dot {{ $tStep4 }}">
                                 @if($tStep4 === 'done') <i class="bi bi-check"></i> @else 4 @endif
                             </div>
-                            <div class="ps-lbl {{ $tStep4 }}">In Progress</div>
+                            <div class="ps-lbl {{ $tStep4 }}">Awaiting Your Confirmation</div>
                         </div>
                         <div class="ps-line {{ $tLine4 }}"></div>
                         <div class="ps-step">
                             <div class="ps-dot {{ $tStep5 }}">
                                 @if($tStep5 === 'done') <i class="bi bi-check"></i> @else 5 @endif
                             </div>
-                            <div class="ps-lbl {{ $tStep5 }}">Done Service Support</div>
-                        </div>
-                        <div class="ps-line {{ $tLine5 }}"></div>
-                        <div class="ps-step">
-                            @if($isUnresolved)
-                                <div class="ps-dot failed"><i class="bi bi-x-lg"></i></div>
-                                <div class="ps-lbl failed">Unresolved</div>
-                            @else
-                                <div class="ps-dot {{ $tStep6 }}">
-                                    @if($tStep6 === 'done') <i class="bi bi-check"></i> @else 6 @endif
-                                </div>
-                                <div class="ps-lbl {{ $tStep6 }}">Preparing Service Report</div>
-                            @endif
-                        </div>
-                        <div class="ps-line {{ $tLine6 }}"></div>
-                        <div class="ps-step">
-                            <div class="ps-dot {{ $tStep7 }}">
-                                @if($tStep7 === 'done') <i class="bi bi-check"></i> @else 7 @endif
-                            </div>
-                            <div class="ps-lbl {{ $tStep7 }}">Awaiting Your Confirmation</div>
-                        </div>
-                        <div class="ps-line {{ $tLine7 }}"></div>
-                        <div class="ps-step">
-                            <div class="ps-dot {{ $tStep8 }}">
-                                @if($tStep8 === 'done') <i class="bi bi-check"></i> @else 8 @endif
-                            </div>
-                            <div class="ps-lbl {{ $tStep8 }}">Closed</div>
+                            <div class="ps-lbl {{ $tStep5 }}">Closed</div>
                         </div>
                     </div>
                 @endif
@@ -875,7 +833,7 @@
 
                 {{-- Action buttons --}}
                 <div class="d-flex gap-2 mt-3 flex-wrap">
-                    <a href="{{ route('employee.tickets.show', $ticket) }}"
+                    <a href="{{ route($routePrefix.'tickets.show', $ticket) }}"
                     class="btn-view-detail">
                         <i class="bi bi-eye me-1"></i>View Details
                     </a>
@@ -887,7 +845,7 @@
                         </button>
                     @endif
 
-                    @if($ticket->status === 'New Request' && is_null($ticket->date_acknowledged))
+                    @if($ticket->status === 'For Acknowledgment' && is_null($ticket->date_acknowledged))
                         <button class="btn-cancel-ticket"
                                 onclick="confirmCancel('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-x-circle me-1"></i>Cancel
@@ -912,8 +870,8 @@
                         </button>
                     @endif
 
-                    @if($ticket->status === 'Awaiting Requestor')
-                        <form method="POST" action="{{ route('employee.tickets.acknowledge', $ticket) }}" class="d-inline">
+                    @if($ticket->status === 'Requestor Confirmation')
+                        <form method="POST" action="{{ route($routePrefix.'tickets.acknowledge', $ticket) }}" class="d-inline">
                             @csrf
                             @method('PATCH')
                             <button type="submit" class="btn-acknowledge">
@@ -1016,6 +974,148 @@
         </div>
     @endif
 
+    {{-- Help & More Info Modal — detailed guide on how the support request
+         system works, opened from the "Help & more info" link in the topbar
+         (see resources/views/layouts/app.blade.php). --}}
+    <div class="modal fade" id="helpInfoModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">How <em>Support Requests</em> Work</h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <div class="modal-body px-4 py-4" style="max-height:70vh;overflow-y:auto">
+
+                    <p style="font-size:13px;color:var(--tm);margin-bottom:20px">
+                        Every support request you submit moves through five simple stages, from the moment you send it to the moment it's closed. Here's what each stage means and what happens behind the scenes.
+                    </p>
+
+                    {{-- Visual stage tracker — same look as the tracker on each request card --}}
+                    <div class="progress-strip" style="margin-bottom:6px">
+                        <div class="ps-step">
+                            <div class="ps-dot done"><i class="bi bi-check"></i></div>
+                            <div class="ps-lbl done">Submitted</div>
+                        </div>
+                        <div class="ps-line done"></div>
+                        <div class="ps-step">
+                            <div class="ps-dot done"><i class="bi bi-check"></i></div>
+                            <div class="ps-lbl done">Scheduled</div>
+                        </div>
+                        <div class="ps-line done"></div>
+                        <div class="ps-step">
+                            <div class="ps-dot done"><i class="bi bi-check"></i></div>
+                            <div class="ps-lbl done">In Progress</div>
+                        </div>
+                        <div class="ps-line done"></div>
+                        <div class="ps-step">
+                            <div class="ps-dot done"><i class="bi bi-check"></i></div>
+                            <div class="ps-lbl done">Awaiting Your Confirmation</div>
+                        </div>
+                        <div class="ps-line done"></div>
+                        <div class="ps-step">
+                            <div class="ps-dot done"><i class="bi bi-check"></i></div>
+                            <div class="ps-lbl done">Closed</div>
+                        </div>
+                    </div>
+                    <div style="font-size:10px;color:var(--tm);text-align:center;margin-bottom:22px">
+                        This is the exact same tracker shown on every one of your support request cards.
+                    </div>
+
+                    {{-- Stage-by-stage breakdown --}}
+                    <div style="font-size:11px;font-weight:800;color:var(--gd);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">
+                        <i class="bi bi-list-check me-1"></i>What each stage means
+                    </div>
+                    <div class="d-flex flex-column gap-3 mb-4">
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="onboard-icon"><i class="bi bi-send-check"></i></div>
+                            <div>
+                                <div style="font-weight:800;font-size:13px">1. Submitted</div>
+                                <div style="font-size:12px;color:var(--tm)">
+                                    Your request has been received. Our Helpdesk team reviews it, confirms they've got it, and works out the right category and who should handle it — a support specialist, an IT admin, or a manager, depending on the issue.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="onboard-icon"><i class="bi bi-calendar-check"></i></div>
+                            <div>
+                                <div style="font-weight:800;font-size:13px">2. Scheduled</div>
+                                <div style="font-size:12px;color:var(--tm)">
+                                    A specific IT specialist has been assigned to your request, with a planned start time based on their current workload. Work hasn't started yet, but it's on someone's queue.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="onboard-icon"><i class="bi bi-gear-fill"></i></div>
+                            <div>
+                                <div style="font-weight:800;font-size:13px">3. In Progress</div>
+                                <div style="font-size:12px;color:var(--tm)">
+                                    Your specialist is actively working on it. This stage also covers writing up the service report once the fix is done and reviewing that report — your request stays at "In Progress" through all of that, so there's nothing extra you need to do in the meantime.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="onboard-icon"><i class="bi bi-hourglass-split"></i></div>
+                            <div>
+                                <div style="font-weight:800;font-size:13px">4. Awaiting Your Confirmation</div>
+                                <div style="font-size:12px;color:var(--tm)">
+                                    The work is done and the service report has been reviewed. Now it's your turn — review what was done and confirm it from your dashboard so the request can be closed.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="onboard-icon"><i class="bi bi-check-circle-fill"></i></div>
+                            <div>
+                                <div style="font-weight:800;font-size:13px">5. Closed</div>
+                                <div style="font-size:12px;color:var(--tm)">
+                                    You've confirmed the resolution and the request is complete. It stays in your history if you ever need to look back at it.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Emails --}}
+                    <div style="font-size:11px;font-weight:800;color:var(--gd);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">
+                        <i class="bi bi-envelope me-1"></i>Emails you'll receive
+                    </div>
+                    <div class="mb-3 p-3" style="background:var(--ygl);border-radius:12px;border:1px solid var(--gl)">
+                        <div class="d-flex align-items-start gap-2 mb-2">
+                            <i class="bi bi-1-circle-fill" style="color:var(--gd);margin-top:2px"></i>
+                            <div style="font-size:12px;color:var(--gd)">
+                                <strong>Right after you submit</strong> — a confirmation that we received your request, plus an overview of what happens next.
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi bi-2-circle-fill" style="color:var(--gd);margin-top:2px"></i>
+                            <div style="font-size:12px;color:var(--gd)">
+                                <strong>When it's ready for you</strong> — once the completed service report has been reviewed, moving your request to "Awaiting Your Confirmation."
+                            </div>
+                        </div>
+                    </div>
+                    <div style="font-size:11px;color:var(--tm);margin-bottom:20px">
+                        That's it — just two emails. We keep it that way so your inbox isn't flooded; you can always check the live status anytime from this dashboard.
+                    </div>
+
+                    {{-- Tips --}}
+                    <div style="font-size:11px;font-weight:800;color:var(--gd);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">
+                        <i class="bi bi-lightbulb me-1"></i>Good to know
+                    </div>
+                    <ul style="font-size:12px;color:var(--tm);padding-left:18px;margin-bottom:0">
+                        <li class="mb-2">Use the <strong>chat</strong> on your request instead of emailing back and forth — your specialist gets notified instantly.</li>
+                        <li class="mb-2">You can <strong>cancel</strong> a request yourself only while it's still at the "Submitted" stage, before it's scheduled to a specialist.</li>
+                        <li class="mb-2">The tabs on your dashboard (Submitted, Scheduled, In Progress, Awaiting Your Confirmation, Closed) match the tracker above exactly — click any of them to filter your list.</li>
+                        <li>Once a request reaches "Awaiting Your Confirmation," it stays there until you confirm — please review and confirm promptly so it can be closed out.</li>
+                    </ul>
+
+                </div>
+                <div class="modal-footer border-top px-4 py-3">
+                    <button type="button" class="btn-submit-ticket w-100" data-bs-dismiss="modal">
+                        Got it
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Submit Ticket Modal --}}
     <div class="modal fade" id="ticketModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -1024,7 +1124,7 @@
                     <h5 class="mb-0">New <em>Support</em> Request</h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
-                <form method="POST" action="{{ route('employee.tickets.store') }}" id="ticketForm" enctype="multipart/form-data">
+                <form method="POST" action="{{ route($routePrefix.'tickets.store') }}" id="ticketForm" enctype="multipart/form-data">
                     @csrf
                     {{-- No priority/category fields here — this form has no picker for either.
                          Every self-filed ticket is created at a fixed baseline priority
@@ -1294,7 +1394,7 @@
 
                 <div style="border-top:1.5px solid var(--bd);padding:12px 16px;background:#fff">
                     <div style="font-size:10px;font-weight:800;background:var(--ygl);color:var(--gd);border-radius:4px;padding:2px 8px;display:inline-block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px">
-                        Employee
+                        {{ Auth::user()->role?->role_name ?? 'You' }}
                     </div>
                     <div class="d-flex gap-2 align-items-end">
                         <textarea id="empChatInput"
@@ -1624,7 +1724,7 @@
 
     window.openFeedbackModal = function (ticketId, ticketNumber) {
         $('#feedbackTicketRef').text('#' + ticketNumber);
-        $('#feedbackForm').attr('action', '/employee/tickets/' + ticketId + '/feedback');
+        $('#feedbackForm').attr('action', '{{ url(rtrim($routePrefix, '.') . '/tickets') }}/' + ticketId + '/feedback');
 
         // Reset stars and button
         $('input[name="rating"]').prop('checked', false);
@@ -1648,7 +1748,7 @@
         /* ── Cancel modal ── */
         window.confirmCancel = function (ticketId, ticketNumber) {
             $('#cancelTicketRef').text('#' + ticketNumber);
-            $('#cancelForm').attr('action', '{{ url("employee/tickets") }}/' + ticketId + '/cancel');
+            $('#cancelForm').attr('action', '{{ url(rtrim($routePrefix, '.') . '/tickets') }}/' + ticketId + '/cancel');
             new bootstrap.Modal('#cancelModal').show();
         };
 
@@ -1786,7 +1886,7 @@
                         showStep(3);
 
                         setTimeout(() => {
-                            window.location.href = '{{ route("employee.tickets.index") }}';
+                            window.location.href = '{{ route($routePrefix.'tickets.index') }}';
                         }, 3000);
                     },
                     error: function (xhr) {

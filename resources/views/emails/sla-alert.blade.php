@@ -26,7 +26,7 @@ It has **{{ $duration }}** remaining before the SLA deadline.
 - **Started at:** {{ $ticket->started_at?->format('M j, Y g:i A') }}
 - **SLA due:** {{ $ticket->sla_due_at?->format('M j, Y g:i A') }}
 
-<x-mail::button :url="route($ticket->status === 'Admin In Progress' ? 'supervisor.dashboard' : 'supervisor.support.dashboard')">
+<x-mail::button :url="route($ticket->assignedTo?->role?->role_name === 'IT Admin' ? 'supervisor.dashboard' : 'supervisor.support.dashboard')">
 View in Supervisor Queue
 </x-mail::button>
 

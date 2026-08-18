@@ -165,19 +165,25 @@
         @forelse($tickets as $ticket)
             @php
                 $cardClass = match($ticket->status) {
-                    'Awaiting Manager'      => 'unassigned',
-                    'Manager In Progress'   => 'in-progress',
+                    'For Acknowledgment'      => 'unassigned',
+                    'In Progress Service Request'   => 'in-progress',
+                    'In Progress Service Report' => 'in-progress',
                     'Closed'                => 'closed',
                     default                 => 'unassigned'
                 };
                 $badgeClass = match($ticket->status) {
-                    'Awaiting Manager'      => 'badge-unassigned',
-                    'Manager In Progress'   => 'badge-in-progress',
+                    'For Acknowledgment'      => 'badge-unassigned',
+                    'In Progress Service Request'   => 'badge-in-progress',
+                    'In Progress Service Report' => 'badge-in-progress',
                     default                 => ''
                 };
+                // In Progress Service Report is isolated from the underlying "actively
+                // fixing it" In Progress Service Request status (see TicketReportProgress) — real
+                // status now, not a derived label.
                 $badgeLabel = match($ticket->status) {
-                    'Awaiting Manager'      => '<i class="bi bi-inbox me-1"></i>Awaiting You',
-                    'Manager In Progress'   => '<i class="bi bi-gear-fill me-1"></i>In Progress',
+                    'For Acknowledgment'      => '<i class="bi bi-inbox me-1"></i>Awaiting You',
+                    'In Progress Service Request'   => '<i class="bi bi-gear-fill me-1"></i>In Progress',
+                    'In Progress Service Report' => '<i class="bi bi-file-earmark-text me-1"></i>Preparing Report',
                     'Closed'                => '<i class="bi bi-check-circle-fill me-1"></i>Closed',
                     default                 => '● ' . $ticket->status
                 };
@@ -262,8 +268,8 @@
                 {{-- Action buttons --}}
                 <div class="d-flex gap-2 flex-wrap">
 
-                    {{-- Awaiting Manager: Acknowledge --}}
-                    @if($ticket->status === 'Awaiting Manager')
+                    {{-- For Acknowledgment: Acknowledge --}}
+                    @if($ticket->status === 'For Acknowledgment')
                         <form method="POST" action="{{ route('executive.tickets.acknowledge', $ticket) }}">
                             @csrf
                             <button type="submit" class="btn-acknowledge">
@@ -272,11 +278,20 @@
                         </form>
                     @endif
 
-                    {{-- Manager In Progress: Resolve --}}
-                    @if($ticket->status === 'Manager In Progress')
+                    {{-- Fix is done — mark it so, separate from writing up the report. --}}
+                    @if($ticket->status === 'In Progress Service Request')
+                        <form method="POST" action="{{ route('executive.tickets.start-report', $ticket) }}">
+                            @csrf
+                            <button type="submit" class="btn-resolve">
+                                <i class="bi bi-check2 me-1"></i>Mark Fixed
+                            </button>
+                        </form>
+                    @endif
+                    {{-- Fix already marked done — now prepare & submit the service report. --}}
+                    @if($ticket->status === 'In Progress Service Report')
                         <button class="btn-resolve"
                                 onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-check-circle me-1"></i>Resolve
+                            <i class="bi bi-file-earmark-text me-1"></i>Prepare Service Report
                         </button>
                     @endif
 
@@ -326,7 +341,7 @@
                     <div class="modal-body px-4 py-4">
                         <div class="resolve-info p-3 mb-3">
                             <i class="bi bi-check-circle me-1"></i>
-                            Resolving <strong id="resolveRef"></strong> sends it to Helpdesk for closure &amp; requester notification.
+                            Resolving <strong id="resolveRef"></strong> sends it straight to the requestor for confirmation — Helpdesk is notified by email.
                         </div>
                         <label class="form-label">Resolution summary <span class="text-danger">*</span></label>
                         <textarea class="form-control" name="resolution_notes" rows="3" required

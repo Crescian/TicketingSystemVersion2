@@ -28,11 +28,13 @@ class ReclassificationRequest extends Model
         'review_notes',
         'requested_at',
         'reviewed_at',
+        'reminded_at',
     ];
 
     protected $casts = [
         'requested_at' => 'datetime',
         'reviewed_at' => 'datetime',
+        'reminded_at' => 'datetime',
     ];
 
     public function ticket()

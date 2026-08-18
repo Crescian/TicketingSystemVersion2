@@ -9,6 +9,7 @@ use App\Models\SlaCategory;
 use App\Models\TicketAttachment;
 use App\Models\TicketStatusHistories;
 use App\Models\User;
+use App\Support\TicketStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -17,11 +18,18 @@ use Illuminate\Support\Facades\Storage;
 
 class TicketsController extends Controller
 {
-    // Roles the employee "Available IT" panel surfaces — just the two tiers a
-    // requester's ticket actually passes through (Helpdesk triage, then the
-    // technician who gets assigned). Same online-window mechanism as the
+    // Roles the employee "Available IT" panel surfaces — the tiers a requester's
+    // ticket can pass through (Helpdesk triage, the technician who gets assigned,
+    // or an IT Admin/Supervisor track for admin-side requests) plus the
+    // supervisors who oversee them. Same online-window mechanism as the
     // Admin/Executive presence panels (sessions.last_activity).
-    private const IT_TEAM_ROLES = ['Helpdesk', 'IT Support Specialist'];
+    private const IT_TEAM_ROLES = [
+        'Helpdesk',
+        'IT Support Specialist',
+        'Supervisor - Support Specialist',
+        'IT Admin',
+        'Supervisor - IT Admin',
+    ];
 
     private const ONLINE_WINDOW_MINUTES = 5;
 
@@ -37,7 +45,7 @@ class TicketsController extends Controller
     // Not-yet-started statuses a ticket passes through once a specialist is assigned —
     // matches App\Services\TicketScheduler's own NOT_STARTED_STATUSES, duplicated here
     // since that constant is private to the scheduler.
-    private const QUEUED_STATUSES = ['Awaiting Support Specialist Acknowledgement', 'Awaiting Start SLA'];
+    private const QUEUED_STATUSES = [TicketStatus::ASSIGNED];
 
     // A soft, employee-facing ETA for when a specialist will actually start on this
     // ticket — deliberately fuzzy (rounded hour today, day name if further out) rather
@@ -47,11 +55,11 @@ class TicketsController extends Controller
     // read as a broken promise even though the system behaved correctly.
     private function expectedStartLabel(Tickets $ticket): ?string
     {
-        if (in_array($ticket->status, ['New Request', 'L1 In Progress', 'Awaiting Supervisor'], true)) {
+        if (in_array($ticket->status, [TicketStatus::FOR_ACKNOWLEDGMENT, TicketStatus::FOR_CLASSIFICATION, TicketStatus::CLASSIFIED], true)) {
             return 'Awaiting assignment';
         }
 
-        if ($ticket->status === 'In Progress') {
+        if ($ticket->status === TicketStatus::IN_PROGRESS_SERVICE_REQUEST) {
             return 'Being worked on now';
         }
 
@@ -94,10 +102,20 @@ class TicketsController extends Controller
             ->values();
     }
 
+    // Named-route prefix for the requestor-facing views (dashboard.employee,
+    // employee.ticket-detail) — 'employee.' for the Employee role's own routes,
+    // 'my-requests.' for every other role's self-service ticket routes. Lets
+    // one set of views serve both without hardcoding either route namespace.
+    private function requestRoutePrefix(): string
+    {
+        return Auth::user()->hasRole('Employee') ? 'employee.' : 'my-requests.';
+    }
+
     // Dashboard + ticket list
     public function index(Request $request)
     {
         $user = Auth::user();
+        $routePrefix = $this->requestRoutePrefix();
         $status = $request->get('status', 'all');
         $search = $request->get('search', '');
         $sort = $request->get('sort', 'newest');
@@ -120,35 +138,38 @@ class TicketsController extends Controller
         $query = Tickets::with(['assignedTo', 'feedback', 'unreadMessages', 'slaCategory'])
             ->where('users_id', $user->id);
 
-        // ── Phase filters — grouped the same way the progress bar on the ticket
-        //    card groups statuses, so a tab and the strip never disagree about
-        //    where a ticket sits. (Previously 'open' matched the literal status
-        //    'Open', which no controller ever sets — so it was always empty.)
+        // ── Phase filters — same 5-phase vocabulary as the simplified tracker on
+        //    the ticket card (App\Support\TicketTrackerStep: Submitted -> Scheduled
+        //    -> In Progress -> Awaiting Your Confirmation -> Closed), so a tab and
+        //    the tracker never disagree about where a ticket sits. The employee
+        //    side doesn't surface the detailed internal workflow (acknowledged vs.
+        //    classified vs. assigned), so those no longer get separate tabs.
         $phaseFilters = [
-            'pending_acknowledgement' => function ($q) {
-                $q->where('status', 'New Request')->whereNull('date_acknowledged');
+            'submitted' => function ($q) {
+                $q->whereIn('status', [
+                    TicketStatus::FOR_ACKNOWLEDGMENT,
+                    TicketStatus::FOR_CLASSIFICATION,
+                    TicketStatus::CLASSIFIED,
+                ]);
             },
-            'classification_assignment' => function ($q) {
-                $q->where(function ($q2) {
-                    $q2->where('status', 'New Request')->whereNotNull('date_acknowledged');
-                })->orWhereIn('status', ['L1 In Progress', 'Awaiting Supervisor']);
+            'scheduled' => function ($q) {
+                $q->where('status', TicketStatus::ASSIGNED);
             },
             'in_progress' => function ($q) {
                 $q->whereIn('status', [
-                    'Awaiting Support Specialist Acknowledgement', 'Awaiting Start SLA', 'In Progress', 'Escalated',
-                    'Admin In Progress', 'Manager In Progress', 'Awaiting Admin Classification', 'Awaiting Admin Supervisor',
-                    'Awaiting Administrator Acknowledgement', 'Awaiting Administrator SLA Start', 'Awaiting Manager',
-                    'Pending Supervisor Approval', 'Pending Closure', 'Pending Reclassification', 'Resolved',
+                    TicketStatus::IN_PROGRESS_SERVICE_REQUEST, TicketStatus::CLOSED_SERVICE_REQUEST,
+                    TicketStatus::IN_PROGRESS_SERVICE_REPORT, TicketStatus::DONE_SERVICE_REPORT,
+                    TicketStatus::REPORT_FOR_REVIEW, TicketStatus::APPROVED_SERVICE_REPORT, TicketStatus::ESCALATED,
                 ]);
             },
             'awaiting_requestor' => function ($q) {
-                $q->where('status', 'Awaiting Requestor');
+                $q->where('status', TicketStatus::REQUESTOR_CONFIRMATION);
             },
             'closed' => function ($q) {
-                $q->where('status', 'Closed');
+                $q->where('status', TicketStatus::CLOSED);
             },
             'cancelled' => function ($q) {
-                $q->where('status', 'Cancelled');
+                $q->where('status', TicketStatus::CANCELLED);
             },
         ];
 
@@ -224,7 +245,9 @@ class TicketsController extends Controller
         ])->values()->toArray();
 
         $itTeam = $this->itTeamStatus();
-        $showOnboarding = is_null($user->onboarded_at);
+        // ── Onboarding tour is Employee-only — staff roles filing their own
+        //    request already know the system from their day job.
+        $showOnboarding = $routePrefix === 'employee.' && is_null($user->onboarded_at);
 
         return view('dashboard.employee', compact(
             'tickets',
@@ -236,7 +259,8 @@ class TicketsController extends Controller
             'slaCategoriesJson',
             'requestor',
             'itTeam',
-            'showOnboarding'
+            'showOnboarding',
+            'routePrefix'
         ));
     }
 
@@ -259,8 +283,9 @@ class TicketsController extends Controller
 
         $ticket->load(['assignedTo', 'statusHistories.changedBy', 'feedback', 'attachments', 'slaCategory']);
         $ticket->expected_start_label = $this->expectedStartLabel($ticket);
+        $routePrefix = $this->requestRoutePrefix();
 
-        return view('employee.ticket-detail', compact('ticket'));
+        return view('employee.ticket-detail', compact('ticket', 'routePrefix'));
     }
 
     // Download a ticket attachment — owner or any non-Employee (staff) role can access.
@@ -351,7 +376,8 @@ class TicketsController extends Controller
             'request_details'   => $request->request_details,
             'asset'             => $request->asset,
             'location'          => $request->location,
-            'status'            => 'New Request',
+            'status'            => TicketStatus::FOR_ACKNOWLEDGMENT,
+            'pending_role'      => TicketStatus::QUEUE_HELPDESK,
             'escalation_level'  => 0,
 
             // ── Requestor context — auto-filled, not user-entered when self-filed.
@@ -390,7 +416,7 @@ class TicketsController extends Controller
         TicketStatusHistories::create([
             'ticket_id'  => $ticket->id,
             'old_status' => null,
-            'new_status' => 'New Request',
+            'new_status' => TicketStatus::FOR_ACKNOWLEDGMENT,
             'changed_by' => Auth::id(),
             'notes'      => $isHelpdeskFiling
                 ? 'Ticket filed by Helpdesk on behalf of employee.'
@@ -420,7 +446,7 @@ class TicketsController extends Controller
         }
 
         return redirect()
-            ->route('employee.tickets.index')
+            ->route($this->requestRoutePrefix() . 'tickets.index')
             ->with('new_ticket_number', $ticket->ticket_number)
             ->with('success', "Ticket #{$ticket->ticket_number} submitted successfully!");
     }
@@ -432,18 +458,20 @@ class TicketsController extends Controller
             abort(403);
         }
 
-        if ($ticket->status !== 'New Request' || !is_null($ticket->date_acknowledged)) {
+        if ($ticket->status !== TicketStatus::FOR_ACKNOWLEDGMENT
+            || $ticket->pending_role !== TicketStatus::QUEUE_HELPDESK
+            || !is_null($ticket->date_acknowledged)) {
             return back()->with('error', 'This ticket can no longer be cancelled — it has already been acknowledged by Helpdesk.');
         }
 
         $oldStatus = $ticket->status;
 
-        $ticket->update(['status' => 'Cancelled']);
+        $ticket->update(['status' => TicketStatus::CANCELLED]);
 
         TicketStatusHistories::create([
             'ticket_id'  => $ticket->id,
             'old_status' => $oldStatus,
-            'new_status' => 'Cancelled',
+            'new_status' => TicketStatus::CANCELLED,
             'changed_by' => Auth::id(),
             'notes'      => 'Cancelled by employee.',
             'changed_at' => now(),
@@ -459,21 +487,21 @@ class TicketsController extends Controller
             abort(403);
         }
 
-        if ($ticket->status !== 'Awaiting Requestor') {
+        if ($ticket->status !== TicketStatus::REQUESTOR_CONFIRMATION) {
             return back()->with('error', 'This ticket is not currently awaiting your acknowledgment.');
         }
 
         $oldStatus = $ticket->status;
 
         $ticket->update([
-            'status'      => 'Closed',
+            'status'      => TicketStatus::CLOSED,
             'resolved_at' => $ticket->resolved_at ?? now(),
         ]);
 
         TicketStatusHistories::create([
             'ticket_id'  => $ticket->id,
             'old_status' => $oldStatus,
-            'new_status' => 'Closed',
+            'new_status' => TicketStatus::CLOSED,
             'changed_by' => Auth::id(),
             'notes'      => 'Requestor acknowledged resolution — ticket closed.',
             'changed_at' => now(),

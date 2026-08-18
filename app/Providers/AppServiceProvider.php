@@ -2,9 +2,13 @@
 
 namespace App\Providers;
 
+use App\Mail\Transport\InternalApiTransport;
+use App\Models\Tickets;
+use App\Observers\TicketObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use SocialiteProviders\Azure\AzureExtendSocialite;
@@ -26,6 +30,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Event::listen(SocialiteWasCalled::class, AzureExtendSocialite::class);
+
+        Mail::extend('internal-api', function (array $config) {
+            return new InternalApiTransport($config['service_url'], $config['key']);
+        });
+
+        Tickets::observe(TicketObserver::class);
 
         // New-ticket filing: generous enough for Helpdesk filing several tickets in a
         // row on behalf of employees, tight enough to stop a runaway client/bug.

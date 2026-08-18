@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendTicketChatDigest;
 use App\Models\Tickets;
 use App\Models\TicketMessage;
 use App\Models\User;
@@ -78,6 +79,12 @@ class MessageController extends Controller
             'created_at' => now(),
         ]);
 
+        // Only staff replies need to notify the employee by email — the
+        // employee already knows what they themselves just typed.
+        if ($ticket->users_id !== $msg->sender_id) {
+            SendTicketChatDigest::scheduleIfNeeded($ticket);
+        }
+
         $msg->load('sender.role');
 
         $nameParts = explode(' ', $msg->sender->name);
@@ -134,13 +141,17 @@ class MessageController extends Controller
         $user = Auth::user();
         $roleName = $user->role?->role_name;
 
-        $canAccess = match ($roleName) {
+        // ── The requestor always has access to their own ticket's chat, even
+        //    when the requestor is ICT staff (e.g. a Technician's self-filed
+        //    ticket won't be assigned to themselves, so the staff-role checks
+        //    below wouldn't otherwise cover it).
+        $canAccess = $ticket->users_id === $user->id || match ($roleName) {
             'IT Admin' => true, // Admin can see all
-            'Employee' => $ticket->users_id === $user->id,
             'Helpdesk' => true, // Helpdesk sees all tickets
             'IT Support Specialist' => $ticket->assigned_to === $user->id,
             'Supervisor - Support Specialist' => true,
-            'Executive' => true,
+            'Supervisor - IT Admin' => true,
+            'Manager' => true,
             default => false,
         };
 

@@ -3,11 +3,13 @@
 namespace App\Mail;
 
 use App\Models\Tickets;
+use App\Support\TicketMailThread;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
 
 class TicketAssignedMail extends Mailable implements ShouldQueue
@@ -30,7 +32,17 @@ class TicketAssignedMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: "Action Needed — Ticket #{$this->ticket->ticket_number}",
+            subject: "Ticket #{$this->ticket->ticket_number} — Action Needed",
+        );
+    }
+
+    public function headers(): Headers
+    {
+        $root = TicketMailThread::rootMessageId($this->ticket);
+
+        return new Headers(
+            references: [$root],
+            text: ['In-Reply-To' => "<{$root}>"],
         );
     }
 

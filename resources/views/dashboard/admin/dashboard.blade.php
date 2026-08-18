@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Supervisor Dashboard — LGICT')
+@section('title', ($counts['awaiting_administrator_ack'] > 0 ? 'For IT Admin Acknowledgment (' . $counts['awaiting_administrator_ack'] . ') — ' : '') . 'Supervisor Dashboard — LGICT')
 
 @section('nav-role-badge')
     <span class="role-badge"><i class="bi bi-headset me-1"></i>Supervisor</span>
@@ -23,29 +23,25 @@
 
 @section('hero-stats')
     <div class="d-flex gap-2 flex-wrap">
-        <div class="stat-pill danger">
-            <span class="num">{{ $counts['awaiting_admin_supervisor'] }}</span>
-            <span class="lbl">Awaiting Admin Supervisor</span>
-        </div>
         <div class="stat-pill warn">
             <span class="num">{{ $counts['awaiting_admin_classification'] }}</span>
-            <span class="lbl">Awaiting Classification</span>
+            <span class="lbl">For Classification</span>
         </div>
         <div class="stat-pill warn">
             <span class="num">{{ $counts['awaiting_administrator_ack'] }}</span>
-            <span class="lbl">Awaiting Admin Ack.</span>
+            <span class="lbl">For IT Admin Ack.</span>
         </div>
         <div class="stat-pill">
             <span class="num">{{ $counts['awaiting_administrator_sla_start'] }}</span>
-            <span class="lbl">Awaiting SLA Start</span>
+            <span class="lbl">Start IT Admin Request</span>
         </div>
         <div class="stat-pill">
             <span class="num">{{ $counts['admin_in_progress'] }}</span>
-            <span class="lbl">Admin In Progress</span>
+            <span class="lbl">In Progress Service Request</span>
         </div>
-        <div class="stat-pill">
+        <div class="stat-pill info">
             <span class="num">{{ $counts['pending_admin_supervisor_approval'] }}</span>
-            <span class="lbl">Pending Admin Supervisor Approval</span>
+            <span class="lbl">Report For Review</span>
         </div>
         <div class="stat-pill">
             <span class="num">{{ $counts['closed'] }}</span>
@@ -55,6 +51,33 @@
 @endsection
 
 @section('styles')
+
+    /* ── Report-for-review attention banner ── */
+    .awaiting-banner {
+        display: flex; align-items: center; gap: 14px;
+        background: linear-gradient(135deg, #ff9f43, #ff7a1a);
+        border-radius: 14px; padding: 14px 20px; margin-bottom: 16px;
+        box-shadow: 0 4px 14px rgba(255, 122, 26, .35);
+        color: #fff; text-decoration: none;
+        animation: awaitingPulse 2.2s ease-in-out infinite;
+    }
+    .awaiting-banner:hover { color: #fff; filter: brightness(1.05); }
+    .awaiting-banner .aw-icon {
+        width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+        background: rgba(255,255,255,.25);
+        display: flex; align-items: center; justify-content: center; font-size: 20px;
+    }
+    .awaiting-banner .aw-title { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 15px; }
+    .awaiting-banner .aw-sub { font-size: 12.5px; opacity: .9; font-weight: 600; }
+    .awaiting-banner .aw-cta {
+        margin-left: auto; background: #fff; color: #ff7a1a;
+        font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 13px;
+        padding: 8px 18px; border-radius: 50px; white-space: nowrap;
+    }
+    @keyframes awaitingPulse {
+        0%, 100% { box-shadow: 0 4px 14px rgba(255, 122, 26, .35); }
+        50%      { box-shadow: 0 4px 22px rgba(255, 122, 26, .65); }
+    }
 
 
     .tech-row { padding:10px 16px; border-bottom:1px solid var(--bd); display:flex; align-items:center; gap:10px; font-size:13px; }
@@ -157,49 +180,69 @@
     <div class="sidebar-card mb-3">
         <div class="sidebar-head">Queue</div>
         <ul class="list-group sidebar-menu rounded-0">
-            <li class="list-group-item {{ $status === 'awaiting-admin-supervisor' ? 'active' : '' }}">
-                <a href="{{ route('supervisor.dashboard', ['status' => 'awaiting-admin-supervisor']) }}"
+            <li class="list-group-item {{ $status === 'active' ? 'active' : '' }}">
+                <a href="{{ route('supervisor.dashboard', ['status' => 'active']) }}"
                 class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-inbox me-2"></i>Awaiting Admin Supervisor</span>
-                    <span class="badge-count">{{ $counts['awaiting_admin_supervisor'] }}</span>
+                    <span><i class="bi bi-grid me-2"></i>Active</span>
+                    <span class="badge-count">{{ $counts['active'] }}</span>
                 </a>
             </li>
             <li class="list-group-item {{ $status === 'awaiting-admin-classification' ? 'active' : '' }}">
                 <a href="{{ route('supervisor.dashboard', ['status' => 'awaiting-admin-classification']) }}"
                 class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-tags me-2"></i>Awaiting Classification</span>
+                    <span><i class="bi bi-tags me-2"></i>For Classification</span>
                     <span class="badge-count">{{ $counts['awaiting_admin_classification'] }}</span>
                 </a>
             </li>
             <li class="list-group-item {{ $status === 'awaiting-administrator-ack' ? 'active' : '' }}">
                 <a href="{{ route('supervisor.dashboard', ['status' => 'awaiting-administrator-ack']) }}"
                 class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-person-check me-2"></i>Awaiting Administrator Ack.</span>
+                    <span><i class="bi bi-person-check me-2"></i>For IT Admin Acknowledgment</span>
                     <span class="badge-count">{{ $counts['awaiting_administrator_ack'] }}</span>
                 </a>
             </li>
             <li class="list-group-item {{ $status === 'awaiting-administrator-sla-start' ? 'active' : '' }}">
                 <a href="{{ route('supervisor.dashboard', ['status' => 'awaiting-administrator-sla-start']) }}"
                 class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-stopwatch me-2"></i>Awaiting SLA Start</span>
+                    <span><i class="bi bi-stopwatch me-2"></i>Start IT Admin Request</span>
                     <span class="badge-count">{{ $counts['awaiting_administrator_sla_start'] }}</span>
                 </a>
             </li>
             <li class="list-group-item {{ $status === 'admin-in-progress' ? 'active' : '' }}">
                 <a href="{{ route('supervisor.dashboard', ['status' => 'admin-in-progress']) }}"
                 class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-arrow-repeat me-2"></i>Admin In Progress</span>
+                    <span><i class="bi bi-arrow-repeat me-2"></i>In Progress Service Request</span>
                     <span class="badge-count">{{ $counts['admin_in_progress'] }}</span>
+                </a>
+            </li>
+            <li class="list-group-item {{ $status === 'admin-in-progress-report' ? 'active' : '' }}">
+                <a href="{{ route('supervisor.dashboard', ['status' => 'admin-in-progress-report']) }}"
+                class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-file-earmark-text me-2"></i>In Progress Service Report</span>
+                    <span class="badge-count">{{ $counts['admin_in_progress_report'] }}</span>
+                </a>
+            </li>
+            <li class="list-group-item {{ $status === 'pending-reclassification' ? 'active' : '' }}">
+                <a href="{{ route('supervisor.dashboard', ['status' => 'pending-reclassification']) }}"
+                class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-arrow-repeat me-2"></i>For Reclassification</span>
+                    <span class="badge-count">{{ $counts['pending_admin_reclassification'] }}</span>
                 </a>
             </li>
             <li class="list-group-item {{ $status === 'pending-admin-supervisor-approval' ? 'active' : '' }}">
                 <a href="{{ route('supervisor.dashboard', ['status' => 'pending-admin-supervisor-approval']) }}"
                 class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-arrow-repeat me-2"></i>Pending Admin Supervisor Approval</span>
+                    <span><i class="bi bi-arrow-repeat me-2"></i>Report For Review</span>
                     <span class="badge-count">{{ $counts['pending_admin_supervisor_approval'] }}</span>
                 </a>
             </li>
-            
+            <li class="list-group-item {{ $status === 'awaiting-requestor' ? 'active' : '' }}">
+                <a href="{{ route('supervisor.dashboard', ['status' => 'awaiting-requestor']) }}"
+                class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-person-check me-2"></i>Requestor Confirmation</span>
+                    <span class="badge-count">{{ $counts['awaiting_requestor'] }}</span>
+                </a>
+            </li>
             <li class="list-group-item {{ $status === 'closed' ? 'active' : '' }}">
                 <a href="{{ route('supervisor.dashboard', ['status' => 'closed']) }}"
                 class="d-flex justify-content-between align-items-center text-decoration-none">
@@ -210,34 +253,47 @@
         </ul>
     </div>
 
-    {{-- IT Support Specialists availability --}}
+    {{-- Work Hours Calendar --}}
+    <div class="sidebar-card mb-3">
+        <ul class="list-group sidebar-menu rounded-0">
+            <li class="list-group-item">
+                <a href="{{ route('supervisor.calendar') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                    <i class="bi bi-calendar3-week me-1"></i>Work Hours Calendar
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    {{-- IT team availability — everyone a ticket could pass through (Helpdesk,
+         IT Support Specialist, IT Admin, and their Supervisors), not just IT
+         Admin. Presence-based (online in the last 5 min) since Helpdesk/
+         Technician don't share a ticket-count gauge with the Admin track. --}}
     <div class="sidebar-card">
-        <div class="sidebar-head">IT Support Specialists</div>
+        <div class="sidebar-head">IT Team Availability</div>
         <div>
-            @forelse($technicians as $tech)
+            @forelse($itTeamAvailability as $member)
                 @php
-                    $initials = strtoupper(substr($tech->name, 0, 1)) .
-                                strtoupper(substr($tech->name, strpos($tech->name, ' ') + 1, 1));
+                    $initials = strtoupper(substr($member->name, 0, 1)) .
+                                strtoupper(substr($member->name, strpos($member->name, ' ') + 1, 1));
                 @endphp
                 <div class="tech-row">
                     <div class="tech-av-lg">{{ $initials }}</div>
                     <div>
-                        <div class="tech-name">{{ $tech->name }}</div>
-                        <div class="tech-load">{{ $tech->active_tickets }} active support request{{ $tech->active_tickets !== 1 ? 's' : '' }}</div>
+                        <div class="tech-name">{{ $member->name }}</div>
+                        <div class="tech-load">{{ $member->role?->role_name }} — {{ $member->online ? 'Online' : 'Offline' }}</div>
                     </div>
-                    <div class="avail-dot {{ $tech->availability }}"
-                         title="{{ ucfirst($tech->availability) }}"></div>
+                    <div class="avail-dot {{ $member->online ? 'free' : 'full' }}"
+                         title="{{ $member->online ? 'Online' : 'Offline' }}"></div>
                 </div>
             @empty
                 <div class="p-3" style="font-size:13px;color:var(--tm)">
-                    No technicians found.
+                    No IT staff on record.
                 </div>
             @endforelse
         </div>
         <div class="p-2 px-3" style="font-size:11px;color:var(--tm);border-top:1px solid var(--bd)">
-            <span class="me-3"><span class="avail-dot free d-inline-block me-1"></span>Available</span>
-            <span class="me-3"><span class="avail-dot busy d-inline-block me-1"></span>Busy</span>
-            <span><span class="avail-dot full d-inline-block me-1"></span>Full</span>
+            <span class="me-3"><span class="avail-dot free d-inline-block me-1"></span>Online</span>
+            <span><span class="avail-dot full d-inline-block me-1"></span>Offline</span>
         </div>
     </div>
 
@@ -245,6 +301,54 @@
 
 {{-- ══ MAIN CONTENT ══ --}}
 @section('content')
+
+    {{-- Attention banners — these queues need the supervisor's own action
+         before a request can move forward, so each stays up (not dismissible)
+         for as long as any ticket is sitting in that state. --}}
+    @if($counts['awaiting_admin_classification'] > 0)
+        <a href="{{ route('supervisor.dashboard', ['status' => 'awaiting-admin-classification']) }}"
+           class="awaiting-banner">
+            <span class="aw-icon"><i class="bi bi-tags"></i></span>
+            <span>
+                <div class="aw-title">
+                    {{ $counts['awaiting_admin_classification'] }}
+                    {{ Str::plural('support request', $counts['awaiting_admin_classification']) }} awaiting classification
+                </div>
+                <div class="aw-sub">Classify {{ $counts['awaiting_admin_classification'] === 1 ? 'it' : 'them' }} so it can be scheduled and assigned.</div>
+            </span>
+            <span class="aw-cta">Classify Now <i class="bi bi-arrow-right ms-1"></i></span>
+        </a>
+    @endif
+
+    @if($counts['pending_admin_reclassification'] > 0)
+        <a href="{{ route('supervisor.dashboard', ['status' => 'pending-reclassification']) }}"
+           class="awaiting-banner">
+            <span class="aw-icon"><i class="bi bi-arrow-repeat"></i></span>
+            <span>
+                <div class="aw-title">
+                    {{ $counts['pending_admin_reclassification'] }}
+                    {{ Str::plural('reclassification request', $counts['pending_admin_reclassification']) }} awaiting your decision
+                </div>
+                <div class="aw-sub">Review the admin's reclassification request so we can move {{ $counts['pending_admin_reclassification'] === 1 ? 'it' : 'them' }} forward.</div>
+            </span>
+            <span class="aw-cta">Review Now <i class="bi bi-arrow-right ms-1"></i></span>
+        </a>
+    @endif
+
+    @if($counts['pending_admin_supervisor_approval'] > 0)
+        <a href="{{ route('supervisor.dashboard', ['status' => 'pending-admin-supervisor-approval']) }}"
+           class="awaiting-banner">
+            <span class="aw-icon"><i class="bi bi-exclamation-lg"></i></span>
+            <span>
+                <div class="aw-title">
+                    {{ $counts['pending_admin_supervisor_approval'] }}
+                    {{ Str::plural('support request', $counts['pending_admin_supervisor_approval']) }} awaiting your review
+                </div>
+                <div class="aw-sub">Review the submitted report so we can close {{ $counts['pending_admin_supervisor_approval'] === 1 ? 'it' : 'them' }} out.</div>
+            </span>
+            <span class="aw-cta">Review Now <i class="bi bi-arrow-right ms-1"></i></span>
+        </a>
+    @endif
 
     {{-- Alerts --}}
     @if(session('success'))
@@ -260,17 +364,22 @@
         </div>
     @endif
 
+    @include('partials.schedule-conflict-modal')
+
     {{-- Controls --}}
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
         <span class="font-brand fw-900" style="font-size:22px">
             @php
                 $labels = [
-                    'awaiting-admin-supervisor'         => 'Awaiting Admin Supervisor',
-                    'awaiting-admin-classification'     => 'Awaiting Admin Classification',
-                    'awaiting-administrator-ack'        => 'Awaiting Administrator Acknowledgement',
-                    'awaiting-administrator-sla-start'  => 'Awaiting Administrator SLA Start',
-                    'admin-in-progress'                 => 'Admin In Progress',
-                    'pending-admin-supervisor-approval' => 'Pending Admin Supervisor Approval',
+                    'active'                             => 'Active',
+                    'awaiting-admin-classification'     => 'For Classification',
+                    'awaiting-administrator-ack'        => 'Assigned',
+                    'awaiting-administrator-sla-start'  => 'Assigned',
+                    'admin-in-progress'                 => 'In Progress Service Request',
+                    'admin-in-progress-report'          => 'In Progress Service Report',
+                    'pending-reclassification'          => 'For Reclassification',
+                    'pending-admin-supervisor-approval' => 'Report For Review',
+                    'awaiting-requestor'                => 'Requestor Confirmation',
                     'closed'                            => 'Closed',
                 ];
             @endphp
@@ -297,12 +406,15 @@
     <div class="d-flex flex-wrap gap-2 mb-3">
         @php
             $tabs = [
-                'awaiting-admin-supervisor'        => ['label' => 'Awaiting Admin Supervisor',        'count' => $counts['awaiting_admin_supervisor']],
-                'awaiting-admin-classification'    => ['label' => 'Awaiting Admin Classification',    'count' => $counts['awaiting_admin_classification']],
-                'awaiting-administrator-ack'       => ['label' => 'Awaiting Administrator Ack.',      'count' => $counts['awaiting_administrator_ack']],
-                'awaiting-administrator-sla-start' => ['label' => 'Awaiting SLA Start',               'count' => $counts['awaiting_administrator_sla_start']],
-                'admin-in-progress'                => ['label' => 'Admin In Progress',                'count' => $counts['admin_in_progress']],
-                'pending-admin-supervisor-approval'=> ['label' => 'Pending Admin Supervisor Approval','count' => $counts['pending_admin_supervisor_approval']],
+                'active'                            => ['label' => 'Active',                            'count' => $counts['active']],
+                'awaiting-admin-classification'    => ['label' => 'For Classification',    'count' => $counts['awaiting_admin_classification']],
+                'awaiting-administrator-ack'       => ['label' => 'For IT Admin Acknowledgment',      'count' => $counts['awaiting_administrator_ack']],
+                'awaiting-administrator-sla-start' => ['label' => 'Start IT Admin Request',               'count' => $counts['awaiting_administrator_sla_start']],
+                'admin-in-progress'                => ['label' => 'In Progress Service Request',                'count' => $counts['admin_in_progress']],
+                'admin-in-progress-report'         => ['label' => 'In Progress Service Report',         'count' => $counts['admin_in_progress_report']],
+                'pending-reclassification'         => ['label' => 'For Reclassification',         'count' => $counts['pending_admin_reclassification']],
+                'pending-admin-supervisor-approval'=> ['label' => 'Report For Review','count' => $counts['pending_admin_supervisor_approval']],
+                'awaiting-requestor'               => ['label' => 'Requestor Confirmation',               'count' => $counts['awaiting_requestor']],
                 'closed'                           => ['label' => 'Closed',                           'count' => $counts['closed']],
             ];
         @endphp
@@ -318,42 +430,68 @@
     <div class="d-flex flex-column gap-3" id="ticketList">
         @forelse($tickets as $ticket)
             @php
-                $isUnassigned = $ticket->status === 'Awaiting Admin Supervisor' && !$ticket->assigned_to;
+                // Mirrors SupervisorDashboardController@index's $counts query split:
+                // 'awaiting_admin_supervisor' = escalated up to this queue, not yet
+                // acknowledged (status Escalated, pending_role IT Admin, unassigned);
+                // 'awaiting_admin_classification' = acknowledged (or routed straight in for
+                // an Admin-only subcategory) and ready to classify & assign (status For
+                // Acknowledgment, pending_role IT Admin). Both used to be distinct status
+                // strings; now told apart by status + pending_role instead.
+                $isUnassigned = $ticket->status === 'Escalated'
+                    && $ticket->pending_role === 'Supervisor - IT Admin'
+                    && is_null($ticket->assigned_to);
+                // Covers both a fresh admin-only ticket routed straight in by
+                // Helpdesk (already Classified — just needs assigning, though the
+                // SLA rule can still be overridden) and an escalated ticket that's
+                // been acknowledged and genuinely still needs a first
+                // classification (For Acknowledgment).
+                $isAwaitingClassification = in_array($ticket->status, ['For Acknowledgment', 'Classified'], true)
+                    && $ticket->pending_role === 'Supervisor - IT Admin'
+                    && is_null($ticket->assigned_to);
+                // 'Awaiting Administrator Acknowledgement' and 'Awaiting Administrator SLA
+                // Start' both collapsed into the single 'Assigned' status — told apart by
+                // tech_acknowledged_at (same field the Admin's own dashboard uses).
+                $isAwaitingAdminAck = $ticket->status === 'Assigned' && is_null($ticket->tech_acknowledged_at);
+                $isReadyForSlaStart = $ticket->status === 'Assigned' && !is_null($ticket->tech_acknowledged_at);
+
                 $cardClass = match(true) {
-                    $isUnassigned                                                   => 'unassigned',
-                    $ticket->status === 'Awaiting Admin Supervisor'                 => 'awaiting-admin-supervisor',
-                    $ticket->status === 'Awaiting Admin Classification'             => 'awaiting-admin-classification',
-                    $ticket->status === 'Awaiting Administrator Acknowledgement'    => 'awaiting-administrator-ack',
-                    $ticket->status === 'Awaiting Administrator SLA Start'          => 'awaiting-administrator-sla-start',
-                    $ticket->status === 'Admin In Progress'                         => 'admin-in-progress',
-                    $ticket->status === 'Pending Admin Supervisor Approval'         => 'pending-admin-supervisor-Approval',
-                    $ticket->status === 'Closed'                                    => 'closed',
-                    $ticket->status === 'Cancelled'                                 => 'cancelled',
-                    default                                                         => 'awaiting-admin-supervisor'
+                    $isUnassigned                                      => 'unassigned',
+                    $isAwaitingClassification                          => 'awaiting-admin-classification',
+                    $isAwaitingAdminAck                                => 'awaiting-administrator-ack',
+                    $isReadyForSlaStart                                => 'awaiting-administrator-sla-start',
+                    $ticket->status === 'In Progress Service Request'  => 'admin-in-progress',
+                    $ticket->status === 'In Progress Service Report'   => 'admin-in-progress-report',
+                    $ticket->status === 'Report For Review'            => 'pending-admin-supervisor-Approval',
+                    $ticket->status === 'Requestor Confirmation'       => 'awaiting-requestor',
+                    $ticket->status === 'Closed'                       => 'closed',
+                    $ticket->status === 'Cancelled'                    => 'cancelled',
+                    default                                            => 'awaiting-admin-supervisor'
                 };
                 $badgeClass = match(true) {
-                    $isUnassigned                                                   => 'badge-unassigned',
-                    $ticket->status === 'Awaiting Admin Supervisor'                 => 'badge-awaiting-admin-supervisor',
-                    $ticket->status === 'Awaiting Admin Classification'             => 'badge-awaiting-admin-classification',
-                    $ticket->status === 'Awaiting Administrator Acknowledgement'    => 'badge-awaiting-administrator-ack',
-                    $ticket->status === 'Awaiting Administrator SLA Start'          => 'badge-awaiting-administrator-sla-start',
-                    $ticket->status === 'Admin In Progress'                         => 'badge-admin-in-progress',
-                    $ticket->status === 'Pending Admin Supervisor Approval'         => 'badge-admin-in-progress',
-                    $ticket->status === 'Closed'                                    => 'badge-closed',
-                    $ticket->status === 'Cancelled'                                 => 'badge-cancelled',
-                    default                                                         => 'badge-awaiting-admin-supervisor'
+                    $isUnassigned                                      => 'badge-unassigned',
+                    $isAwaitingClassification                          => 'badge-awaiting-admin-classification',
+                    $isAwaitingAdminAck                                => 'badge-awaiting-administrator-ack',
+                    $isReadyForSlaStart                                => 'badge-awaiting-administrator-sla-start',
+                    $ticket->status === 'In Progress Service Request'  => 'badge-admin-in-progress',
+                    $ticket->status === 'In Progress Service Report'   => 'badge-admin-in-progress-report',
+                    $ticket->status === 'Report For Review'            => 'badge-admin-in-progress',
+                    $ticket->status === 'Requestor Confirmation'       => 'badge-awaiting-requestor',
+                    $ticket->status === 'Closed'                       => 'badge-closed',
+                    $ticket->status === 'Cancelled'                    => 'badge-cancelled',
+                    default                                            => 'badge-awaiting-admin-supervisor'
                 };
                 $badgeLabel = match(true) {
-                    $isUnassigned                                                   => '<i class="bi bi-inbox me-1"></i>Unassigned',
-                    $ticket->status === 'Awaiting Admin Supervisor'                 => '<i class="bi bi-hourglass-split me-1"></i>Awaiting Admin Supervisor',
-                    $ticket->status === 'Awaiting Admin Classification'             => '<i class="bi bi-tags me-1"></i>Awaiting Classification',
-                    $ticket->status === 'Awaiting Administrator Acknowledgement'    => '<i class="bi bi-person-check me-1"></i>Awaiting Ack.',
-                    $ticket->status === 'Awaiting Administrator SLA Start'          => '<i class="bi bi-stopwatch me-1"></i>Awaiting SLA Start',
-                    $ticket->status === 'Admin In Progress'                        => '<i class="bi bi-gear-fill me-1"></i>Admin In Progress',
-                    $ticket->status === 'Pending Admin Supervisor Approval'         => '<i class="bi bi-gear-fill me-1"></i>Admin In Progress',
-                    $ticket->status === 'Closed'                                    => '<i class="bi bi-check-circle-fill me-1"></i>Closed',
-                    $ticket->status === 'Cancelled'                                 => '<i class="bi bi-x-circle-fill me-1"></i>Cancelled',
-                    default                                                         => '● Awaiting Admin Supervisor'
+                    $isUnassigned                                      => '<i class="bi bi-inbox me-1"></i>For Acknowledgment',
+                    $isAwaitingClassification                          => '<i class="bi bi-tags me-1"></i>For Classification',
+                    $isAwaitingAdminAck                                => '<i class="bi bi-person-check me-1"></i>For IT Admin Ack.',
+                    $isReadyForSlaStart                                => '<i class="bi bi-stopwatch me-1"></i>Start IT Admin Request',
+                    $ticket->status === 'In Progress Service Request'  => '<i class="bi bi-gear-fill me-1"></i>In Progress Service Request',
+                    $ticket->status === 'In Progress Service Report'   => '<i class="bi bi-file-earmark-text me-1"></i>Preparing Report',
+                    $ticket->status === 'Report For Review'            => '<i class="bi bi-clock-history me-1"></i>Report For Review',
+                    $ticket->status === 'Requestor Confirmation'       => '<i class="bi bi-person-check me-1"></i>Requestor Confirmation',
+                    $ticket->status === 'Closed'                       => '<i class="bi bi-check-circle-fill me-1"></i>Closed',
+                    $ticket->status === 'Cancelled'                    => '<i class="bi bi-x-circle-fill me-1"></i>Cancelled',
+                    default                                            => '● ' . $ticket->status
                 };
                 $priorityClass = match($ticket->ticket_type) {
                     'Critical' => 'pri-critical',
@@ -418,8 +556,9 @@
                         {{ $ticket->created_at->diffForHumans() }}
                     </span>
 
-                    {{-- ── SLA Status indicator (Admin In Progress only) ── --}}
-                    @if($ticket->status === 'Admin In Progress' && $ticket->sla_due_at)
+                    {{-- ── SLA Status indicator — the resolution clock is still running
+                         while drafting the report, it only stops at Report For Review. ── --}}
+                    @if(in_array($ticket->status, ['In Progress Service Request', 'In Progress Service Report']) && $ticket->sla_due_at)
                         @php
                             $slaSecondsLeft = $ticket->slaSecondsRemaining();
                             $isBreached = $slaSecondsLeft <= 0;
@@ -457,7 +596,7 @@
                 {{-- Action buttons --}}
                 <div class="d-flex gap-2 flex-wrap">
 
-                    {{-- Awaiting Admin Supervisor (unassigned): Acknowledge into the queue --}}
+                    {{-- Escalated up to this queue, unassigned: Acknowledge into the queue --}}
                     @if($isUnassigned)
                         <form method="POST" action="{{ route('supervisor.tickets.acknowledge', $ticket) }}">
                             @csrf
@@ -467,24 +606,71 @@
                         </form>
                     @endif
 
-                    {{-- Awaiting Admin Classification: classify & assign to an IT Admin --}}
-                    @if($ticket->status === 'Awaiting Admin Classification')
-                        <button class="btn-classify"
-                                onclick="openClassifyAssignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-tags me-1"></i>Classify & Assign
+                    {{-- Awaiting Classification: classify & assign to an IT Admin --}}
+                    @if($isAwaitingClassification)
+                        @if($ticket->subcategory_name)
+                            <span class="d-block w-100" style="font-size:11px;color:var(--tm);margin-bottom:2px">
+                                <i class="bi bi-tags"></i>
+                                Suggested classification: <strong>{{ $ticket->subcategory_name }}</strong> ({{ $ticket->ticket_type }})
+                            </span>
+                        @endif
+                        <button class="btn-assign"
+                                onclick="openClassifyAssignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', {{ Js::from([
+                                    'categoryId' => $ticket->sla_category_id,
+                                    'subcategoryName' => $ticket->subcategory_name,
+                                    'priority' => $ticket->ticket_type,
+                                    'response' => $ticket->response_time_minutes,
+                                    'resolution' => $ticket->resolution_time_minutes,
+                                    'workloadClassId' => $ticket->workload_class_id,
+                                ]) }})">
+                            <i class="bi bi-tags me-1"></i>{{ $ticket->subcategory_name ? 'Review & Assign' : 'Classify & Assign' }}
                         </button>
                     @endif
 
-                    {{-- Awaiting Administrator Acknowledgement: view-only, only the assigned admin can acknowledge --}}
-                    @if($ticket->status === 'Awaiting Administrator Acknowledgement')
+                    {{-- Pending Reclassification: Approve / Reject --}}
+                    @if($ticket->reclassificationRequests->contains('status', 'pending'))
+                        @php
+                            $pendingReclass = $ticket->reclassificationRequests
+                                ->where('status', 'pending')
+                                ->sortByDesc('requested_at')
+                                ->first();
+                        @endphp
+                        @if($pendingReclass)
+                            <div class="w-100 mb-2 p-2 px-3 rounded" style="background:var(--ygl);font-size:12px;color:var(--gd)">
+                                <div class="mb-1">
+                                    <i class="bi bi-person me-1"></i>
+                                    Requested by <strong>{{ $pendingReclass->requestedBy?->name ?? 'Unknown' }}</strong>
+                                </div>
+                                <div class="mb-1">
+                                    <strong>Current:</strong> {{ $pendingReclass->current_subcategory_name ?? 'Unclassified' }}
+                                    ({{ $pendingReclass->current_priority ?? 'N/A' }})
+                                    <i class="bi bi-arrow-right mx-1"></i>
+                                    <strong>Proposed:</strong> {{ $pendingReclass->proposed_subcategory_name }}
+                                    ({{ $pendingReclass->proposed_priority }})
+                                </div>
+                                <div><strong>Reason:</strong> {{ $pendingReclass->reason }}</div>
+                            </div>
+                        @endif
+                        <button class="btn-assign"
+                                onclick="openApproveReclassModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-check-lg me-1"></i>Approve
+                        </button>
+                        <button class="btn-cancel-modal"
+                                onclick="openRejectReclassModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-x-lg me-1"></i>Reject
+                        </button>
+                    @endif
+
+                    {{-- Assigned, not yet acknowledged: view-only, only the assigned admin can acknowledge --}}
+                    @if($isAwaitingAdminAck)
                         <span class="resolve-info px-3 py-2">
                             <i class="bi bi-hourglass-split me-1"></i>
                             Waiting for {{ $ticket->assignedTo->name ?? 'the assigned admin' }} to acknowledge
                         </span>
                     @endif
 
-                    {{-- Awaiting Administrator SLA Start: begin work, starts the SLA clock --}}
-                    @if($ticket->status === 'Awaiting Administrator SLA Start')
+                    {{-- Assigned, acknowledged: begin work, starts the SLA clock --}}
+                    @if($isReadyForSlaStart)
                         <form method="POST" action="/supervisor/tickets/{{ $ticket->id }}/start">
                             @csrf
                             <button type="submit" class="btn-resolve">
@@ -493,8 +679,8 @@
                         </form>
                     @endif
 
-                    {{-- Admin In Progress: Reassign + Resolve --}}
-                    @if($ticket->status === 'Admin In Progress')
+                    {{-- In Progress Service Request / In Progress Service Report: Reassign + Resolve --}}
+                    @if(in_array($ticket->status, ['In Progress Service Request', 'In Progress Service Report']))
                         <button class="btn-reassign"
                                 onclick="openReassignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-arrow-left-right me-1"></i>Reassign
@@ -508,11 +694,16 @@
                             <i class="bi bi-arrow-up-circle me-1"></i>Escalate to Manager
                         </button>
                     @endif
-                {{-- Pending Supervisor Approval: Validate Resolution / Request Revision --}}
-                    @if($ticket->status === 'Pending Admin Supervisor Approval')
+                {{-- Report For Review: view the submitted PDF to check what the
+                     specialist attached, then Validate Resolution / Request Revision --}}
+                    @if($ticket->status === 'Report For Review')
+                        <button type="button" class="btn-service-report"
+                                onclick="openServiceReportPreview('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-file-earmark-pdf me-1"></i>View Service Report
+                        </button>
                         @if($ticket->validated_at)
                             <span class="resolve-info px-3 py-2">
-                                <i class="bi bi-check-circle-fill me-1"></i>Validated — awaiting Helpdesk closure
+                                <i class="bi bi-check-circle-fill me-1"></i>Validated — awaiting requestor confirmation
                             </span>
                         @else
                             <button class="btn-resolve"
@@ -594,6 +785,48 @@
                             <div class="d-flex flex-column gap-2 mb-3" id="caSubList"></div>
                         </div>
 
+                        <div id="caOverrideWrap" class="d-none mb-3">
+                            <label class="form-label mb-2">
+                                SLA & Priority
+                                <span style="font-weight:400;color:var(--tm)">(defaults from the rule above — adjust if this support request needs different targets)</span>
+                            </label>
+
+                            <div class="mb-2">
+                                <label class="form-label" style="font-size:11px">
+                                    Workload Class
+                                    <span style="font-weight:400;color:var(--tm)">(optional — overrides response/resolution time below)</span>
+                                </label>
+                                <select class="form-select form-select-sm" name="workload_class_id" id="caWorkloadClass">
+                                    <option value="">— None —</option>
+                                </select>
+                                <div id="caWorkloadManualHint" class="d-none" style="font-size:11px;color:var(--tm);font-weight:600;margin-top:4px">
+                                    <i class="bi bi-info-circle me-1"></i>This class has no fixed resolution target — enter the agreed resolution time below.
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2 flex-wrap">
+                                <div style="flex:1;min-width:110px">
+                                    <label class="form-label" style="font-size:11px">Priority</label>
+                                    <select class="form-select form-select-sm" name="priority" id="caPriority">
+                                        <option value="Critical">Critical</option>
+                                        <option value="High">High</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="Low">Low</option>
+                                    </select>
+                                </div>
+                                <div style="flex:1;min-width:130px">
+                                    <label class="form-label" style="font-size:11px">Response Time (min)</label>
+                                    <input type="number" class="form-control form-control-sm" name="response_time_minutes"
+                                           id="caResponseTime" min="5" max="43200">
+                                </div>
+                                <div style="flex:1;min-width:130px">
+                                    <label class="form-label" style="font-size:11px">Resolution Time (min)</label>
+                                    <input type="number" class="form-control form-control-sm" name="resolution_time_minutes"
+                                           id="caResolutionTime" min="5" max="43200">
+                                </div>
+                            </div>
+                        </div>
+
                         <hr style="border-color:var(--bd)">
 
                         <label class="form-label mb-2">Assign Support Specialist</label>
@@ -628,6 +861,72 @@
                     <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
                         <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn-confirm">Confirm Classification & Assignment</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Approve Reclassification modal --}}
+    <div class="modal fade" id="approveReclassModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Approve Re-classification — <em id="arTicketRef">#TKT-0000</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="approveReclassForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="mb-3 p-2 px-3 rounded" style="background:var(--ygl);font-size:13px;color:var(--gd)">
+                            The ticket's classification will be updated to the IT Admin's proposal and
+                            sent back to the classify &amp; assign queue for reassignment.
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notes (optional)</label>
+                            <textarea class="form-control" name="review_notes" rows="2"
+                                      placeholder="Any context for the record…"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm">
+                            <i class="bi bi-check-lg me-1"></i>Confirm Approval
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Reject Reclassification modal --}}
+    <div class="modal fade" id="rejectReclassModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Reject Re-classification — <em id="rrTicketRef">#TKT-0000</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="rejectReclassForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="info-box-red p-3 mb-3">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            The ticket will be returned to the requesting IT Admin unchanged.
+                        </div>
+                        <div>
+                            <label class="form-label">
+                                Reason for rejection <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" name="review_notes" rows="3" required
+                                      placeholder="Explain why this re-classification isn't correct…"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm" style="background:#8b1a1a">
+                            <i class="bi bi-x-lg me-1"></i>Confirm Rejection
+                        </button>
                     </div>
                 </form>
             </div>
@@ -738,7 +1037,7 @@
                         <div class="p-3 mb-3 rounded" style="background:#eee;color:#555;font-size:13px">
                             <i class="bi bi-arrow-counterclockwise me-1"></i>
                             Ticket <strong id="adminRevisionRef"></strong> — this sends the resolution back to the
-                            IT Admin instead of validating it. It reopens as Admin In Progress with your reason attached.
+                            IT Admin instead of validating it. It reopens as In Progress Service Request with your reason attached.
                         </div>
                         <div>
                             <label class="form-label">
@@ -1233,7 +1532,8 @@
         } else {
             cat.subs.forEach(sub => {
                 const priColor = sub.priority === 'Critical' ? '#8b0000' : (sub.priority === 'High' ? '#e24b4a' : (sub.priority === 'Medium' ? '#f5c842' : '#4a7c4a'));
-                $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}">
+                $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}" data-name="${sub.name}"
+                     data-priority="${sub.priority}" data-response="${sub.response}" data-resolution="${sub.resolution}">
                     <div class="sub-check"></div>
                     <span style="flex:1">${sub.name}</span>
                     <span style="font-size:10px;font-weight:800;color:${priColor}">${sub.priority} · ${sub.resolution}m SLA</span>
@@ -1241,21 +1541,24 @@
             });
         }
         $('#caSubWrap').removeClass('d-none');
+        $('#caOverrideWrap').addClass('d-none');
     });
 
     /* ── Dynamic SLA categories ── */
     const slaCategories = @json($slaCategoriesJson);
+    const workloadClasses = @json($workloadClassesJson);
     const subCategoryMap = {};
     slaCategories.forEach(cat => { subCategoryMap[cat.name] = cat.subs; });
 
 
     /* ── Classify & Assign modal ── */
-    window.openClassifyAssignModal = function (ticketId, ticketNumber) {
+    window.openClassifyAssignModal = function (ticketId, ticketNumber, defaults) {
         $('#caTicketRef').text('#' + ticketNumber);
         $('#classifyAssignForm').attr('action', `{{ route('supervisor.tickets.admin-classify-assign', ['ticket' => '__ID__']) }}`.replace('__ID__', ticketId))
         $('#caSlaRuleId, #caTechId').val('');
-        $('#caSubWrap').addClass('d-none');
+        $('#caSubWrap, #caOverrideWrap').addClass('d-none');
         $('#caSubList').empty();
+        $('#caResponseTime, #caResolutionTime').val('');
         $('#caCategoryList .cat-main-opt, #caTechList .tech-select-option').removeClass('selected');
 
         const $catList = $('#caCategoryList').empty();
@@ -1263,8 +1566,59 @@
             $catList.append(`<div class="cat-main-opt" data-cat-id="${cat.id}">${cat.name}</div>`);
         });
 
+        const $wcSelect = $('#caWorkloadClass').empty().append('<option value="">— None —</option>');
+        workloadClasses.forEach(wc => {
+            $wcSelect.append(
+                `<option value="${wc.id}" data-response="${wc.response_minutes}"
+                         data-resolution="${wc.resolution_minutes ?? ''}"
+                         data-manual="${wc.requires_manual_resolution ? '1' : '0'}">${wc.name}</option>`
+            );
+        });
+        $('#caWorkloadManualHint').addClass('d-none');
+
+        // Reflect the workload class Helpdesk already picked, if any — set silently
+        // (no 'change' trigger) so it doesn't clobber the response/resolution values
+        // set from defaults below, which already carry any manual customization.
+        if (defaults && defaults.workloadClassId) {
+            $wcSelect.val(defaults.workloadClassId);
+        }
+
+        // Pre-select Helpdesk's classification, if this ticket already has one — a
+        // fresh admin-only ticket routed straight in arrives already Classified, so
+        // this saves re-picking the same category/subcategory from scratch. Still
+        // fully editable — this just saves starting from blank.
+        if (defaults && defaults.categoryId) {
+            $('#caCategoryList .cat-main-opt').filter(function () {
+                return $(this).data('cat-id') === defaults.categoryId;
+            }).trigger('click');
+
+            $('#caSubList .cat-sub-opt').filter(function () {
+                return $(this).data('name') === defaults.subcategoryName;
+            }).trigger('click');
+
+            if (defaults.priority) $('#caPriority').val(defaults.priority);
+            if (defaults.response) $('#caResponseTime').val(defaults.response);
+            if (defaults.resolution) $('#caResolutionTime').val(defaults.resolution);
+        }
+
         new bootstrap.Modal('#classifyAssignModal').show();
     };
+
+    /* ── Approve / Reject Reclassification modals ── */
+    window.openApproveReclassModal = function (ticketId, ticketNumber) {
+        $('#arTicketRef').text('#' + ticketNumber);
+        $('#approveReclassForm').attr('action', '/supervisor/tickets/' + ticketId + '/approve-reclassification');
+        $('#approveReclassForm textarea[name="review_notes"]').val('');
+        new bootstrap.Modal('#approveReclassModal').show();
+    };
+
+    window.openRejectReclassModal = function (ticketId, ticketNumber) {
+        $('#rrTicketRef').text('#' + ticketNumber);
+        $('#rejectReclassForm').attr('action', '/supervisor/tickets/' + ticketId + '/reject-reclassification');
+        $('#rejectReclassForm textarea[name="review_notes"]').val('');
+        new bootstrap.Modal('#rejectReclassModal').show();
+    };
+
     $(document).on('click', '.cat-main-opt', function () {
         $('.cat-main-opt').removeClass('selected');
         $(this).addClass('selected');
@@ -1481,6 +1835,11 @@ function showStep(n) {
             const parser = new DOMParser();
             const doc    = parser.parseFromString(html, 'text/html');
 
+            const ackLink  = doc.querySelector("a[href*='status=awaiting-administrator-ack']");
+            const ackCount = ackLink ? parseInt((ackLink.querySelector('.badge-count') || {}).textContent || '0', 10) : 0;
+            document.title = ackCount > 0 ? `For IT Admin Acknowledgment (${ackCount}) — Supervisor Dashboard — LGICT` : 'Supervisor Dashboard — LGICT';
+            setFaviconBadge(ackCount);
+
             const newList = doc.getElementById('ticketList');
             const curList = document.getElementById('ticketList');
             if (newList && curList) curList.innerHTML = newList.innerHTML;
@@ -1507,6 +1866,7 @@ function showStep(n) {
         .catch(() => {});
     }
 
+    setFaviconBadge({{ $counts['awaiting_administrator_ack'] }});
     silentRefreshTimer = setInterval(silentRefresh, 30000);
     document.addEventListener('show.bs.modal',   () => { isModalOpen = true; });
     document.addEventListener('hidden.bs.modal', () => { isModalOpen = false; });
@@ -1557,6 +1917,12 @@ function showStep(n) {
         $('#caSubList .cat-sub-opt').removeClass('selected');
         $(this).addClass('selected');
         $('#caSlaRuleId').val($(this).data('rule-id'));
+
+        // Prefill the override fields with the rule's defaults — admin supervisor can still edit them.
+        $('#caPriority').val($(this).data('priority'));
+        $('#caResponseTime').val($(this).data('response'));
+        $('#caResolutionTime').val($(this).data('resolution'));
+        $('#caOverrideWrap').removeClass('d-none');
     });
 
     $(document).on('click', '#caTechList .tech-select-option:not(.disabled)', function () {
@@ -1565,9 +1931,38 @@ function showStep(n) {
         $('#caTechId').val($(this).data('tech-id'));
     });
 
+    /* ── Workload class — auto-fills response/resolution, requires manual entry
+           for classes with no fixed resolution target (Project/Planned, Vendor). ── */
+    $(document).on('change', '#caWorkloadClass', function () {
+        const $opt = $(this).find(':selected');
+        const isManual = $opt.data('manual') === 1 || $opt.data('manual') === '1';
+
+        if (!$(this).val()) {
+            $('#caWorkloadManualHint').addClass('d-none');
+            return;
+        }
+
+        $('#caResponseTime').val($opt.data('response'));
+
+        if (isManual) {
+            $('#caResolutionTime').val('').trigger('focus');
+            $('#caWorkloadManualHint').removeClass('d-none');
+        } else {
+            $('#caResolutionTime').val($opt.data('resolution'));
+            $('#caWorkloadManualHint').addClass('d-none');
+        }
+    });
+
     $('#classifyAssignForm').on('submit', function (e) {
-        if (!$('#caSlaRuleId').val()) { e.preventDefault(); alert('Please select a subcategory.'); }
-        if (!$('#caTechId').val())    { e.preventDefault(); alert('Please assign a support specialist.'); }
+        if (!$('#caSlaRuleId').val()) { e.preventDefault(); alert('Please select a subcategory.'); return; }
+        if (!$('#caTechId').val())    { e.preventDefault(); alert('Please assign a support specialist.'); return; }
+
+        const $wc = $('#caWorkloadClass').find(':selected');
+        const wcManual = $wc.data('manual') === 1 || $wc.data('manual') === '1';
+        if ($('#caWorkloadClass').val() && wcManual && !$('#caResolutionTime').val()) {
+            e.preventDefault();
+            alert(`The "${$wc.text().trim()}" workload class has no fixed resolution target — enter the agreed resolution time in minutes.`);
+        }
     });
 
 

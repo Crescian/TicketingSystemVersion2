@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Supervisor Dashboard — LGICT')
+@section('title', ($counts['awaiting_tech_ack'] > 0 ? 'For Support Specialist Acknowledgment (' . $counts['awaiting_tech_ack'] . ') — ' : '') . 'Supervisor Dashboard — LGICT')
 
 @section('nav-role-badge')
     <span class="role-badge"><i class="bi bi-person-check-fill me-1"></i>Supervisor</span>
@@ -20,24 +20,55 @@
     <div class="d-flex gap-2 flex-wrap">
         <div class="stat-pill warn">
             <span class="num">{{ $counts['awaiting_classification'] }}</span>
-            <span class="lbl">Awaiting Classification</span>
+            <span class="lbl">For Classification</span>
         </div>
         <div class="stat-pill warn">
             <span class="num">{{ $counts['in_progress'] }}</span>
-            <span class="lbl">In Progress</span>
+            <span class="lbl">In Progress Service Request</span>
+        </div>
+        <div class="stat-pill warn">
+            <span class="num">{{ $counts['in_progress_report'] }}</span>
+            <span class="lbl">In Progress Service Report</span>
         </div>
         <div class="stat-pill">
             <span class="num">{{ $counts['escalated'] }}</span>
             <span class="lbl">Escalated</span>
         </div>
-        <div class="stat-pill">
+        <div class="stat-pill info">
             <span class="num">{{ $counts['pending_supervisor_approval'] }}</span>
-            <span class="lbl">Pending Supervisor Approval</span>
+            <span class="lbl">Report For Review</span>
         </div>
     </div>
 @endsection
 
 @section('styles')
+
+    /* ── Report-for-review attention banner ── */
+    .awaiting-banner {
+        display: flex; align-items: center; gap: 14px;
+        background: linear-gradient(135deg, #ff9f43, #ff7a1a);
+        border-radius: 14px; padding: 14px 20px; margin-bottom: 16px;
+        box-shadow: 0 4px 14px rgba(255, 122, 26, .35);
+        color: #fff; text-decoration: none;
+        animation: awaitingPulse 2.2s ease-in-out infinite;
+    }
+    .awaiting-banner:hover { color: #fff; filter: brightness(1.05); }
+    .awaiting-banner .aw-icon {
+        width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+        background: rgba(255,255,255,.25);
+        display: flex; align-items: center; justify-content: center; font-size: 20px;
+    }
+    .awaiting-banner .aw-title { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 15px; }
+    .awaiting-banner .aw-sub { font-size: 12.5px; opacity: .9; font-weight: 600; }
+    .awaiting-banner .aw-cta {
+        margin-left: auto; background: #fff; color: #ff7a1a;
+        font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 13px;
+        padding: 8px 18px; border-radius: 50px; white-space: nowrap;
+    }
+    @keyframes awaitingPulse {
+        0%, 100% { box-shadow: 0 4px 14px rgba(255, 122, 26, .35); }
+        50%      { box-shadow: 0 4px 22px rgba(255, 122, 26, .65); }
+    }
 
     .tech-row { padding:10px 16px; border-bottom:1px solid var(--bd); display:flex; align-items:center; gap:10px; font-size:13px; }
     .tech-row:last-child { border-bottom:none; }
@@ -173,22 +204,29 @@
             <li class="list-group-item {{ $status === 'awaiting-classification' ? 'active' : '' }}">
                 <a href="{{ route('supervisor.support.dashboard', ['status' => 'awaiting-classification']) }}"
                    class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-tags me-2"></i>Awaiting Classification</span>
+                    <span><i class="bi bi-tags me-2"></i>For Classification</span>
                     <span class="badge-count">{{ $counts['awaiting_classification'] }}</span>
                 </a>
             </li>
             <li class="list-group-item {{ $status === 'awaiting-tech-ack' ? 'active' : '' }}">
                 <a href="{{ route('supervisor.support.dashboard', ['status' => 'awaiting-tech-ack']) }}"
                    class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-person-check me-2"></i>Awaiting Tech Acknowledgment</span>
+                    <span><i class="bi bi-person-check me-2"></i>For Support Specialist Acknowledgment</span>
                     <span class="badge-count">{{ $counts['awaiting_tech_ack'] }}</span>
                 </a>
             </li>
             <li class="list-group-item {{ $status === 'in-progress' ? 'active' : '' }}">
                 <a href="{{ route('supervisor.support.dashboard', ['status' => 'in-progress']) }}"
                    class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-arrow-repeat me-2"></i>In Progress</span>
+                    <span><i class="bi bi-arrow-repeat me-2"></i>In Progress Service Request</span>
                     <span class="badge-count">{{ $counts['in_progress'] }}</span>
+                </a>
+            </li>
+            <li class="list-group-item {{ $status === 'in-progress-report' ? 'active' : '' }}">
+                <a href="{{ route('supervisor.support.dashboard', ['status' => 'in-progress-report']) }}"
+                   class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-file-earmark-text me-2"></i>In Progress Service Report</span>
+                    <span class="badge-count">{{ $counts['in_progress_report'] }}</span>
                 </a>
             </li>
             <li class="list-group-item {{ $status === 'escalated' ? 'active' : '' }}">
@@ -201,28 +239,21 @@
             <li class="list-group-item {{ $status === 'pending-reclassification' ? 'active' : '' }}">
                 <a href="{{ route('supervisor.support.dashboard', ['status' => 'pending-reclassification']) }}"
                    class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-arrow-repeat me-2"></i>Pending Reclassification</span>
+                    <span><i class="bi bi-arrow-repeat me-2"></i>For Reclassification</span>
                     <span class="badge-count">{{ $counts['pending_reclassification'] }}</span>
                 </a>
             </li>
             <li class="list-group-item {{ $status === 'pending-supervisor-approval' ? 'active' : '' }}">
                 <a href="{{ route('supervisor.support.dashboard', ['status' => 'pending-supervisor-approval']) }}"
                    class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-clock-history me-2"></i>Pending Supervisor Approval</span>
+                    <span><i class="bi bi-clock-history me-2"></i>Report For Review</span>
                     <span class="badge-count">{{ $counts['pending_supervisor_approval'] }}</span>
-                </a>
-            </li>
-            <li class="list-group-item {{ $status === 'pending-closure' ? 'active' : '' }}">
-                <a href="{{ route('supervisor.support.dashboard', ['status' => 'pending-closure']) }}"
-                   class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-hourglass-split me-2"></i>Pending Closure</span>
-                    <span class="badge-count">{{ $counts['pending_closure'] }}</span>
                 </a>
             </li>
             <li class="list-group-item {{ $status === 'awaiting-requestor' ? 'active' : '' }}">
                 <a href="{{ route('supervisor.support.dashboard', ['status' => 'awaiting-requestor']) }}"
                    class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-person-check me-2"></i>Awaiting Requestor</span>
+                    <span><i class="bi bi-person-check me-2"></i>Requestor Confirmation</span>
                     <span class="badge-count">{{ $counts['awaiting_requestor'] }}</span>
                 </a>
             </li>
@@ -252,6 +283,16 @@
         <div class="sidebar-head"><i class="bi bi-gear me-1"></i>Settings</div>
         <ul class="list-group sidebar-menu rounded-0">
             <li class="list-group-item">
+                <a href="{{ route('portal.users.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                    <i class="bi bi-people me-1"></i>Users
+                </a>
+            </li>
+            <li class="list-group-item">
+                <a href="{{ route('portal.settings') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                    <i class="bi bi-building me-1"></i>Organization
+                </a>
+            </li>
+            <li class="list-group-item">
                 <a href="{{ route('portal.sla-rules.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
                     <i class="bi bi-stopwatch me-1"></i>SLA Rules
                 </a>
@@ -264,6 +305,11 @@
             <li class="list-group-item">
                 <a href="{{ route('portal.leaves.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
                     <i class="bi bi-calendar-minus me-1"></i>Leave
+                </a>
+            </li>
+            <li class="list-group-item">
+                <a href="{{ route('portal.audit-log') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                    <i class="bi bi-journal-text me-1"></i>Audit Log
                 </a>
             </li>
         </ul>
@@ -305,6 +351,54 @@
 {{-- ══ MAIN CONTENT ══ --}}
 @section('content')
 
+    {{-- Attention banners — these queues need the supervisor's own action
+         before a request can move forward, so each stays up (not dismissible)
+         for as long as any ticket is sitting in that state. --}}
+    @if($counts['awaiting_classification'] > 0)
+        <a href="{{ route('supervisor.support.dashboard', ['status' => 'awaiting-classification']) }}"
+           class="awaiting-banner">
+            <span class="aw-icon"><i class="bi bi-tags"></i></span>
+            <span>
+                <div class="aw-title">
+                    {{ $counts['awaiting_classification'] }}
+                    {{ Str::plural('support request', $counts['awaiting_classification']) }} awaiting classification
+                </div>
+                <div class="aw-sub">Classify {{ $counts['awaiting_classification'] === 1 ? 'it' : 'them' }} so it can be scheduled and assigned.</div>
+            </span>
+            <span class="aw-cta">Classify Now <i class="bi bi-arrow-right ms-1"></i></span>
+        </a>
+    @endif
+
+    @if($counts['pending_reclassification'] > 0)
+        <a href="{{ route('supervisor.support.dashboard', ['status' => 'pending-reclassification']) }}"
+           class="awaiting-banner">
+            <span class="aw-icon"><i class="bi bi-arrow-repeat"></i></span>
+            <span>
+                <div class="aw-title">
+                    {{ $counts['pending_reclassification'] }}
+                    {{ Str::plural('reclassification request', $counts['pending_reclassification']) }} awaiting your decision
+                </div>
+                <div class="aw-sub">Review the specialist's reclassification request so we can move {{ $counts['pending_reclassification'] === 1 ? 'it' : 'them' }} forward.</div>
+            </span>
+            <span class="aw-cta">Review Now <i class="bi bi-arrow-right ms-1"></i></span>
+        </a>
+    @endif
+
+    @if($counts['pending_supervisor_approval'] > 0)
+        <a href="{{ route('supervisor.support.dashboard', ['status' => 'pending-supervisor-approval']) }}"
+           class="awaiting-banner">
+            <span class="aw-icon"><i class="bi bi-exclamation-lg"></i></span>
+            <span>
+                <div class="aw-title">
+                    {{ $counts['pending_supervisor_approval'] }}
+                    {{ Str::plural('support request', $counts['pending_supervisor_approval']) }} awaiting your review
+                </div>
+                <div class="aw-sub">Review the submitted report so we can close {{ $counts['pending_supervisor_approval'] === 1 ? 'it' : 'them' }} out.</div>
+            </span>
+            <span class="aw-cta">Review Now <i class="bi bi-arrow-right ms-1"></i></span>
+        </a>
+    @endif
+
     {{-- Alerts --}}
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show mb-3">
@@ -327,13 +421,14 @@
             @php
                 $labels = [
                     'active' => 'Active',
-                    'awaiting-classification' => 'Awaiting Classification',
-                    'awaiting-tech-ack' => 'Awaiting Tech Acknowledgment',
-                    'in-progress' => 'In Progress', 'escalated' => 'Escalated',
-                    'pending-reclassification' => 'Pending Reclassification',
-                    'pending-supervisor-approval' => 'Pending Supervisor Approval', 'pending supervisor approval' => 'Pending Supervisor Approval',
-                    'pending-closure' => 'Pending Closure',
-                    'awaiting-requestor' => 'Awaiting Requestor',
+                    'awaiting-classification' => 'For Classification',
+                    'awaiting-tech-ack' => 'For Support Specialist Acknowledgment',
+                    'in-progress' => 'In Progress Service Request',
+                    'in-progress-report' => 'In Progress Service Report',
+                    'escalated' => 'Escalated',
+                    'pending-reclassification' => 'For Reclassification',
+                    'pending-supervisor-approval' => 'Report For Review', 'pending supervisor approval' => 'Report For Review',
+                    'awaiting-requestor' => 'Requestor Confirmation',
                     'closed' => 'Closed',
                 ];
             @endphp
@@ -361,14 +456,14 @@
         @php
             $tabs = [
                 'active'                  => ['label' => 'Active',                  'count' => $counts['active']],
-                'awaiting-classification' => ['label' => 'Awaiting Classification', 'count' => $counts['awaiting_classification']],
-                'awaiting-tech-ack'       => ['label' => 'Awaiting Tech Ack.',       'count' => $counts['awaiting_tech_ack']],
-                'in-progress'             => ['label' => 'In Progress',             'count' => $counts['in_progress']],
+                'awaiting-classification' => ['label' => 'For Classification', 'count' => $counts['awaiting_classification']],
+                'awaiting-tech-ack'       => ['label' => 'For Support Specialist Ack.',       'count' => $counts['awaiting_tech_ack']],
+                'in-progress'             => ['label' => 'In Progress Service Request',             'count' => $counts['in_progress']],
+                'in-progress-report'      => ['label' => 'In Progress Service Report',      'count' => $counts['in_progress_report']],
                 'escalated'               => ['label' => 'Escalated',               'count' => $counts['escalated']],
-                'pending-reclassification' => ['label' => 'Pending Reclassification', 'count' => $counts['pending_reclassification']],
-                'pending-supervisor-approval'         => ['label' => 'Pending Supervisor Approval',         'count' => $counts['pending_supervisor_approval']],
-                'pending-closure'         => ['label' => 'Pending Closure',         'count' => $counts['pending_closure']],
-                'awaiting-requestor'      => ['label' => 'Awaiting Requestor',      'count' => $counts['awaiting_requestor']],
+                'pending-reclassification' => ['label' => 'For Reclassification', 'count' => $counts['pending_reclassification']],
+                'pending-supervisor-approval'         => ['label' => 'Report For Review',         'count' => $counts['pending_supervisor_approval']],
+                'awaiting-requestor'      => ['label' => 'Requestor Confirmation',      'count' => $counts['awaiting_requestor']],
                 'closed'                  => ['label' => 'Closed',                  'count' => $counts['closed']],
             ];
         @endphp
@@ -385,36 +480,43 @@
 
         @forelse($tickets as $ticket)
             @php
-                // Check if Supervisor already acknowledged
-                $supervisorAcknowledged = $ticket->statusHistories
-                    ->contains(function ($history) {
-                        return str_contains(
-                            $history->notes ?? '',
-                            'Acknowledged by Supervisor'
-                        );
-                    });
+                // Helpdesk's classify() lands a ticket straight on Classified,
+                // ready for the Supervisor to assign — no separate acknowledge
+                // step for this track (unlike the Admin Supervisor queue, which
+                // also receives escalations that still need a first
+                // classification).
+                $needsAck = false;
 
-                // Show Acknowledge first
-                $needsAck =
-                    $ticket->status === 'Awaiting Supervisor'
-                    && !$supervisorAcknowledged;
-
-                // Show Classify only after Supervisor acknowledged
                 $needsClass =
-                    $ticket->status === 'Awaiting Supervisor'
-                    && $supervisorAcknowledged
+                    $ticket->status === 'Classified'
                     && !$ticket->assigned_to;
-                $isInProgress = $ticket->status === 'In Progress';
+                $isInProgress = in_array($ticket->status, ['In Progress Service Request', 'In Progress Service Report'], true);
+                // ── Isolated into two deliberate actions (see TicketReportProgress): mark
+                //    the fix done first, then separately prepare & submit the report.
+                $canMarkFixed     = $ticket->status === 'In Progress Service Request';
+                $canPrepareReport = $ticket->status === 'In Progress Service Report';
+                // ── Draft "Service Details / Action Taken" from this supervisor's own Add
+                //    Update log — same pattern as the Technician track (see technician.blade.php)
+                //    so a supervisor who took over a ticket doesn't have to retype it.
+                $progressUpdates = $ticket->statusHistories
+                    ->filter(fn($h) => $h->old_status === $h->new_status
+                        && in_array($h->old_status, ['In Progress Service Request', 'In Progress Service Report'], true))
+                    ->sortBy('changed_at');
+                $progressDraft = $progressUpdates
+                    ->map(fn($h) => '- ' . \Carbon\Carbon::parse($h->changed_at)->timezone('Asia/Manila')->format('M d, g:i A') . ': ' . $h->notes)
+                    ->implode("\n");
+                // Reclassification is tracked solely on reclassification_requests now
+                // — the ticket's own status is left untouched while one is pending.
+                $hasPendingReclassification = $ticket->reclassificationRequests->contains('status', 'pending');
 
                 $cardClass = match(true) {
                     $needsAck                          => 'unassigned',
                     $needsClass                        => 'awaiting-supervisor',
-                    $ticket->status === 'In Progress'  => 'in-progress',
+                    $isInProgress                      => 'in-progress',
                     $ticket->status === 'Escalated'    => 'escalated',
-                    $ticket->status === 'Pending Reclassification' => 'escalated',
-                    $ticket->status === 'Pending Supervisor Approval' => 'pending-supervisor-approval',
-                    $ticket->status === 'Pending Closure'  => 'pending-closure',
-                    $ticket->status === 'Awaiting Requestor' => 'awaiting-requestor',
+                    $hasPendingReclassification        => 'escalated',
+                    $ticket->status === 'Report For Review' => 'pending-supervisor-approval',
+                    $ticket->status === 'Requestor Confirmation' => 'awaiting-requestor',
                     $ticket->status === 'Closed'       => 'closed',
                     default                            => 'awaiting-supervisor'
                 };
@@ -422,13 +524,12 @@
                 $badgeClass = match(true) {
                     $needsAck                          => 'badge-unassigned',
                     $needsClass                        => 'badge-awaiting-supervisor',
-                    $ticket->status === 'Awaiting Support Specialist Acknowledgement' => 'badge-awaiting-requestor',
-                    $ticket->status === 'In Progress'  => 'badge-in-progress',
+                    $ticket->status === 'Assigned' => 'badge-awaiting-requestor',
+                    $isInProgress                      => 'badge-in-progress',
                     $ticket->status === 'Escalated'    => 'badge-escalated',
-                    $ticket->status === 'Pending Reclassification' => 'badge-escalated',
-                    $ticket->status === 'Pending Supervisor Approval' => 'badge-pending-supervisor-approval',
-                    $ticket->status === 'Pending Closure'  => 'badge-pending-closure',
-                    $ticket->status === 'Awaiting Requestor' => 'badge-awaiting-requestor',
+                    $hasPendingReclassification        => 'badge-escalated',
+                    $ticket->status === 'Report For Review' => 'badge-pending-supervisor-approval',
+                    $ticket->status === 'Requestor Confirmation' => 'badge-awaiting-requestor',
                     $ticket->status === 'Closed'       => 'badge-closed',
                     default                            => 'badge-awaiting-supervisor'
                 };
@@ -436,15 +537,20 @@
                 $badgeLabel = match(true) {
                     $needsAck                          => '<i class="bi bi-inbox me-1"></i>Needs Acknowledgment',
                     $needsClass                        => '<i class="bi bi-tags me-1"></i>Needs Classification',
-                    $ticket->status === 'Awaiting Support Specialist Acknowledgement' => '<i class="bi bi-hourglass-split me-1"></i>Awaiting Tech Acknowledgment',
-                    $ticket->status === 'In Progress'  => '<i class="bi bi-gear-fill me-1"></i>In Progress',
+                    $ticket->status === 'Assigned' => '<i class="bi bi-hourglass-split me-1"></i>For Support Specialist Acknowledgment',
+                    // In Progress Service Report is isolated from the underlying
+                    // "actively fixing it" In Progress status (see TicketReportProgress) —
+                    // lets this dashboard tell a supervisor whether a technician (or their
+                    // own take-over) is still fixing the issue or already writing it up.
+                    $ticket->status === 'In Progress Service Report'
+                        => '<i class="bi bi-file-earmark-text me-1"></i>Preparing Report',
+                    $ticket->status === 'In Progress Service Request'  => '<i class="bi bi-gear-fill me-1"></i>In Progress Service Request',
                     $ticket->status === 'Escalated'    => '<i class="bi bi-exclamation-triangle-fill me-1"></i>Escalated',
-                    $ticket->status === 'Pending Reclassification' => '<i class="bi bi-arrow-repeat me-1"></i>Pending Reclassification',
-                    $ticket->status === 'Pending Supervisor Approval' => '<i class="bi bi-clock-history me-1"></i>Pending Supervisor Approval',
-                    $ticket->status === 'Pending Closure'  => '<i class="bi bi-hourglass-split me-1"></i>Pending Closure',
-                    $ticket->status === 'Awaiting Requestor' => '<i class="bi bi-person-check me-1"></i>Awaiting Requestor',
+                    $hasPendingReclassification => '<i class="bi bi-arrow-repeat me-1"></i>For Reclassification',
+                    $ticket->status === 'Report For Review' => '<i class="bi bi-clock-history me-1"></i>Report For Review',
+                    $ticket->status === 'Requestor Confirmation' => '<i class="bi bi-person-check me-1"></i>Requestor Confirmation',
                     $ticket->status === 'Closed'       => '<i class="bi bi-check-circle-fill me-1"></i>Closed',
-                    default                            => '● Awaiting Supervisor'
+                    default                            => '● For Acknowledgment'
                 };
 
                 $priorityClass = match($ticket->ticket_type) {
@@ -531,8 +637,9 @@
                         {{ $ticket->created_at->diffForHumans() }}
                     </span>
 
-                    {{-- SLA Status indicator (In Progress only) --}}
-                    @if($ticket->status === 'In Progress' && $ticket->sla_due_at)
+                    {{-- SLA Status indicator — the resolution clock is still running while
+                         drafting the report, it only stops at Report For Review. --}}
+                    @if($isInProgress && $ticket->sla_due_at)
                         @php
                             $slaSecondsLeft = $ticket->slaSecondsRemaining();
                             $isBreached = $slaSecondsLeft <= 0;
@@ -640,7 +747,7 @@
                     @endif
 
                     {{-- Pending Reclassification: Approve / Reject --}}
-                    @if($ticket->status === 'Pending Reclassification')
+                    @if($ticket->reclassificationRequests->contains('status', 'pending'))
                         @php
                             $pendingReclass = $ticket->reclassificationRequests
                                 ->where('status', 'pending')
@@ -673,16 +780,27 @@
                         </button>
                     @endif
 
-                    {{-- In Progress: Update + Resolve + Escalate + Message --}}
+                    {{-- In Progress: Update + Mark Fixed/Prepare Report + Escalate + Message --}}
                     @if($isInProgress)
                         <button class="btn-update"
                                 onclick="openUpdateModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-pencil me-1"></i>Add Update
                         </button>
-                        <button class="btn-resolve-t"
-                                onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-check-circle me-1"></i>Mark Resolved
-                        </button>
+                        @if($canMarkFixed)
+                            <form method="POST" action="{{ route('supervisor.support.tickets.start-report', $ticket) }}">
+                                @csrf
+                                <button type="submit" class="btn-resolve-t">
+                                    <i class="bi bi-check2 me-1"></i>Mark Fixed
+                                </button>
+                            </form>
+                        @endif
+                        @if($canPrepareReport)
+                            <button class="btn-resolve-t"
+                                    data-progress-draft="{{ $progressDraft }}"
+                                    onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', '{{ $ticket->started_at?->toIso8601String() }}', this.dataset.progressDraft)">
+                                <i class="bi bi-file-earmark-text me-1"></i>Prepare Service Report
+                            </button>
+                        @endif
                         <button class="btn-escalate-t"
                                 onclick="openEscModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-exclamation-triangle me-1"></i>Escalate
@@ -700,24 +818,26 @@
                                 <i class="bi bi-person-check me-1"></i>Take Over
                             </button>
                         </form>
-                        <form method="POST" action="{{ route('supervisor.support.tickets.escalate-admin', $ticket) }}"
-                            onsubmit="return confirm('Escalate ticket #{{ $ticket->ticket_number }} to Supervisor - IT Admin?');">
-                            @csrf
-                            <button type="submit" class="btn-escalate-admin">
-                                <i class="bi bi-shield-exclamation me-1"></i>Escalate to Admin
-                            </button>
-                        </form>
+                        <button type="button" class="btn-escalate-admin"
+                                onclick="openEscModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-shield-exclamation me-1"></i>Escalate
+                        </button>
                         <button class="btn-cannot-resolve"
                                 onclick="openCannotResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-x-octagon me-1"></i>Cannot Resolve
                         </button>
                     @endif
 
-                    {{-- Pending Supervisor Approval: Validate Resolution / Request Revision --}}
-                    @if($ticket->status === 'Pending Supervisor Approval')
+                    {{-- Report For Review: view the submitted PDF to check what the
+                         specialist attached, then Validate Resolution / Request Revision --}}
+                    @if($ticket->status === 'Report For Review')
+                        <button type="button" class="btn-service-report"
+                                onclick="openServiceReportPreview('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-file-earmark-pdf me-1"></i>View Service Report
+                        </button>
                         @if($ticket->validated_at)
                             <span class="resolve-info px-3 py-2">
-                                <i class="bi bi-check-circle-fill me-1"></i>Validated — awaiting Helpdesk closure
+                                <i class="bi bi-check-circle-fill me-1"></i>Validated — awaiting requestor confirmation
                             </span>
                         @else
                             <button class="btn-resolve"
@@ -840,35 +960,49 @@
 
                         <hr style="border-color:var(--bd)">
 
-                        <label class="form-label mb-2">Assign Support Specialist</label>
-                        <div class="d-flex flex-column gap-2" id="caTechList">
-                            @foreach($technicians as $tech)
-                                @php
-                                    $initials = strtoupper(substr($tech->name, 0, 1)) . strtoupper(substr($tech->name, strpos($tech->name, ' ') + 1, 1));
-                                    // Bar fills with how much of the 8am-5pm day is still OPEN, not how
-                                    // loaded they are — a big bar reads as "lots of room left".
-                                    $loadPct  = min(100, round($tech->free_minutes_today / \App\Services\TicketScheduler::WORKING_MINUTES_PER_DAY * 100));
-                                    $barClass = $tech->availability === 'busy' ? 'busy' : ($tech->availability === 'full' ? 'full' : '');
-                                    $window   = $tech->free_window_today;
-                                    $availLabel = $window
-                                        ? $window['start']->timezone('Asia/Manila')->format('g:i A') . ' - ' . $window['end']->timezone('Asia/Manila')->format('g:i A')
-                                        : $tech->free_time_label;
-                                @endphp
-                                {{-- Overtime-status specialists remain selectable: assigning to them past
-                                     capacity is exactly what triggers the overtime/next-day prompt. --}}
-                                <div class="tech-select-option"
-                                     data-tech-id="{{ $tech->id }}">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <div class="tech-av-lg">{{ $initials }}</div>
-                                        <div>
-                                            <div class="ts-name">{{ $tech->name }}</div>
-                                            <div class="ts-load">{{ $availLabel }}</div>
+                        <div class="mb-3 p-3 rounded" style="background:#e8f5ee;border:1px solid #a8ddc0">
+                            <label class="d-flex align-items-center gap-2" style="cursor:pointer;font-weight:700;color:#1a5a3a">
+                                <input type="checkbox" name="take_over" id="caTakeOver" value="1"
+                                       style="width:16px;height:16px;cursor:pointer">
+                                Take over this ticket myself
+                            </label>
+                            <div style="font-size:11.5px;color:#1a5a3a;margin-top:4px">
+                                Keeps this support request with you instead of assigning a Support Specialist —
+                                it goes straight to In Progress, same as taking over an escalated ticket.
+                            </div>
+                        </div>
+
+                        <div id="caAssignWrap">
+                            <label class="form-label mb-2">Assign Support Specialist</label>
+                            <div class="d-flex flex-column gap-2" id="caTechList">
+                                @foreach($technicians as $tech)
+                                    @php
+                                        $initials = strtoupper(substr($tech->name, 0, 1)) . strtoupper(substr($tech->name, strpos($tech->name, ' ') + 1, 1));
+                                        // Bar fills with how much of the 8am-5pm day is still OPEN, not how
+                                        // loaded they are — a big bar reads as "lots of room left".
+                                        $loadPct  = min(100, round($tech->free_minutes_today / \App\Services\TicketScheduler::WORKING_MINUTES_PER_DAY * 100));
+                                        $barClass = $tech->availability === 'busy' ? 'busy' : ($tech->availability === 'full' ? 'full' : '');
+                                        $window   = $tech->free_window_today;
+                                        $availLabel = $window
+                                            ? $window['start']->timezone('Asia/Manila')->format('g:i A') . ' - ' . $window['end']->timezone('Asia/Manila')->format('g:i A')
+                                            : $tech->free_time_label;
+                                    @endphp
+                                    {{-- Overtime-status specialists remain selectable: assigning to them past
+                                         capacity is exactly what triggers the overtime/next-day prompt. --}}
+                                    <div class="tech-select-option"
+                                         data-tech-id="{{ $tech->id }}">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="tech-av-lg">{{ $initials }}</div>
+                                            <div>
+                                                <div class="ts-name">{{ $tech->name }}</div>
+                                                <div class="ts-load">{{ $availLabel }}</div>
+                                            </div>
+                                            <span class="avail-dot {{ $tech->availability }} ms-auto"></span>
                                         </div>
-                                        <span class="avail-dot {{ $tech->availability }} ms-auto"></span>
+                                        <div class="load-bar-wrap"><div class="load-bar {{ $barClass }}" style="width:{{ $loadPct }}%"></div></div>
                                     </div>
-                                    <div class="load-bar-wrap"><div class="load-bar {{ $barClass }}" style="width:{{ $loadPct }}%"></div></div>
-                                </div>
-                            @endforeach
+                                @endforeach
+                            </div>
                         </div>
 
                         <div class="mt-3">
@@ -878,7 +1012,7 @@
                     </div>
                     <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
                         <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn-confirm">Confirm Classification & Assignment</button>
+                        <button type="submit" class="btn-confirm"><span id="caSubmitBtnText">Confirm Classification & Assignment</span></button>
                     </div>
                 </form>
             </div>
@@ -1129,7 +1263,7 @@
                     <h5 class="mb-0">Mark as <em>Resolved</em></h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
-                <form method="POST" id="resolveForm">
+                <form method="POST" id="resolveForm" enctype="multipart/form-data">
                     @csrf
                     <div class="modal-body px-4 py-4">
                         <div class="resolve-info p-3 mb-3">
@@ -1140,21 +1274,64 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">
-                                Resolution summary <span class="text-danger">*</span>
+                                Service Type <span class="text-danger">*</span>
+                            </label>
+                            <div class="d-flex gap-3 flex-wrap" style="font-size:13px;font-weight:600">
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="service_type" value="Onsite" checked>Onsite
+                                </label>
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="service_type" value="Remote">Remote
+                                </label>
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="service_type" value="Preventive">Preventive
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Service Details / Action Taken <span class="text-danger">*</span>
+                                <span id="resolveDraftHint" class="d-none" style="font-weight:400;color:var(--tm)">
+                                    — pre-filled from your Add Update log, edit as needed
+                                </span>
                             </label>
                             <textarea class="form-control" name="resolution_notes"
                                       rows="3" required
                                       placeholder="Describe exactly what was done to resolve the issue…"></textarea>
                         </div>
-                        <div>
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Findings & Analysis <span style="font-weight:400;color:var(--tm)">(optional)</span>
+                            </label>
+                            <textarea class="form-control" name="findings"
+                                      rows="2"
+                                      placeholder="Root cause, diagnostics, what was found…"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Other Observation / Recommendation <span style="font-weight:400;color:var(--tm)">(optional)</span>
+                            </label>
+                            <textarea class="form-control" name="recommendation"
+                                      rows="2"
+                                      placeholder="Follow-up suggestions, preventive advice…"></textarea>
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label">Time spent</label>
-                            <select class="form-select" name="time_spent">
-                                <option value="Less than 30 min">Less than 30 min</option>
-                                <option value="30 – 60 min">30 – 60 min</option>
-                                <option value="1 – 2 hours" selected>1 – 2 hours</option>
-                                <option value="2 – 4 hours">2 – 4 hours</option>
-                                <option value="More than 4 hours">More than 4 hours</option>
-                            </select>
+                            <div class="p-2 px-3 rounded d-flex align-items-center gap-2"
+                                 style="background:var(--ygl);font-weight:800;color:var(--gd)">
+                                <i class="bi bi-stopwatch"></i>
+                                <span id="resolveTimeSpent">—</span>
+                                <span style="font-weight:600;font-size:11px;color:var(--tm)">(since you started this support request)</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="form-label">Supporting files <span style="font-weight:400;color:var(--tm)">(optional)</span></label>
+                            <input type="file" class="form-control" id="rAttachments" name="attachments[]"
+                                   multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                            <div style="font-size:11px;color:var(--tm);margin-top:4px">
+                                Up to 5 files, 10MB each. Screenshots, logs, or documents that support the resolution.
+                            </div>
+                            <div id="resolveAttachmentList" class="d-flex flex-column gap-1 mt-2"></div>
                         </div>
                     </div>
                     <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
@@ -1169,12 +1346,12 @@
         </div>
     </div>
 
-    {{-- Escalate (from In Progress) modal --}}
+    {{-- Escalate modal — L3 (IT Admin, the normal chain) or L4 (Manager, skipping IT Admin) --}}
     <div class="modal fade" id="escModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Escalate to <em>IT Admin</em></h5>
+                    <h5 class="mb-0">Escalate to <em id="escLevelLabel">IT Admin</em></h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
                 <form method="POST" id="escForm">
@@ -1182,16 +1359,31 @@
                     <div class="modal-body px-4 py-4">
                         <div class="esc-banner p-3 mb-3">
                             <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                            <strong id="escRef"></strong> — This sends the ticket to
-                            Supervisor - IT Admin for further handling.
+                            <strong id="escRef"></strong> — <span id="escBannerText">This sends the ticket to
+                            Supervisor - IT Admin for further handling.</span>
                         </div>
+
+                        <div class="mb-3">
+                            <label class="form-label mb-2">Escalate to</label>
+                            <div class="d-flex gap-3 flex-wrap" style="font-size:13px;font-weight:600">
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="level" value="L3" id="escLevelL3" checked>
+                                    Supervisor - IT Admin (L3)
+                                </label>
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="level" value="L4" id="escLevelL4">
+                                    Manager (L4) — skips IT Admin
+                                </label>
+                            </div>
+                        </div>
+
                         <div>
                             <label class="form-label">
                                 Reason for escalation <span class="text-danger">*</span>
                             </label>
                             <textarea class="form-control" name="reason"
                                       rows="3" required
-                                      placeholder="Explain why this needs to go to IT Admin…"></textarea>
+                                      placeholder="Explain why this needs to go to IT Admin…" id="escReason"></textarea>
                         </div>
                     </div>
                     <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
@@ -1437,6 +1629,9 @@ window.openClassifyAssignModal = function (ticketId, ticketNumber, defaults) {
     $('#caSubList').empty();
     $('#caResponseTime, #caResolutionTime').val('');
     $('#caCategoryList .cat-main-opt, #caTechList .tech-select-option').removeClass('selected');
+    $('#caTakeOver').prop('checked', false);
+    $('#caAssignWrap').removeClass('d-none');
+    updateClassifyAssignSubmitLabel();
 
     const $catList = $('#caCategoryList').empty();
     slaCategories.forEach(cat => {
@@ -1525,6 +1720,22 @@ $(document).on('click', '#caTechList .tech-select-option:not(.disabled)', functi
     $('#caTechId').val($(this).data('tech-id'));
 });
 
+function updateClassifyAssignSubmitLabel() {
+    $('#caSubmitBtnText').text(
+        $('#caTakeOver').is(':checked') ? 'Confirm Classification & Take Over' : 'Confirm Classification & Assignment'
+    );
+}
+
+$(document).on('change', '#caTakeOver', function () {
+    const takingOver = $(this).is(':checked');
+    $('#caAssignWrap').toggleClass('d-none', takingOver);
+    if (takingOver) {
+        $('#caTechList .tech-select-option').removeClass('selected');
+        $('#caTechId').val('');
+    }
+    updateClassifyAssignSubmitLabel();
+});
+
 /* ── Workload class — auto-fills response/resolution, requires manual entry
        for classes with no fixed resolution target (Project/Planned, Vendor). ── */
 $(document).on('change', '#caWorkloadClass', function () {
@@ -1549,7 +1760,11 @@ $(document).on('change', '#caWorkloadClass', function () {
 
 $('#classifyAssignForm').on('submit', function (e) {
     if (!$('#caSlaRuleId').val()) { e.preventDefault(); alert('Please select a subcategory.'); return; }
-    if (!$('#caTechId').val())    { e.preventDefault(); alert('Please assign a support specialist.'); return; }
+    if (!$('#caTakeOver').is(':checked') && !$('#caTechId').val()) {
+        e.preventDefault();
+        alert('Please assign a support specialist, or check "Take over this ticket myself".');
+        return;
+    }
 
     const $wc = $('#caWorkloadClass').find(':selected');
     const wcManual = $wc.data('manual') === 1 || $wc.data('manual') === '1';
@@ -1626,19 +1841,96 @@ window.openUpdateModal = function (ticketId, ticketNumber) {
     new bootstrap.Modal('#updateModal').show();
 };
 
-/* ── Resolve modal (In Progress) ── */
-window.openResolveModal = function (ticketId, ticketNumber) {
+/* ── Resolve modal (preparing the service report) ── */
+let resolveTimeSpentTimer = null;
+
+window.openResolveModal = function (ticketId, ticketNumber, startedAt, progressDraft) {
     $('#resolveRef').text('#' + ticketNumber);
     $('#resolveForm').attr('action', '/supervisor/support/tickets/' + ticketId + '/resolve');
+    $('#rAttachments').val('');
+    $('#resolveAttachmentList').empty();
+    // Pre-fill from the supervisor's own "Add Update" log — still fully editable,
+    // just saves retyping what they already reported while working the ticket.
+    $('#resolveForm textarea[name="resolution_notes"]').val(progressDraft || '');
+    $('#resolveDraftHint').toggleClass('d-none', !progressDraft);
+    $('#resolveForm textarea[name="findings"], #resolveForm textarea[name="recommendation"]').val('');
+    $('#resolveForm input[name="service_type"][value="Onsite"]').prop('checked', true);
+
+    clearInterval(resolveTimeSpentTimer);
+    const startedMs = startedAt ? new Date(startedAt).getTime() : null;
+
+    const renderTimeSpent = () => {
+        if (!startedMs) { $('#resolveTimeSpent').text('—'); return; }
+        const totalMinutes = Math.max(0, Math.floor((Date.now() - startedMs) / 60000));
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        $('#resolveTimeSpent').text(h > 0 ? `${h}h ${m}m` : `${m}m`);
+    };
+
+    renderTimeSpent();
+    resolveTimeSpentTimer = setInterval(renderTimeSpent, 1000);
+
     new bootstrap.Modal('#resolveModal').show();
 };
 
-/* ── Escalate modal (In Progress -> Awaiting Admin Supervisor) ── */
+$('#resolveModal').on('hidden.bs.modal', function () {
+    clearInterval(resolveTimeSpentTimer);
+});
+
+/* ── Resolve modal attachment picker: client-side limits + preview list ── */
+const RESOLVE_MAX_ATTACHMENTS = 5;
+const RESOLVE_MAX_ATTACHMENT_MB = 10;
+
+$('#rAttachments').on('change', function () {
+    const files = Array.from(this.files);
+    const list  = $('#resolveAttachmentList').empty();
+
+    if (files.length > RESOLVE_MAX_ATTACHMENTS) {
+        alert(`You can attach up to ${RESOLVE_MAX_ATTACHMENTS} files. Only the first ${RESOLVE_MAX_ATTACHMENTS} will be kept.`);
+    }
+
+    const oversize = files.find(f => f.size > RESOLVE_MAX_ATTACHMENT_MB * 1024 * 1024);
+    if (oversize) {
+        alert(`"${oversize.name}" exceeds the ${RESOLVE_MAX_ATTACHMENT_MB}MB limit and will be removed.`);
+    }
+
+    const kept = files
+        .filter(f => f.size <= RESOLVE_MAX_ATTACHMENT_MB * 1024 * 1024)
+        .slice(0, RESOLVE_MAX_ATTACHMENTS);
+
+    const dt = new DataTransfer();
+    kept.forEach(f => dt.items.add(f));
+    this.files = dt.files;
+
+    kept.forEach(f => {
+        const sizeKb = (f.size / 1024).toFixed(0);
+        list.append(
+            `<div style="font-size:12px;color:var(--tm)"><i class="bi bi-paperclip me-1"></i>${$('<div>').text(f.name).html()} <span style="color:var(--tm)">(${sizeKb} KB)</span></div>`
+        );
+    });
+});
+
+/* ── Escalate modal — L3 (For Acknowledgment) or L4 (For Acknowledgment) ── */
 window.openEscModal = function (ticketId, ticketNumber) {
     $('#escRef').text('#' + ticketNumber);
     $('#escForm').attr('action', '/supervisor/support/tickets/' + ticketId + '/escalate-admin');
+    $('#escLevelL3').prop('checked', true);
+    updateEscLevelText();
     new bootstrap.Modal('#escModal').show();
 };
+
+function updateEscLevelText() {
+    const isL4 = $('#escLevelL4').is(':checked');
+    $('#escLevelLabel').text(isL4 ? 'Manager' : 'IT Admin');
+    $('#escBannerText').text(isL4
+        ? 'This sends the ticket straight to the Manager, skipping Supervisor - IT Admin.'
+        : 'This sends the ticket to Supervisor - IT Admin for further handling.');
+    $('#escReason').attr('placeholder', isL4
+        ? 'Explain why this needs to go straight to the Manager…'
+        : 'Explain why this needs to go to IT Admin…');
+}
+
+$(document).on('change', 'input[name="level"]', updateEscLevelText);
 
 $(document).on('click', '.status-opt', function () {
     $(this).siblings().removeClass('selected');
@@ -1677,6 +1969,11 @@ function silentRefresh() {
         const parser = new DOMParser();
         const doc    = parser.parseFromString(html, 'text/html');
 
+        const ackLink  = doc.querySelector("a[href*='status=awaiting-tech-ack']");
+        const ackCount = ackLink ? parseInt((ackLink.querySelector('.badge-count') || {}).textContent || '0', 10) : 0;
+        document.title = ackCount > 0 ? `For Support Specialist Acknowledgment (${ackCount}) — Supervisor Dashboard — LGICT` : 'Supervisor Dashboard — LGICT';
+        setFaviconBadge(ackCount);
+
         const newList = doc.getElementById('ticketList');
         const curList = document.getElementById('ticketList');
         if (newList && curList) curList.innerHTML = newList.innerHTML;
@@ -1703,6 +2000,7 @@ function silentRefresh() {
     .catch(() => {});
 }
 
+setFaviconBadge({{ $counts['awaiting_tech_ack'] }});
 silentRefreshTimer = setInterval(silentRefresh, 30000);
 document.addEventListener('show.bs.modal',   () => { isModalOpen = true; });
 document.addEventListener('hidden.bs.modal', () => { isModalOpen = false; });

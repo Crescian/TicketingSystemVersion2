@@ -7,6 +7,7 @@ use App\Models\SlaCategory;
 use App\Models\SlaRule;
 use App\Models\Tickets;
 use App\Models\WorkloadClass;
+use App\Support\TicketStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -22,11 +23,12 @@ class SlaRuleController extends Controller
         $breachedAll  = DB::table('escalations')->where('escalated_at', '>=', $start)->count();
         $slaRate      = $totalTickets > 0 ? round((($totalTickets - $breachedAll) / $totalTickets) * 100) : 100;
 
+        $activeExcluded = [TicketStatus::CLOSED, TicketStatus::CANCELLED];
         $priorityCounts = [
-            'Critical' => Tickets::where('ticket_type', 'Critical')->whereNotIn('status', ['Resolved','Cancelled'])->count(),
-            'High'     => Tickets::where('ticket_type', 'High')->whereNotIn('status', ['Resolved','Cancelled'])->count(),
-            'Medium'   => Tickets::where('ticket_type', 'Medium')->whereNotIn('status', ['Resolved','Cancelled'])->count(),
-            'Low'      => Tickets::where('ticket_type', 'Low')->whereNotIn('status', ['Resolved','Cancelled'])->count(),
+            'Critical' => Tickets::where('ticket_type', 'Critical')->whereNotIn('status', $activeExcluded)->count(),
+            'High'     => Tickets::where('ticket_type', 'High')->whereNotIn('status', $activeExcluded)->count(),
+            'Medium'   => Tickets::where('ticket_type', 'Medium')->whereNotIn('status', $activeExcluded)->count(),
+            'Low'      => Tickets::where('ticket_type', 'Low')->whereNotIn('status', $activeExcluded)->count(),
         ];
 
         $workloadClasses = WorkloadClass::orderBy('sort_order')->orderBy('name')->get();
@@ -87,14 +89,22 @@ class SlaRuleController extends Controller
             'resolution_time_minutes' => 'required|numeric|min:5|max:43200',
             'description'             => 'nullable|string|max:500',
             'helpdesk_resolvable'     => 'nullable|boolean',
+            'admin_only'              => 'nullable|boolean',
         ]);
         if ($request->response_time_minutes >= $request->resolution_time_minutes) {
             return back()->with('error', 'Response time must be less than resolution time.');
         }
+        if ($request->boolean('helpdesk_resolvable') && $request->boolean('admin_only')) {
+            return back()->with('error', "A rule can't be both Helpdesk-resolvable (L1) and Admin-only (L3).");
+        }
         SlaRule::create($request->only([
             'sla_category_id', 'subcategory_name', 'priority',
             'response_time_minutes', 'resolution_time_minutes', 'description'
-        ]) + ['is_active' => true, 'helpdesk_resolvable' => $request->boolean('helpdesk_resolvable')]);
+        ]) + [
+            'is_active' => true,
+            'helpdesk_resolvable' => $request->boolean('helpdesk_resolvable'),
+            'admin_only' => $request->boolean('admin_only'),
+        ]);
         return back()->with('success', "SLA rule for '{$request->subcategory_name}' created.");
     }
 
@@ -113,14 +123,21 @@ class SlaRuleController extends Controller
             'resolution_time_minutes' => 'required|numeric|min:5|max:43200',
             'description'             => 'nullable|string|max:500',
             'helpdesk_resolvable'     => 'nullable|boolean',
+            'admin_only'              => 'nullable|boolean',
         ]);
         if ($request->response_time_minutes >= $request->resolution_time_minutes) {
             return back()->with('error', 'Response time must be less than resolution time.');
         }
+        if ($request->boolean('helpdesk_resolvable') && $request->boolean('admin_only')) {
+            return back()->with('error', "A rule can't be both Helpdesk-resolvable (L1) and Admin-only (L3).");
+        }
         $slaRule->update($request->only([
             'sla_category_id', 'subcategory_name', 'priority',
             'response_time_minutes', 'resolution_time_minutes', 'description'
-        ]) + ['helpdesk_resolvable' => $request->boolean('helpdesk_resolvable')]);
+        ]) + [
+            'helpdesk_resolvable' => $request->boolean('helpdesk_resolvable'),
+            'admin_only' => $request->boolean('admin_only'),
+        ]);
         return back()->with('success', "SLA rule updated.");
     }
 

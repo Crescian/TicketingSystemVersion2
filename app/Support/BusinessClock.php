@@ -32,6 +32,14 @@ class BusinessClock
     // Carbon dayOfWeek: 0 = Sunday ... 6 = Saturday
     private const BUSINESS_DAYS = [1, 2, 3, 4, 5];
 
+    // Reminder/alert triggers (sla:check, tickets:remind-stale, ...) get a 30-minute
+    // grace period past END_HOUR before going quiet — staff are often still wrapping
+    // up at 5:00 PM sharp, so cutting notifications off exactly on the hour would
+    // silence things prematurely. This window is deliberately separate from
+    // START_HOUR/END_HOUR, which stay the source of truth for SLA/scheduling math.
+    private const NOTIFICATION_END_HOUR = 17;
+    private const NOTIFICATION_END_MINUTE = 30;
+
     public static function addBusinessMinutes(Carbon $start, int $minutes): Carbon
     {
         $originalTz = $start->getTimezone();
@@ -189,6 +197,24 @@ class BusinessClock
         $local = $date->copy()->setTimezone(self::TIMEZONE);
 
         return in_array($local->dayOfWeek, self::BUSINESS_DAYS, true) && !self::isHolidayDate($local);
+    }
+
+    // Gate for scheduled reminder/alert triggers: business day, 8:00 AM through
+    // 5:30 PM (the 30-minute grace period past END_HOUR — see NOTIFICATION_END_HOUR).
+    // Not used for SLA deadline math, only for deciding whether an automated
+    // notification is allowed to fire right now.
+    public static function isWithinNotificationWindow(Carbon $moment): bool
+    {
+        $local = $moment->copy()->setTimezone(self::TIMEZONE);
+
+        if (!self::isBusinessDay($local)) {
+            return false;
+        }
+
+        $windowStart = $local->copy()->setTime(self::START_HOUR, 0, 0);
+        $windowEnd = $local->copy()->setTime(self::NOTIFICATION_END_HOUR, self::NOTIFICATION_END_MINUTE, 0);
+
+        return $local->gte($windowStart) && $local->lte($windowEnd);
     }
 
     // 8:00 AM on $date's calendar day, returned in $date's original timezone.

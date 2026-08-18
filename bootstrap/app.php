@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\BusinessClock;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -25,7 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
-        $schedule->command('sla:check')->everyMinute();
+        $withinNotificationWindow = fn () => BusinessClock::isWithinNotificationWindow(now());
+
+        $schedule->command('sla:check')->everyMinute()->when($withinNotificationWindow);
+        $schedule->command('tickets:remind-stale')->everyFifteenMinutes()->when($withinNotificationWindow);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

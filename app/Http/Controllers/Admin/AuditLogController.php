@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\TicketStatusHistories;
 use App\Models\User;
+use App\Support\TicketStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -27,7 +28,7 @@ class AuditLogController extends Controller
                 now()->startOfWeek(),
                 now()->endOfWeek()
             ])->count(),
-            'critical' => TicketStatusHistories::whereIn('new_status', ['Escalated', 'Cancelled'])
+            'critical' => TicketStatusHistories::whereIn('new_status', [TicketStatus::ESCALATED, TicketStatus::CANCELLED])
                 ->count(),
             'all_time' => TicketStatusHistories::count(),
         ];
@@ -105,8 +106,8 @@ class AuditLogController extends Controller
         // Filter by action (mapped from new_status)
         if ($action) {
             $mappedStatus = match ($action) {
-                'Escalate' => 'Escalated',
-                'Resolve' => 'Resolved',
+                'Escalate' => TicketStatus::ESCALATED,
+                'Resolve' => TicketStatus::APPROVED_SERVICE_REPORT,
                 default => $action
             };
             $query->where('new_status', $mappedStatus);
@@ -129,9 +130,13 @@ class AuditLogController extends Controller
     private function getSeverityStatuses(string $severity): array
     {
         return match ($severity) {
-            'critical' => ['Escalated', 'Cancelled'],
-            'warning' => ['Open'],
-            'info' => ['In Progress', 'Resolved'],
+            'critical' => [TicketStatus::ESCALATED, TicketStatus::CANCELLED],
+            'warning' => [],
+            'info' => [
+                TicketStatus::IN_PROGRESS_SERVICE_REQUEST, TicketStatus::CLOSED_SERVICE_REQUEST,
+                TicketStatus::IN_PROGRESS_SERVICE_REPORT, TicketStatus::DONE_SERVICE_REPORT,
+                TicketStatus::REPORT_FOR_REVIEW, TicketStatus::APPROVED_SERVICE_REPORT,
+            ],
             default => []
         };
     }
@@ -140,8 +145,7 @@ class AuditLogController extends Controller
     public static function getSeverity(string $status): string
     {
         return match ($status) {
-            'Escalated', 'Cancelled' => 'critical',
-            'Open' => 'warning',
+            TicketStatus::ESCALATED, TicketStatus::CANCELLED => 'critical',
             default => 'info',
         };
     }
@@ -150,11 +154,11 @@ class AuditLogController extends Controller
     public static function getActionType(string $status): string
     {
         return match ($status) {
-            'Escalated' => 'escalate',
-            'Resolved' => 'resolve',
-            'In Progress' => 'update',
-            'Cancelled' => 'delete',
-            'Open' => 'create',
+            TicketStatus::ESCALATED => 'escalate',
+            TicketStatus::APPROVED_SERVICE_REPORT, TicketStatus::CLOSED => 'resolve',
+            TicketStatus::IN_PROGRESS_SERVICE_REQUEST, TicketStatus::IN_PROGRESS_SERVICE_REPORT => 'update',
+            TicketStatus::CANCELLED => 'delete',
+            TicketStatus::FOR_ACKNOWLEDGMENT => 'create',
             default => 'update',
         };
     }
@@ -163,11 +167,11 @@ class AuditLogController extends Controller
     public static function getActionLabel(string $status): string
     {
         return match ($status) {
-            'Escalated' => 'Escalate',
-            'Resolved' => 'Resolve',
-            'In Progress' => 'Update',
-            'Cancelled' => 'Cancel',
-            'Open' => 'Create',
+            TicketStatus::ESCALATED => 'Escalate',
+            TicketStatus::APPROVED_SERVICE_REPORT, TicketStatus::CLOSED => 'Resolve',
+            TicketStatus::IN_PROGRESS_SERVICE_REQUEST, TicketStatus::IN_PROGRESS_SERVICE_REPORT => 'Update',
+            TicketStatus::CANCELLED => 'Cancel',
+            TicketStatus::FOR_ACKNOWLEDGMENT => 'Create',
             default => 'Update',
         };
     }
@@ -176,11 +180,11 @@ class AuditLogController extends Controller
     public static function getActionIcon(string $status): string
     {
         return match ($status) {
-            'Escalated' => 'bi-exclamation-triangle',
-            'Resolved' => 'bi-check-circle',
-            'In Progress' => 'bi-pencil',
-            'Cancelled' => 'bi-trash',
-            'Open' => 'bi-plus-circle',
+            TicketStatus::ESCALATED => 'bi-exclamation-triangle',
+            TicketStatus::APPROVED_SERVICE_REPORT, TicketStatus::CLOSED => 'bi-check-circle',
+            TicketStatus::IN_PROGRESS_SERVICE_REQUEST, TicketStatus::IN_PROGRESS_SERVICE_REPORT => 'bi-pencil',
+            TicketStatus::CANCELLED => 'bi-trash',
+            TicketStatus::FOR_ACKNOWLEDGMENT => 'bi-plus-circle',
             default => 'bi-pencil',
         };
     }

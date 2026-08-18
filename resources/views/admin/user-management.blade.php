@@ -42,15 +42,6 @@
 @endsection
 
 @section('styles')
-    /* ── Settings Sidebar ── */
-    .settings-sidebar { background:#fff; border-radius:16px; border:1.5px solid var(--bd); overflow:hidden; }
-    .settings-nav .nav-item { border-bottom:1px solid var(--bd); }
-    .settings-nav .nav-item:last-child { border-bottom:none; }
-    .settings-nav .nav-link { padding:11px 18px; font-weight:600; font-size:14px; color:var(--gd); display:flex; align-items:center; gap:10px; border-radius:0 !important; transition:background .15s; }
-    .settings-nav .nav-link:hover { background:var(--ygl); }
-    .settings-nav .nav-link.active { background:var(--ygl); border-left:4px solid var(--yg); font-weight:700; }
-    .settings-nav .nav-link .badge-count { background:var(--gd); color:var(--yg); font-size:11px; border-radius:20px; padding:2px 8px; margin-left:auto; font-weight:800; }
-
     .stat-pill.green .num { color: #7be495; }
 
     /* ── Toolbar ── */
@@ -175,38 +166,38 @@
 
 {{-- ══ SIDEBAR ══ --}}
 @section('sidebar')
-    <div class="settings-sidebar mb-3">
-        <div class="sidebar-head"><i class="bi bi-gear me-1"></i>Settings</div>
-        <ul class="nav flex-column settings-nav">
-            <li class="nav-item">
-                <a class="nav-link active" href="{{ route('portal.users.index') }}">
-                    <i class="bi bi-people"></i>Users
-                    <span class="badge-count">{{ $counts['total'] }}</span>
+    <div class="sidebar-card mb-3">
+        <div class="sidebar-head red"><i class="bi bi-gear me-1"></i>Settings</div>
+        <ul class="list-group sidebar-menu rounded-0">
+            <li class="list-group-item active">
+                <a href="{{ route('portal.users.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                    <i class="bi bi-people me-1"></i>Users
+                    <span class="badge-count dark">{{ $counts['total'] }}</span>
                 </a>
             </li>
-            <li class="nav-item">
-                <a class="nav-link" href="{{ route('portal.settings') }}">
-                    <i class="bi bi-building"></i>Organization
+            <li class="list-group-item">
+                <a href="{{ route('portal.settings') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                    <i class="bi bi-building me-1"></i>Organization
                 </a>
             </li>
-            <li class="nav-item">
-                <a class="nav-link" href="{{ route('portal.sla-rules.index') }}">
-                    <i class="bi bi-clock-history"></i>SLA Rules
+            <li class="list-group-item">
+                <a href="{{ route('portal.sla-rules.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                    <i class="bi bi-stopwatch me-1"></i>SLA Rules
                 </a>
             </li>
-            <li class="nav-item">
-                <a class="nav-link" href="{{ route('portal.holidays.index') }}">
-                    <i class="bi bi-calendar-x"></i>Holidays
+            <li class="list-group-item">
+                <a href="{{ route('portal.holidays.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                    <i class="bi bi-calendar-x me-1"></i>Holidays
                 </a>
             </li>
-            <li class="nav-item">
-                <a class="nav-link" href="{{ route('portal.leaves.index') }}">
-                    <i class="bi bi-calendar-minus"></i>Leave
+            <li class="list-group-item">
+                <a href="{{ route('portal.leaves.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                    <i class="bi bi-calendar-minus me-1"></i>Leave
                 </a>
             </li>
-            <li class="nav-item">
-                <a class="nav-link" href="{{ route('portal.audit-log') }}">
-                    <i class="bi bi-journal-text"></i>Audit Log
+            <li class="list-group-item">
+                <a href="{{ route('portal.audit-log') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                    <i class="bi bi-journal-text me-1"></i>Audit Log
                 </a>
             </li>
         </ul>

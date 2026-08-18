@@ -3,7 +3,7 @@
 @section('title', 'Holidays — LGICT')
 
 @section('nav-role-badge')
-    @php $canManageOrg = in_array(Auth::user()->role?->role_name, ['Helpdesk', 'IT Admin', 'Supervisor - IT Admin']); @endphp
+    @php $canManageOrg = in_array(Auth::user()->role?->role_name, ['Helpdesk', 'IT Admin', 'Supervisor - IT Admin', 'Supervisor - Support Specialist']); @endphp
     <span class="role-badge-admin"><i class="bi bi-shield-fill me-1"></i>{{ Auth::user()->role?->role_name ?? 'IT Admin' }}</span>
     @if($canManageOrg)
         <a href="{{ route('portal.users.index') }}" style="text-decoration:none">

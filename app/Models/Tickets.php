@@ -23,6 +23,7 @@ class Tickets extends Model
         'location',
 
         'status',
+        'pending_role',
         'escalation_level',
 
         // ── NEW HELP DESK FIELDS
@@ -39,6 +40,7 @@ class Tickets extends Model
         'method',
 
         'started_at',
+        'report_started_at',
         'resolved_at',
         'tech_acknowledged_at',
         'validated_at',
@@ -52,6 +54,12 @@ class Tickets extends Model
         'sla_due_at',
         'sla_risk_notified_at',
         'sla_breached_notified_at',
+        'classification_reminded_at',
+        'report_review_reminded_at',
+        'requestor_confirmation_reminded_at',
+        'helpdesk_ack_reminded_at',
+        'helpdesk_classification_reminded_at',
+        'tech_ack_reminded_at',
         'response_time_minutes',
         'resolution_time_minutes',
         'cannot_resolve',
@@ -74,6 +82,7 @@ class Tickets extends Model
 
     protected $casts = [
         'started_at' => 'datetime',
+        'report_started_at' => 'datetime',
         'resolved_at' => 'datetime',
         'tech_acknowledged_at' => 'datetime',
         'validated_at' => 'datetime',
@@ -81,6 +90,12 @@ class Tickets extends Model
         'sla_due_at' => 'datetime',
         'sla_risk_notified_at' => 'datetime',
         'sla_breached_notified_at' => 'datetime',
+        'classification_reminded_at' => 'datetime',
+        'report_review_reminded_at' => 'datetime',
+        'requestor_confirmation_reminded_at' => 'datetime',
+        'helpdesk_ack_reminded_at' => 'datetime',
+        'helpdesk_classification_reminded_at' => 'datetime',
+        'tech_ack_reminded_at' => 'datetime',
         'cannot_resolve' => 'boolean',
         'scheduled_start' => 'datetime',
         'scheduled_end' => 'datetime',
@@ -117,12 +132,20 @@ class Tickets extends Model
     // Helper: generate ticket number
     public static function generateTicketNumber(): string
     {
-        $fullYear = now()->format('Y'); // 2026
         $shortYear = now()->format('y'); // 26
+        $prefix = "LGICT-{$shortYear}-";
 
-        $count = static::whereYear('created_at', $fullYear)->count() + 1;
+        // Derived from the highest existing suffix for this year's prefix, not a row
+        // count — a row count drifts the moment tickets are cancelled/deleted or a
+        // ticket_number is hand-edited (e.g. via direct DB update).
+        $maxSuffix = static::where('ticket_number', 'like', $prefix . '%')
+            ->selectRaw('MAX(RIGHT(ticket_number, 4)::int) as max_suffix')
+            ->value('max_suffix') ?? 0;
 
-        return 'LGICT-' . $shortYear . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
+        $floor = config("ticketing.ticket_number_floors.{$shortYear}", 0);
+        $maxSuffix = max($maxSuffix, $floor);
+
+        return $prefix . str_pad($maxSuffix + 1, 4, '0', STR_PAD_LEFT);
     }
     public function escalations()
     {

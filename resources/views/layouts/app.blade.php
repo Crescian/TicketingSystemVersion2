@@ -11,8 +11,61 @@
         rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link rel="icon" type="image/png" href="{{ asset('img/LGICT.png') }}">
+    @php
+        $faviconV = file_exists(public_path('favicon.ico')) ? filemtime(public_path('favicon.ico')) : 1;
+    @endphp
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v={{ $faviconV }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v={{ $faviconV }}">
+    <link rel="icon" type="image/png" href="{{ asset('img/LGICT.png') }}?v={{ $faviconV }}">
     <script>
+        // ── Draw a red notification-count badge onto the favicon (tab icon)
+        (function () {
+            const baseHref = "{{ asset('img/LGICT.png') }}?v={{ $faviconV }}";
+            let baseImg = null;
+
+            function render(count) {
+                const size = 64;
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, size, size);
+
+                const scale = Math.min(size / baseImg.width, size / baseImg.height);
+                const w = baseImg.width * scale, h = baseImg.height * scale;
+                ctx.drawImage(baseImg, (size - w) / 2, (size - h) / 2, w, h);
+
+                if (count > 0) {
+                    const label = count > 99 ? '99+' : String(count);
+                    const r = label.length > 2 ? 20 : 17;
+                    const cx = size - r - 1, cy = r + 1;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                    ctx.fillStyle = '#e24b4a';
+                    ctx.fill();
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = '#fff';
+                    ctx.stroke();
+                    ctx.fillStyle = '#fff';
+                    ctx.font = `bold ${label.length > 2 ? 17 : 22}px Arial, sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(label, cx, cy + 1);
+                }
+
+                const dataUrl = canvas.toDataURL('image/png');
+                document.querySelectorAll("link[rel~='icon']").forEach(link => { link.href = dataUrl; });
+            }
+
+            window.setFaviconBadge = function (count) {
+                if (baseImg) { render(count); return; }
+                const img = new Image();
+                img.onload = () => { baseImg = img; render(count); };
+                img.src = baseHref;
+            };
+        })();
+
         // ── Request browser notification permission on page load
         if ('Notification' in window) {
             if (Notification.permission === 'default') {
@@ -309,10 +362,22 @@
             color: var(--gd);
         }
 
+        .sidebar-menu .list-group-item.active {
+            background: transparent;
+            border-color: var(--bd);
+            color: var(--gd);
+        }
+
         .sidebar-menu .list-group-item.active a {
             background: var(--ygl);
             border-left: 4px solid var(--yg);
             font-weight: 700;
+        }
+
+        .sidebar-menu .list-group-item a:focus,
+        .sidebar-menu .list-group-item a:focus-visible {
+            outline: none;
+            box-shadow: inset 0 0 0 2px var(--gl);
         }
 
         .sidebar-menu .badge-count {
@@ -328,6 +393,16 @@
         .sidebar-menu .badge-count.red {
             background: #8b1a1a;
             color: #fde8e8;
+        }
+
+        /* ── For Acknowledgment attention loop ── */
+        @keyframes queueGlow {
+            0%, 100%   { background: rgba(200, 230, 60, .06); }
+            50%        { background: rgba(200, 230, 60, .32); }
+        }
+
+        .sidebar-menu .list-group-item.queue-glow a {
+            animation: queueGlow 1.8s ease-in-out infinite;
         }
 
         /* ── Ticket card shared styles ── */
@@ -815,6 +890,64 @@
             box-shadow: 0 2px 8px rgba(139, 26, 26, .3);
         }
 
+        /* ── Responsive: smaller laptop screens (e.g. ThinkPad L14, 1366–1440px) ── */
+        @media (max-width: 1440px) {
+            .navbar-brand {
+                font-size: 19px;
+            }
+
+            #hero {
+                padding: 1.1rem 1.25rem;
+            }
+
+            #hero h1 {
+                font-size: 26px;
+            }
+
+            #hero .hero-sub {
+                font-size: 13px;
+            }
+
+            .stat-pill {
+                padding: 10px 14px;
+                min-width: 74px;
+            }
+
+            .stat-pill .num {
+                font-size: 20px;
+            }
+
+            .stat-pill .lbl {
+                font-size: 9px;
+            }
+
+            #pageBody {
+                padding-top: 1rem !important;
+                padding-bottom: 1rem !important;
+            }
+
+            #pageBody .row {
+                --bs-gutter-x: 1rem;
+                --bs-gutter-y: 1rem;
+            }
+        }
+
+        /* ── Responsive: short viewports (browser chrome + 14" screen height) ── */
+        @media (max-height: 800px) {
+            #hero {
+                padding: .8rem 1.25rem;
+            }
+
+            #hero h1 {
+                font-size: 22px;
+                margin-bottom: .1rem;
+            }
+
+            .stat-pill {
+                padding: 7px 12px;
+            }
+        }
+
         /* ── Page-specific styles injected per view ── */
         @yield('styles')
     </style>
@@ -824,7 +957,7 @@
 
     {{-- ── TOPBAR ── --}}
     <div id="topbar" class="d-flex justify-content-end align-items-center gap-3 px-4 py-1">
-        <a href="#">Help &amp; more info <i class="bi bi-chevron-down"></i></a>
+        <a href="#" role="button" data-bs-toggle="modal" data-bs-target="#helpInfoModal">Help &amp; more info <i class="bi bi-chevron-down"></i></a>
         @auth
             <a href="{{ route('logout') }}"
                 onclick="event.preventDefault(); document.getElementById('logout-form').submit();"
@@ -842,6 +975,14 @@
                 @if(!Route::is(Auth::user()->dashboardRoute()))
                     <a href="{{ route(Auth::user()->dashboardRoute()) }}" class="btn-back-dashboard">
                         <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+                    </a>
+                @endif
+                {{-- ICT staff can also file/track their own support requests, same as an
+                     Employee — Employee's own dashboard already is that view, so this link
+                     is only useful (and only shown) for every other role. --}}
+                @if(!Auth::user()->hasRole('Employee') && !Route::is('my-requests.tickets.*'))
+                    <a href="{{ route('my-requests.tickets.index') }}" class="btn-back-dashboard">
+                        <i class="bi bi-ticket-perforated me-1"></i>My Requests
                     </a>
                 @endif
                 @yield('nav-role-badge')
@@ -872,7 +1013,7 @@
     </div>
 
     {{-- ── PAGE BODY ── --}}
-    <div class="container-fluid py-4 px-4" style="max-width:1160px">
+    <div id="pageBody" class="container-fluid py-4 px-4" style="max-width:1160px">
         <div class="row g-4">
 
             {{-- ── SIDEBAR ── --}}

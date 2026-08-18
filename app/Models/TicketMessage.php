@@ -19,12 +19,14 @@ class TicketMessage extends Model
         'message',
         'is_read',
         'read_at',
+        'notified_at',
         'created_at',
     ];
 
     protected $casts = [
         'is_read' => 'boolean',
         'read_at' => 'datetime',
+        'notified_at' => 'datetime',
         'created_at' => 'datetime',
     ];
 

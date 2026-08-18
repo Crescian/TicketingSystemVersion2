@@ -49,6 +49,12 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
+        'internal-api' => [
+            'transport' => 'internal-api',
+            'service_url' => env('MAIL_SERVICE_URL', 'http://mail-service:8080'),
+            'key' => env('MAIL_SERVICE_KEY'),
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],
