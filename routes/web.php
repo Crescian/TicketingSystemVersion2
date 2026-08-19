@@ -185,6 +185,7 @@ Route::middleware(['auth', 'role:Helpdesk', 'throttle:ticket-actions'])
         Route::post('/tickets/{ticket}/resolve', [HelpdeskTicketController::class, 'resolve'])->name('tickets.resolve')->middleware('idempotent:8');
         Route::post('/tickets', [EmployeeTicketsController::class, 'store'])->name('tickets.store')->middleware(['throttle:ticket-submit', 'idempotent:10']); // ← reuse employee store
 
+        Route::get('/tickets/{ticket}', [HelpdeskTicketController::class, 'show'])->name('tickets.show');
     });
 
 // ── IT Support Specialist routes
@@ -224,6 +225,7 @@ Route::middleware(['auth', 'role:IT Admin', 'throttle:ticket-actions'])
         Route::post('/tickets/{ticket}/escalate', [AdminTicketController::class, 'escalate'])->name('tickets.escalate')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/request-reclassification', [AdminTicketController::class, 'requestReclassification'])->name('tickets.request-reclassification')->middleware('idempotent:8');
         Route::get('/tickets/{ticket}/history', [AdminTicketController::class, 'history'])->name('tickets.history');
+        Route::get('/tickets/{ticket}', [AdminTicketController::class, 'show'])->name('tickets.show');
     });
 
 Route::middleware(['auth', 'role:Supervisor - IT Admin', 'throttle:ticket-actions'])
@@ -315,6 +317,9 @@ Route::middleware(['auth', 'role:Supervisor - Support Specialist', 'throttle:tic
 
         Route::post('/tickets/{ticket}/reject-reclassification', [SupportSupervisorController::class, 'rejectReclassification'])
             ->name('tickets.reject-reclassification')->middleware('idempotent:8');
+
+        Route::get('/tickets/{ticket}', [SupportSupervisorController::class, 'show'])
+            ->name('tickets.show');
     });
 
 // ── Executive routes

@@ -182,7 +182,7 @@ class TicketController extends Controller
         $slaCategories = \App\Models\SlaCategory::with([
             'rules' => function ($q) {
                 $q->where('is_active', true)
-                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes')
+                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes', 'description')
                     ->orderBy('subcategory_name');
             }
         ])
@@ -200,6 +200,7 @@ class TicketController extends Controller
                 'priority' => $r->priority,
                 'response' => $r->response_time_minutes,
                 'resolution' => $r->resolution_time_minutes,
+                'description' => $r->description,
             ])->values()->toArray(),
         ])->values()->toArray();
 

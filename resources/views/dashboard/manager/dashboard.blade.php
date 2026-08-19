@@ -225,7 +225,7 @@
 
                 {{-- Title & desc --}}
                 <div class="ticket-title mb-1">{{ $ticket->subject }}</div>
-                <div class="ticket-desc mb-2">{{ Str::limit($ticket->concern, 150) }}</div>
+                <div class="ticket-desc mb-2">{{ $ticket->concern }}</div>
 
                 {{-- Recent activity --}}
                 @if($ticket->statusHistories->isNotEmpty())

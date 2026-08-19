@@ -28,6 +28,15 @@
     {{-- Chat Body --}}
     <div class="chat-body" id="chatBody">
 
+        {{-- Requestor / subject / concern — so replies never land on the wrong ticket --}}
+        <div style="padding:10px 16px;background:var(--ygl);border-bottom:1.5px solid var(--bd);font-size:12px">
+            <div style="font-weight:800;color:var(--gd)">
+                <i class="bi bi-person-fill me-1"></i>{{ $ticket->user->name ?? 'Unknown' }}
+            </div>
+            <div style="font-weight:700;color:var(--tm);margin-top:2px">{{ $ticket->subject }}</div>
+            <div style="color:var(--tm);margin-top:2px;max-height:54px;overflow-y:auto">{{ $ticket->concern }}</div>
+        </div>
+
         {{-- Messages area --}}
         <div class="chat-messages" id="chatMessages">
             <div class="chat-loading">

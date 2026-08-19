@@ -1217,16 +1217,19 @@
                                 <label class="form-label">Describe the issue <span class="text-danger">*</span></label>
                                 <textarea class="form-control" id="mDesc"
                                         name="concern" rows="3"
-                                        placeholder="What happened, when it started…"></textarea>
+                                        placeholder="What happened, when it started… / Ano ang nangyari, kailan nagsimula…"></textarea>
+                                <div style="font-size:11px;color:var(--tm);margin-top:4px">
+                                    Write it however feels natural — English, Tagalog, or Taglish is fine.
+                                </div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Additional details</label>
                                 <textarea class="form-control" id="mDetails"
                                         name="request_details" rows="2"
-                                        placeholder="Error messages, steps to reproduce…"></textarea>
+                                        placeholder="Error messages, steps to reproduce… / Mga error message, paano ulitin ang problema…"></textarea>
                             </div>
                             <div class="mb-3">
-                                    <label class="form-label">Location</label>
+                                    <label class="form-label">Location <span class="text-danger">*</span></label>
                                     <select class="form-select" id="mLocation">
                                         <option value="">— Select location —</option>
                                         <optgroup label="HQ">
@@ -1858,6 +1861,7 @@
                 if (!$('#mSubject').val().trim()) { alert('Please enter a subject.'); return; }
                 if (!$('#mDesc').val().trim())    { alert('Please describe the issue.'); return; }
                 if (!$('#users_id').val())      { alert('Please select a requestor.'); return; }
+                if (!$('#mLocation').val())      { alert('Please select a location.'); return; }
 
                 $('#hAsset').val($('#mAsset').val());
                 $('#hLocation').val($('#mLocation').val());

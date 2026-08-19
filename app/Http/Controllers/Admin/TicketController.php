@@ -204,7 +204,7 @@ class TicketController extends Controller
         $slaCategories = \App\Models\SlaCategory::with([
             'rules' => function ($q) {
                 $q->where('is_active', true)
-                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes')
+                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes', 'description')
                     ->orderBy('subcategory_name');
             }
         ])
@@ -222,6 +222,7 @@ class TicketController extends Controller
                 'priority' => $r->priority,
                 'response' => $r->response_time_minutes,
                 'resolution' => $r->resolution_time_minutes,
+                'description' => $r->description,
             ])->values()->toArray(),
         ])->values()->toArray();
 
@@ -282,6 +283,15 @@ class TicketController extends Controller
 
         if ($ticket->status !== TicketStatus::ASSIGNED) {
             return back()->with('error', 'Ticket must be acknowledged before it can be started.');
+        }
+
+        // One active ticket at a time — same anchor-slot rule Technician::start()
+        // enforces, and the same guard reassign()/takeover() already use here.
+        if ($activeTicket = $this->activeTicketFor(Auth::user(), $ticket->id)) {
+            return back()->with(
+                'error',
+                "Resolve or escalate ticket #{$activeTicket->ticket_number} before starting another ticket."
+            );
         }
 
         $request->validate([
@@ -714,6 +724,16 @@ class TicketController extends Controller
         );
     }
 
+    // Full-page support request details for the assigned admin
+    public function show(Tickets $ticket)
+    {
+        $this->authorizeAdmin($ticket);
+
+        $ticket->load(['user.department', 'assignedTo', 'statusHistories.changedBy', 'feedback', 'attachments.uploader', 'slaCategory']);
+
+        return view('admin.ticket-detail', compact('ticket'));
+    }
+
     // View full ticket history (returns JSON for modal)
     public function history(Tickets $ticket)
     {
@@ -721,6 +741,7 @@ class TicketController extends Controller
             'statusHistories.changedBy',
             'user.department',
             'assignedTo',
+            'attachments.uploader',
         ]);
 
         return response()->json($history);

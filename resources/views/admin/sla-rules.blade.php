@@ -683,7 +683,25 @@
     /* ── Main layout ── */
     .sla-main-layout { display:grid; grid-template-columns:320px 1fr; gap:24px; align-items:start; }
     @media (max-width:900px) { .sla-main-layout { grid-template-columns:1fr; } }
+
+    /* Each column scrolls independently instead of growing the whole page —
+       the left form column stays sticky+scrollable, the right category/rule
+       list gets its own capped, scrollable pane. */
+    .sla-left, .sla-right {
+        max-height: calc(100vh - 32px);
+        overflow-y: auto;
+        padding-right: 6px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--bd) transparent;
+    }
     .sla-left { position:sticky; top:16px; }
+    .sla-left::-webkit-scrollbar, .sla-right::-webkit-scrollbar { width:7px; }
+    .sla-left::-webkit-scrollbar-track, .sla-right::-webkit-scrollbar-track { background:transparent; }
+    .sla-left::-webkit-scrollbar-thumb, .sla-right::-webkit-scrollbar-thumb { background:var(--bd); border-radius:10px; }
+    .sla-left::-webkit-scrollbar-thumb:hover, .sla-right::-webkit-scrollbar-thumb:hover { background:var(--gl); }
+    @media (max-width:900px) {
+        .sla-left, .sla-right { max-height:none; overflow-y:visible; position:static; }
+    }
 
     /* ── Panel ── */
     .sla-panel { background:var(--cr); border:1.5px solid var(--bd); border-radius:20px; padding:22px; }

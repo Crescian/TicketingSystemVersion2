@@ -192,7 +192,7 @@ class TicketController extends Controller
         $slaCategories = \App\Models\SlaCategory::with([
             'rules' => function ($q) {
                 $q->where('is_active', true)
-                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes', 'helpdesk_resolvable', 'admin_only')
+                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes', 'helpdesk_resolvable', 'admin_only', 'description')
                     ->orderBy('subcategory_name');
             }
         ])
@@ -215,6 +215,7 @@ class TicketController extends Controller
                 'resolution' => $r->resolution_time_minutes,
                 'helpdesk_resolvable' => $r->helpdesk_resolvable,
                 'admin_only' => $r->admin_only,
+                'description' => $r->description,
             ])->values()->toArray(),
         ])->values()->toArray();
 
@@ -260,6 +261,17 @@ class TicketController extends Controller
             'workloadClasses',
             'workloadClassesJson'
         ));
+    }
+
+    // Full-page support request details for Helpdesk — the Helpdesk queue is a
+    // shared inbox across every agent (see index() above), not "assigned to me
+    // only", so unlike Admin\TicketController::show() there's no assigned_to
+    // ownership gate here — the role middleware is the boundary.
+    public function show(Tickets $ticket)
+    {
+        $ticket->load(['user.department', 'assignedTo', 'statusHistories.changedBy', 'feedback', 'attachments.uploader', 'slaCategory']);
+
+        return view('helpdesk.ticket-detail', compact('ticket'));
     }
 
     // "Active" = everything still open, before it lands on Closed. In Progress

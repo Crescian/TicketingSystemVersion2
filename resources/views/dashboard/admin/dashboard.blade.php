@@ -531,7 +531,7 @@
 
                 {{-- Title & desc --}}
                 <div class="ticket-title mb-1">{{ $ticket->subject }}</div>
-                <div class="ticket-desc mb-2">{{ Str::limit($ticket->concern, 140) }}</div>
+                <div class="ticket-desc mb-2">{{ $ticket->concern }}</div>
 
                 {{-- Meta --}}
                 <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
@@ -1535,7 +1535,10 @@
                 $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}" data-name="${sub.name}"
                      data-priority="${sub.priority}" data-response="${sub.response}" data-resolution="${sub.resolution}">
                     <div class="sub-check"></div>
-                    <span style="flex:1">${sub.name}</span>
+                    <div style="flex:1">
+                        <div>${sub.name}</div>
+                        ${sub.description ? `<div style="font-size:11px;font-weight:400;color:var(--tm);margin-top:2px">${escapeHtmlChat(sub.description)}</div>` : ''}
+                    </div>
                     <span style="font-size:10px;font-weight:800;color:${priColor}">${sub.priority} · ${sub.resolution}m SLA</span>
                 </div>`);
             });

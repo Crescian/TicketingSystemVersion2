@@ -140,6 +140,8 @@
 
     .btn-chat { background:#e8eeff; color:#2a4ab0; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:6px 14px; border-radius:20px; border:1.5px solid #b8c8ff; cursor:pointer; transition:all .2s; position:relative; display:inline-flex; align-items:center; gap:5px; }
     .btn-chat:hover { background:#d0dcff; border-color:#8898dd; }
+    .btn-view-details { background:none; color:var(--tm); font-family:'Nunito',sans-serif; font-weight:700; font-size:12px; padding:6px 14px; border-radius:20px; border:1.5px solid var(--bd); cursor:pointer; transition:all .2s; text-decoration:none; display:inline-flex; align-items:center; gap:5px; }
+    .btn-view-details:hover { border-color:var(--gl); color:var(--gd); }
     .chat-count-badge { background:#e24b4a; color:#fff; font-size:10px; font-weight:900; border-radius:20px; padding:1px 6px; font-family:'Nunito',sans-serif; min-width:18px; text-align:center; }
 
     @keyframes badgePulse {
@@ -596,7 +598,7 @@
 
                 {{-- Title & desc --}}
                 <div class="ticket-title mb-1">{{ $ticket->subject }}</div>
-                <div class="ticket-desc mb-2">{{ Str::limit($ticket->concern, 140) }}</div>
+                <div class="ticket-desc mb-2">{{ $ticket->concern }}</div>
 
                 {{-- Recent activity --}}
                 @if($ticket->statusHistories->isNotEmpty())
@@ -859,9 +861,13 @@
                         </button>
                     @endif
 
+                    <a href="{{ route('supervisor.support.tickets.show', $ticket) }}" class="btn-view-details">
+                        <i class="bi bi-eye me-1"></i>View Support Request Details
+                    </a>
+
                     {{-- Chat — available on every status --}}
                     <button class="btn-chat"
-                            onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', {{ Illuminate\Support\Js::from($ticket->user->name ?? 'Unknown') }}, {{ Illuminate\Support\Js::from($ticket->subject) }}, {{ Illuminate\Support\Js::from($ticket->concern) }})">
                         <i class="bi bi-chat-dots me-1"></i>Message
                         @php $unread = $ticket->unreadMessages()->count(); @endphp
                         @if($unread > 0)
@@ -1411,6 +1417,13 @@
                     </div>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
+                <div style="padding:10px 16px;background:var(--ygl);border-bottom:1.5px solid var(--bd);font-size:12px">
+                    <div style="font-weight:800;color:var(--gd)">
+                        <i class="bi bi-person-fill me-1"></i><span id="chatRequestor">—</span>
+                    </div>
+                    <div style="font-weight:700;color:var(--tm);margin-top:2px" id="chatSubject"></div>
+                    <div style="color:var(--tm);margin-top:2px;max-height:54px;overflow-y:auto" id="chatConcern"></div>
+                </div>
 
                 <div id="modalChatMessages"
                     style="height:360px;overflow-y:auto;padding:16px;background:#f8f8f4;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth">
@@ -1520,10 +1533,13 @@ const workloadClasses = @json($workloadClassesJson);
 let currentChatTicketId = null;
 let chatPollInterval    = null;
 
-window.openChatModal = function (ticketId, ticketNumber) {
+window.openChatModal = function (ticketId, ticketNumber, requestorName, subject, concern) {
     currentChatTicketId = ticketId;
     $('#badge-' + ticketId).remove();
     $('#chatTicketRef').text('#' + ticketNumber);
+    $('#chatRequestor').text(requestorName || '—');
+    $('#chatSubject').text(subject || '');
+    $('#chatConcern').text(concern || '');
     $('#modalChatMessages').html(`
         <div class="text-center py-4" style="color:var(--tm);font-size:13px">
             <div class="spinner-border spinner-border-sm me-2"></div>
@@ -1693,7 +1709,10 @@ $(document).on('click', '#caCategoryList .cat-main-opt', function () {
             $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}" data-name="${sub.name}"
                  data-priority="${sub.priority}" data-response="${sub.response}" data-resolution="${sub.resolution}">
                 <div class="sub-check"></div>
-                <span style="flex:1">${sub.name}</span>
+                <div style="flex:1">
+                    <div>${sub.name}</div>
+                    ${sub.description ? `<div style="font-size:11px;font-weight:400;color:var(--tm);margin-top:2px">${escapeHtmlChat(sub.description)}</div>` : ''}
+                </div>
                 <span style="font-size:10px;font-weight:800;color:${priColor}">${sub.priority} · ${sub.resolution}m SLA</span>
             </div>`);
         });

@@ -683,7 +683,7 @@
 
                 {{-- Title & desc --}}
                 <div class="ticket-title mb-1">{{ $ticket->subject }}</div>
-                <div class="ticket-desc mb-2">{{ Str::limit($ticket->concern, 140) }}</div>
+                <div class="ticket-desc mb-2">{{ $ticket->concern }}</div>
 
                 {{-- Classification & assignment — everything the tech needs before
                      acknowledging: what Supervisor classified it as, the workload class,
@@ -871,10 +871,16 @@
                                     <span style="color:var(--tm)">({{ $attachment->humanSize() }})</span>
                                     <div class="ms-auto d-flex gap-2">
                                         @if($isViewable)
+                                            <button type="button"
+                                                    onclick="openAttachmentPreview('{{ $attachment->id }}', {{ Illuminate\Support\Js::from($attachment->original_name) }}, '{{ $attachment->mime_type }}')"
+                                                    class="text-decoration-none border-0 bg-transparent p-0" style="color:var(--gd);font-weight:700">
+                                                <i class="bi bi-eye me-1"></i>View
+                                            </button>
+                                        @else
                                             <a href="{{ route('attachments.view', $attachment) }}"
                                                target="_blank" rel="noopener"
                                                class="text-decoration-none" style="color:var(--gd);font-weight:700">
-                                                <i class="bi bi-eye me-1"></i>View
+                                                <i class="bi bi-box-arrow-up-right me-1"></i>Open in New Tab
                                             </a>
                                         @endif
                                         <a href="{{ route('attachments.download', $attachment) }}"
@@ -975,7 +981,7 @@
 
                     @if($isInProgress || $isAcknowledged)
                         <button class="btn-chat"
-                                onclick="openTechChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                onclick="openTechChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', {{ Illuminate\Support\Js::from($ticket->user->name ?? 'Unknown') }}, {{ Illuminate\Support\Js::from($ticket->subject) }}, {{ Illuminate\Support\Js::from($ticket->concern) }})">
                             <i class="bi bi-chat-dots me-1"></i>Message
                             @php $unread = \App\Models\TicketMessage::where('ticket_id', $ticket->id)
                                 ->where('sender_id', '!=', Auth::id())
@@ -1056,10 +1062,11 @@
                                         <div class="detail-lbl mb-2" style="font-size:12px;font-weight:800;color:var(--tm)">Attachments</div>
                                         <div class="d-flex flex-column gap-1">
                                             @foreach($ticket->attachments as $attachment)
-                                                <a href="{{ route('attachments.download', $attachment) }}"
-                                                   class="text-decoration-none" style="font-size:12px;color:var(--gd);font-weight:600">
+                                                <button type="button"
+                                                   onclick="openAttachmentPreview('{{ $attachment->id }}', {{ Illuminate\Support\Js::from($attachment->original_name) }}, '{{ $attachment->mime_type }}')"
+                                                   class="text-decoration-none border-0 bg-transparent p-0 text-start" style="font-size:12px;color:var(--gd);font-weight:600">
                                                     <i class="bi bi-paperclip me-1"></i>{{ $attachment->original_name }}
-                                                </a>
+                                                </button>
                                             @endforeach
                                         </div>
                                     </div>
@@ -1579,6 +1586,13 @@
                       </div>
                       <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                   </div>
+                  <div style="padding:10px 16px;background:var(--ygl);border-bottom:1.5px solid var(--bd);font-size:12px">
+                      <div style="font-weight:800;color:var(--gd)">
+                          <i class="bi bi-person-fill me-1"></i><span id="techChatRequestor">—</span>
+                      </div>
+                      <div style="font-weight:700;color:var(--tm);margin-top:2px" id="techChatSubject"></div>
+                      <div style="color:var(--tm);margin-top:2px;max-height:54px;overflow-y:auto" id="techChatConcern"></div>
+                  </div>
 
                   <div id="techChatMessages"
                       style="height:360px;overflow-y:auto;padding:16px;background:#f8f8f4;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth">
@@ -1611,6 +1625,7 @@
       </div>
 
       <x-service-report-modal />
+      <x-attachment-preview-modal />
 @endsection
 
 @section('scripts')
@@ -1620,9 +1635,12 @@
     let currentTechChatTicketId = null;
     let techChatPollInterval    = null;
 
-    window.openTechChatModal = function (ticketId, ticketNumber) {
+    window.openTechChatModal = function (ticketId, ticketNumber, requestorName, subject, concern) {
         currentTechChatTicketId = ticketId;
         $('#techChatTicketRef').text('#' + ticketNumber);
+        $('#techChatRequestor').text(requestorName || '—');
+        $('#techChatSubject').text(subject || '');
+        $('#techChatConcern').text(concern || '');
         $('#badge-' + ticketId).remove();
         $('#techChatMessages').html(`
             <div class="text-center py-4" style="color:var(--tm);font-size:13px">
@@ -1911,7 +1929,10 @@
                     $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}"
                          data-priority="${sub.priority}" data-response="${sub.response}" data-resolution="${sub.resolution}">
                         <div class="sub-check"></div>
-                        <span style="flex:1">${sub.name}</span>
+                        <div style="flex:1">
+                            <div>${sub.name}</div>
+                            ${sub.description ? `<div style="font-size:11px;font-weight:400;color:var(--tm);margin-top:2px">${escTechHtml(sub.description)}</div>` : ''}
+                        </div>
                         <span style="font-size:10px;font-weight:800;color:${priColor}">${sub.priority} · ${sub.resolution}m SLA</span>
                     </div>`);
                 });
@@ -1971,7 +1992,10 @@
                     $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}"
                          data-priority="${sub.priority}" data-response="${sub.response}" data-resolution="${sub.resolution}">
                         <div class="sub-check"></div>
-                        <span style="flex:1">${sub.name}</span>
+                        <div style="flex:1">
+                            <div>${sub.name}</div>
+                            ${sub.description ? `<div style="font-size:11px;font-weight:400;color:var(--tm);margin-top:2px">${escTechHtml(sub.description)}</div>` : ''}
+                        </div>
                         <span style="font-size:10px;font-weight:800;color:${priColor}">${sub.priority} · ${sub.resolution}m SLA</span>
                     </div>`);
                 });

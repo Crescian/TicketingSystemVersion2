@@ -308,6 +308,8 @@
     .resolve-info { background:var(--ygl); border-radius:10px; font-size:13px; color:var(--gd); }
     .btn-chat { background:#e8eeff; color:#2a4ab0; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:6px 14px; border-radius:20px; border:1.5px solid #b8c8ff; cursor:pointer; transition:all .2s; position:relative; display:inline-flex; align-items:center; gap:5px; }
     .btn-chat:hover { background:#d0dcff; border-color:#8898dd; }
+    .btn-view-details { background:none; color:var(--tm); font-family:'Nunito',sans-serif; font-weight:700; font-size:12px; padding:6px 14px; border-radius:20px; border:1.5px solid var(--bd); cursor:pointer; transition:all .2s; text-decoration:none; display:inline-flex; align-items:center; gap:5px; }
+    .btn-view-details:hover { border-color:var(--gl); color:var(--gd); }
     .chat-count-badge { background:#e24b4a; color:#fff; font-size:10px; font-weight:900; border-radius:20px; padding:1px 6px; font-family:'Nunito',sans-serif; min-width:18px; text-align:center; }
     /* ── Silent refresh pulse ── */
     @keyframes badgePulse {
@@ -762,7 +764,7 @@
 
                 {{-- Title & desc --}}
                 <div class="ticket-title mb-1">{{ $ticket->subject }}</div>
-                <div class="ticket-desc mb-2">{{ Str::limit($ticket->concern, 140) }}</div>
+                <div class="ticket-desc mb-2">{{ $ticket->concern }}</div>
 
                 {{-- Recent activity --}}
                 @if($ticket->statusHistories->isNotEmpty())
@@ -858,6 +860,10 @@
                 {{-- Action buttons --}}
                 <div class="d-flex gap-2 flex-wrap">
 
+                    <a href="{{ route('helpdesk.tickets.show', $ticket) }}" class="btn-view-details">
+                        <i class="bi bi-eye me-1"></i>View Support Request Details
+                    </a>
+
                     {{-- Not yet acknowledged --}}
                     @if($needsAck)
                         <form method="POST" action="{{ route('helpdesk.tickets.acknowledge', $ticket) }}">
@@ -913,7 +919,7 @@
                     @if($needsAck || $needsClassify || $canResolveMyself)
                         {{-- ── Chat button ── --}}
                         <button class="btn-chat"
-                                onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', {{ Illuminate\Support\Js::from($ticket->user->name ?? 'Unknown') }}, {{ Illuminate\Support\Js::from($ticket->subject) }}, {{ Illuminate\Support\Js::from($ticket->concern) }})">
                             <i class="bi bi-chat-dots me-1"></i>Message
                             @php $unread = $ticket->unreadMessages()->count(); @endphp
                             @if($unread > 0)
@@ -933,7 +939,7 @@
                     @if(in_array($ticket->status, ['In Progress Service Request', 'Closed Service Request', 'In Progress Service Report']) && $ticket->assigned_to !== Auth::id())
                         {{-- ── Chat button ── --}}
                         <button class="btn-chat"
-                                onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', {{ Illuminate\Support\Js::from($ticket->user->name ?? 'Unknown') }}, {{ Illuminate\Support\Js::from($ticket->subject) }}, {{ Illuminate\Support\Js::from($ticket->concern) }})">
                             <i class="bi bi-chat-dots me-1"></i>Message
                             @php $unread = $ticket->unreadMessages()->count(); @endphp
                             @if($unread > 0)
@@ -946,7 +952,7 @@
                     @if($ticket->status === 'Escalated')
                         {{-- ── Chat button ── --}}
                         <button class="btn-chat"
-                                onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', {{ Illuminate\Support\Js::from($ticket->user->name ?? 'Unknown') }}, {{ Illuminate\Support\Js::from($ticket->subject) }}, {{ Illuminate\Support\Js::from($ticket->concern) }})">
                             <i class="bi bi-chat-dots me-1"></i>Message
                             @php $unread = $ticket->unreadMessages()->count(); @endphp
                             @if($unread > 0)
@@ -961,7 +967,7 @@
                          off is Report For Review. --}}
                     @if($ticket->status === 'Report For Review')
                         <button class="btn-chat"
-                                onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', {{ Illuminate\Support\Js::from($ticket->user->name ?? 'Unknown') }}, {{ Illuminate\Support\Js::from($ticket->subject) }}, {{ Illuminate\Support\Js::from($ticket->concern) }})">
                             <i class="bi bi-chat-dots me-1"></i>Message
                             @php $unread = $ticket->unreadMessages()->count(); @endphp
                             @if($unread > 0)
@@ -972,7 +978,7 @@
 
                     @if($ticket->status === 'Requestor Confirmation')
                         <button class="btn-chat"
-                                onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                onclick="openChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', {{ Illuminate\Support\Js::from($ticket->user->name ?? 'Unknown') }}, {{ Illuminate\Support\Js::from($ticket->subject) }}, {{ Illuminate\Support\Js::from($ticket->concern) }})">
                             <i class="bi bi-chat-dots me-1"></i>Message
                             @php $unread = $ticket->unreadMessages()->count(); @endphp
                             @if($unread > 0)
@@ -1702,6 +1708,13 @@
                     </div>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
+                <div style="padding:10px 16px;background:var(--ygl);border-bottom:1.5px solid var(--bd);font-size:12px">
+                    <div style="font-weight:800;color:var(--gd)">
+                        <i class="bi bi-person-fill me-1"></i><span id="chatRequestor">—</span>
+                    </div>
+                    <div style="font-weight:700;color:var(--tm);margin-top:2px" id="chatSubject"></div>
+                    <div style="color:var(--tm);margin-top:2px;max-height:54px;overflow-y:auto" id="chatConcern"></div>
+                </div>
 
                 {{-- Messages area --}}
                 <div id="modalChatMessages"
@@ -1761,10 +1774,13 @@ $(document).on('click', '.method-opt', function () {
 let currentChatTicketId = null;
 let chatPollInterval    = null;
 
-window.openChatModal = function (ticketId, ticketNumber) {
+window.openChatModal = function (ticketId, ticketNumber, requestorName, subject, concern) {
     currentChatTicketId = ticketId;
     $('#badge-' + ticketId).remove();
     $('#chatTicketRef').text('#' + ticketNumber);
+    $('#chatRequestor').text(requestorName || '—');
+    $('#chatSubject').text(subject || '');
+    $('#chatConcern').text(concern || '');
     $('#modalChatMessages').html(`
         <div class="text-center py-4" style="color:var(--tm);font-size:13px">
             <div class="spinner-border spinner-border-sm me-2"></div>
@@ -2097,7 +2113,10 @@ $(function () {
                      data-helpdesk-resolvable="${sub.helpdesk_resolvable ? '1' : '0'}"
                      data-admin-only="${sub.admin_only ? '1' : '0'}">
                     <div class="sub-check"></div>
-                    <span style="flex:1">${sub.name}</span>
+                    <div style="flex:1">
+                        <div>${sub.name}</div>
+                        ${sub.description ? `<div style="font-size:11px;font-weight:400;color:var(--tm);margin-top:2px">${escapeHtmlChat(sub.description)}</div>` : ''}
+                    </div>
                     <span style="font-size:10px;font-weight:800;color:${priColor}">${sub.priority} · ${sub.resolution}m SLA</span>
                 </div>`);
             });

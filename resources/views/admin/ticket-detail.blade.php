@@ -1,28 +1,25 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 
 @section('title', 'Ticket #' . $ticket->ticket_number . ' — LGICT')
 
 @section('nav-role-badge')
+    <span class="role-badge-admin">
+        <i class="bi bi-shield-fill me-1"></i>IT Admin
+    </span>
 @endsection
 @section('avatar-initials',
     strtoupper(substr(Auth::user()->name, 0, 1)) .
     strtoupper(substr(Auth::user()->name, strpos(Auth::user()->name, ' ') + 1, 1))
 )
-@section('nav-username', explode(' ', Auth::user()->name)[0] . ' ' . strtoupper(substr(explode(' ', Auth::user()->name)[1] ?? '', 0, 1)) . '.')
+@section('nav-username', Auth::user()->name)
 
 @section('hero-title')
     <h1>SUPPORT REQUEST <em>DETAILS</em></h1>
 @endsection
-@section('hero-subtitle', 'Full history and status of your support request.')
+@section('hero-subtitle', 'Full history and status of this support request.')
 
 @section('hero-stats')
     @php
-        // Badge treatment for the 12 standard internal statuses (App\Support\TicketStatus)
-        // plus Cancelled. 'For Acknowledgment'/'Classified' read as "queued, not yet
-        // started" (open); 'Assigned' through 'In Progress Service Report' read as active
-        // work (in-progress); 'Done Service Report' through 'Requestor Confirmation' read
-        // as meaningful progress toward completion, same treatment 'Awaiting Requestor'
-        // (now Requestor Confirmation) always got.
         $badgeIcon = match($ticket->status) {
             'For Acknowledgment'          => '●',
             'Classified'                  => '◆',
@@ -80,18 +77,19 @@
     .tl-time { font-size: 11px; color: var(--tm); font-weight: 600; }
     .tl-title { font-size: 14px; font-weight: 800; color: var(--gd); margin: 2px 0; }
     .tl-desc  { font-size: 13px; color: var(--tm); }
-    .btn-back-page { background: none; border: 1.5px solid var(--bd); color: var(--tm); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; padding: 8px 20px; border-radius: 50px; transition: all .2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
-    .btn-back-page:hover { border-color: var(--gl); color: var(--gd); }
-    .btn-service-report { background:#e8f5ee; color:#1a5a3a; font-family:'Nunito',sans-serif; font-weight:800; font-size:13px; padding:8px 20px; border-radius:50px; border:1.5px solid #a8ddc0; transition:all .2s; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
-    .btn-service-report:hover { background:#c8ead8; }
-    .btn-cancel-ticket { background: none; border: 1.5px solid #e24b4a; color: #e24b4a; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; padding: 8px 20px; border-radius: 50px; transition: all .2s; cursor: pointer; }
-    .btn-cancel-ticket:hover { background: #e24b4a; color: #fff; }
+    .esc-banner { background: #fde8e8; border-radius: 8px; font-size: 12px; font-weight: 700; color: #8b1a1a; }
+    .badge-open { background: var(--ygl); color: var(--gm); }
+    .badge-in-progress { background: #fff4cc; color: #7a5a00; }
+    .badge-escalated { background: #fde8e8; color: #8b1a1a; }
+    .badge-resolved { background: #e8f5ee; color: #1a5a3a; }
+    .badge-awaiting-requestor { background: #e6f0ff; color: #1a4d8f; }
+    .badge-cancelled { background: #eee; color: #555; }
 @endsection
 
 @section('sidebar')
     {{-- Ticket quick info --}}
     <div class="sidebar-card mb-3">
-        <div class="sidebar-head">Support Request Info</div>
+        <div class="sidebar-head red">Support Request Info</div>
         <div class="p-3 d-flex flex-column gap-3">
             <div>
                 <div class="detail-lbl">Support Request Number</div>
@@ -102,6 +100,15 @@
                 <span class="badge-status {{ $badgeClass }}">
                     {{ $badgeIcon }} {{ $ticket->status }}
                 </span>
+            </div>
+            <div>
+                <div class="detail-lbl">Requested By</div>
+                <div style="font-size:13px;font-weight:600;color:var(--tm)">
+                    {{ $ticket->user->name ?? '—' }}
+                    @if($ticket->user?->department)
+                        <br>{{ $ticket->user->department->name ?? '' }}
+                    @endif
+                </div>
             </div>
             <div>
                 <div class="detail-lbl">Category</div>
@@ -142,32 +149,6 @@
                     </div>
                 </div>
             @endif
-            <div>
-                <div class="detail-lbl">Assigned To</div>
-                @if($ticket->assignedTo)
-                    @php
-                        $initials = strtoupper(substr($ticket->assignedTo->name, 0, 1)) .
-                            strtoupper(substr($ticket->assignedTo->name, strpos($ticket->assignedTo->name, ' ') + 1, 1));
-                    @endphp
-                    <span class="tech-chip">
-                        <span class="tc-av">{{ $initials }}</span>
-                        {{ $ticket->assignedTo->name }}
-                    </span>
-                @else
-                    <span class="tech-chip">
-                        <span class="tc-av" style="background:#888">—</span>
-                        Unassigned
-                    </span>
-                @endif
-            </div>
-            @if($ticket->expected_start_label ?? null)
-                <div>
-                    <div class="detail-lbl">{{ $ticket->expected_start_label === 'Being worked on now' ? 'Status' : 'Expected Start' }}</div>
-                    <div style="font-size:13px;font-weight:600;color:var(--tm)">
-                        {{ $ticket->expected_start_label }}
-                    </div>
-                </div>
-            @endif
             @if($ticket->resolved_at)
                 <div>
                     <div class="detail-lbl">Resolved At</div>
@@ -187,8 +168,8 @@
     @endif
 
     {{-- Back button --}}
-    <a href="{{ route($routePrefix.'tickets.index') }}" class="btn-back-page w-100 justify-content-center">
-        <i class="bi bi-arrow-left"></i> Back to My Support Requests
+    <a href="{{ route('admin.dashboard') }}" class="btn-back-dashboard w-100 justify-content-center">
+        <i class="bi bi-arrow-left me-1"></i> Back to My Support Requests
     </a>
 @endsection
 
@@ -207,8 +188,7 @@
         <div class="ticket-title mb-2" style="font-size:20px">{{ $ticket->subject }}</div>
         <div class="ticket-desc mb-4" style="-webkit-line-clamp:unset">{{ $ticket->concern }}</div>
 
-        {{-- Classification & assignment — shown once Helpdesk/Supervisor have
-             classified the ticket and assigned it to an ICT Support Specialist. --}}
+        {{-- Classification & assignment --}}
         @if($ticket->subcategory_name)
             <div class="mb-4 p-3" style="background:var(--ygl);border-radius:12px;border:1px solid var(--gl)">
                 <div class="detail-lbl mb-2">
@@ -274,14 +254,6 @@
                 @endif
             </div>
         @endif
-
-        {{-- Cancel button — only while Helpdesk hasn't acknowledged the request yet --}}
-        @if($ticket->status === 'For Acknowledgment' && $ticket->pending_role === 'Helpdesk' && is_null($ticket->date_acknowledged))
-            <button class="btn-cancel-ticket"
-                    onclick="confirmCancel('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                <i class="bi bi-x-circle me-1"></i>Cancel This Support Request
-            </button>
-        @endif
     </div>
 
     {{-- Status History Timeline --}}
@@ -294,9 +266,6 @@
         <div class="timeline-wrap">
             @forelse($ticket->statusHistories->sortBy('changed_at') as $history)
                 @php
-                    // Buckets every real status string this app sets (not just the 5
-                    // literal names the old match covered) into one of the 5 existing
-                    // dot colors, so nothing falls through to an unstyled default.
                     $dotClass = match (true) {
                         $history->new_status === 'Cancelled' => 'cancelled',
                         $history->new_status === 'Escalated' => 'escalated',
@@ -335,50 +304,11 @@
 @endsection
 
 @section('modals')
-    {{-- Cancel Confirmation Modal --}}
-    <div class="modal fade" id="cancelModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Cancel <em>Support Request</em></h5>
-                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
-                </div>
-                <div class="modal-body px-4 py-4">
-                    <div class="p-3 rounded"
-                         style="background:rgba(226,75,74,.1);border:1px solid rgba(226,75,74,.3);color:#e24b4a;font-size:13px;font-weight:600">
-                        <i class="bi bi-exclamation-triangle me-1"></i>
-                        Are you sure you want to cancel support request
-                        <strong id="cancelTicketRef"></strong>?
-                        This cannot be undone.
-                    </div>
-                </div>
-                <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
-                    <button class="btn-back-modal" data-bs-dismiss="modal">Go Back</button>
-                    <form id="cancelForm" method="POST">
-                        @csrf
-                        @method('PATCH')
-                        <button type="submit" class="btn-cancel-ticket"
-                                style="padding:10px 24px">
-                            <i class="bi bi-x-circle me-1"></i>Yes, Cancel Support Request
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <x-service-report-modal />
     <x-attachment-preview-modal />
 @endsection
 
 @section('scripts')
-<script>
-window.confirmCancel = function (ticketId, ticketNumber) {
-    $('#cancelTicketRef').text('#' + ticketNumber);
-    $('#cancelForm').attr('action', '{{ url(rtrim($routePrefix, '.') . '/tickets') }}/' + ticketId + '/cancel');
-    new bootstrap.Modal('#cancelModal').show();
-};
-</script>
 {{-- Chat component --}}
 <x-ticket-chat :ticket="$ticket" />
 @endsection

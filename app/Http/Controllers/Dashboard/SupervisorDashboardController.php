@@ -260,7 +260,7 @@ class SupervisorDashboardController extends Controller
         $slaCategories = SlaCategory::with([
             'rules' => function ($q) {
                 $q->where('is_active', true)
-                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes')
+                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes', 'description')
                     ->orderBy('subcategory_name');
             }
         ])
@@ -278,6 +278,7 @@ class SupervisorDashboardController extends Controller
                 'priority' => $r->priority,
                 'response' => $r->response_time_minutes,
                 'resolution' => $r->resolution_time_minutes,
+                'description' => $r->description,
             ])->values()->toArray(),
         ])->values()->toArray();
 
@@ -303,6 +304,17 @@ class SupervisorDashboardController extends Controller
             'slaCategoriesJson',
             'workloadClassesJson'
         ));
+    }
+
+    // Full-page support request details for the Support Specialist Supervisor —
+    // this dashboard is a team-wide queue view (not "assigned to me only", see
+    // supportIndex() above), so unlike Admin\TicketController::show() there's no
+    // assigned_to ownership gate here — the role middleware is the boundary.
+    public function show(Tickets $ticket)
+    {
+        $ticket->load(['user.department', 'assignedTo', 'statusHistories.changedBy', 'feedback', 'attachments.uploader', 'slaCategory']);
+
+        return view('supervisor.support.ticket-detail', compact('ticket'));
     }
 
     public function supportAcknowledge(Tickets $ticket)
@@ -487,7 +499,15 @@ class SupervisorDashboardController extends Controller
                 'changed_at' => $now,
             ]);
 
-            $ticket->update(['status' => TicketStatus::IN_PROGRESS_SERVICE_REQUEST]);
+            $ticket->update([
+                'status' => TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
+                'started_at' => $now, // SLA resolution clock starts here
+                'sla_due_at' => $resolutionTime
+                    ? BusinessClock::addBusinessMinutes($now->copy(), $resolutionTime)
+                    : null,
+                'sla_risk_notified_at' => null,
+                'sla_breached_notified_at' => null,
+            ]);
 
             TicketStatusHistories::create([
                 'ticket_id' => $ticket->id,
@@ -643,6 +663,7 @@ class SupervisorDashboardController extends Controller
             'assigned_at' => now(),
             'pending_role' => null,
             'status' => TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
+            'started_at' => $ticket->started_at ?? now(), // guard against a blank Start Time on the service report if it somehow wasn't already set
             'scheduled_start' => $slot['scheduled_start'],
             'scheduled_end' => $slot['scheduled_end'],
             'is_overtime' => $slot['is_overtime'],
@@ -1520,7 +1541,7 @@ class SupervisorDashboardController extends Controller
         $slaCategories = SlaCategory::with([
             'rules' => function ($q) {
                 $q->where('is_active', true)
-                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes')
+                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes', 'description')
                     ->orderBy('subcategory_name');
             }
         ])
@@ -1540,6 +1561,7 @@ class SupervisorDashboardController extends Controller
                 'priority' => $r->priority,
                 'response' => $r->response_time_minutes,
                 'resolution' => $r->resolution_time_minutes,
+                'description' => $r->description,
             ])->values()->toArray(),
         ])->values()->toArray();
 
@@ -1858,12 +1880,20 @@ class SupervisorDashboardController extends Controller
         }
 
         $oldStatus = $ticket->status;
+        $startedAt = $ticket->started_at ?? now();
+        $resolutionMinutes = $ticket->effectiveResolutionTimeMinutes();
 
         $ticket->update([
             'assigned_to' => Auth::id(),
             'assigned_at' => now(),
             'pending_role' => null,
             'status' => TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
+            'started_at' => $startedAt, // SLA resolution clock starts here
+            'sla_due_at' => $resolutionMinutes
+                ? BusinessClock::addBusinessMinutes($startedAt->copy(), $resolutionMinutes)
+                : null,
+            'sla_risk_notified_at' => null,
+            'sla_breached_notified_at' => null,
             'scheduled_start' => $slot['scheduled_start'],
             'scheduled_end' => $slot['scheduled_end'],
             'is_overtime' => $slot['is_overtime'],

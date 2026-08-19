@@ -85,6 +85,33 @@
         font-size: 10px; transition: all .2s;
     }
     .cat-sub-opt.selected .sub-check { background: var(--gd); border-color: var(--gd); color: var(--yg); }
+
+    /* ── Awaiting-you attention banner ── */
+    .awaiting-banner {
+        display: flex; align-items: center; gap: 14px;
+        background: linear-gradient(135deg, #ff9f43, #ff7a1a);
+        border-radius: 14px; padding: 14px 20px; margin-bottom: 16px;
+        box-shadow: 0 4px 14px rgba(255, 122, 26, .35);
+        color: #fff; text-decoration: none;
+        animation: awaitingPulse 2.2s ease-in-out infinite;
+    }
+    .awaiting-banner:hover { color: #fff; filter: brightness(1.05); }
+    .awaiting-banner .aw-icon {
+        width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+        background: rgba(255,255,255,.25);
+        display: flex; align-items: center; justify-content: center; font-size: 20px;
+    }
+    .awaiting-banner .aw-title { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 15px; }
+    .awaiting-banner .aw-sub { font-size: 12.5px; opacity: .9; font-weight: 600; }
+    .awaiting-banner .aw-cta {
+        margin-left: auto; background: #fff; color: #ff7a1a;
+        font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 13px;
+        padding: 8px 18px; border-radius: 50px; white-space: nowrap;
+    }
+    @keyframes awaitingPulse {
+        0%, 100% { box-shadow: 0 4px 14px rgba(255, 122, 26, .35); }
+        50%      { box-shadow: 0 4px 22px rgba(255, 122, 26, .65); }
+    }
 @endsection
 
 {{-- ══ SIDEBAR ══ --}}
@@ -237,6 +264,23 @@
 
     @include('partials.schedule-conflict-modal')
 
+    {{-- Awaiting-you attention banner — assigned tickets you haven't
+         acknowledged yet stay flagged here (not dismissible) until you do. --}}
+    @if($counts['awaiting_ack'] > 0)
+        <a href="{{ route('admin.dashboard', ['status' => 'awaiting-ack']) }}"
+           class="awaiting-banner">
+            <span class="aw-icon"><i class="bi bi-hourglass-split"></i></span>
+            <span>
+                <div class="aw-title">
+                    {{ $counts['awaiting_ack'] }}
+                    {{ Str::plural('support request', $counts['awaiting_ack']) }} awaiting your acknowledgment
+                </div>
+                <div class="aw-sub">Acknowledge {{ $counts['awaiting_ack'] === 1 ? 'it' : 'them' }} so you can start work.</div>
+            </span>
+            <span class="aw-cta">Review Now <i class="bi bi-arrow-right ms-1"></i></span>
+        </a>
+    @endif
+
     {{-- Controls --}}
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
         <span class="font-brand fw-900" style="font-size:22px">
@@ -388,7 +432,7 @@
 
                 {{-- Title & desc --}}
                 <div class="ticket-title mb-1">{{ $ticket->subject }}</div>
-                <div class="ticket-desc mb-3">{{ Str::limit($ticket->concern, 150) }}</div>
+                <div class="ticket-desc mb-3">{{ $ticket->concern }}</div>
 
                 {{-- Recent activity --}}
                 @if($ticket->statusHistories->isNotEmpty())
@@ -502,7 +546,7 @@
                     {{-- Available on every non-closed status --}}
                     @if($ticket->status !== 'Closed')
                         <button class="btn-chat"
-                                onclick="openAdminChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                onclick="openAdminChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', {{ Illuminate\Support\Js::from($ticket->user->name ?? 'Unknown') }}, {{ Illuminate\Support\Js::from($ticket->subject) }}, {{ Illuminate\Support\Js::from($ticket->concern) }})">
                             <i class="bi bi-chat-dots me-1"></i>Message
                             @php $unread = \App\Models\TicketMessage::where('ticket_id', $ticket->id)
                                 ->where('sender_id', '!=', Auth::id())
@@ -519,6 +563,10 @@
                             <i class="bi bi-file-earmark-pdf me-1"></i>Service Report
                         </button>
                     @endif
+
+                    <a href="{{ route('admin.tickets.show', $ticket) }}" class="btn-view-hist" style="text-decoration:none">
+                        <i class="bi bi-eye me-1"></i>View Support Request Details
+                    </a>
 
                     <button class="btn-view-hist"
                             onclick="openHistoryModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
@@ -932,6 +980,7 @@
                     <div class="mb-3 p-2 px-3 rounded" style="background:var(--ygl);font-size:13px">
                         <strong id="historyRef"></strong> — Complete audit trail of all status changes and actions.
                     </div>
+                    <div id="historyAttachments" class="mb-3"></div>
                     <div id="historyTimeline">
                         <div class="text-center py-4" style="color:var(--tm)">
                             <div class="spinner-border spinner-border-sm me-2"></div>
@@ -958,6 +1007,13 @@
                         </h5>
                     </div>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <div style="padding:10px 16px;background:var(--ygl);border-bottom:1.5px solid var(--bd);font-size:12px">
+                    <div style="font-weight:800;color:var(--gd)">
+                        <i class="bi bi-person-fill me-1"></i><span id="adminChatRequestor">—</span>
+                    </div>
+                    <div style="font-weight:700;color:var(--tm);margin-top:2px" id="adminChatSubject"></div>
+                    <div style="color:var(--tm);margin-top:2px;max-height:54px;overflow-y:auto" id="adminChatConcern"></div>
                 </div>
                 <div id="adminChatMessages"
                      style="height:360px;overflow-y:auto;padding:16px;background:#f8f8f4;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth">
@@ -987,6 +1043,7 @@
     </div>
 
     <x-service-report-modal />
+    <x-attachment-preview-modal />
 @endsection
 
 @section('scripts')
@@ -1001,6 +1058,10 @@ $(function () {
     });
 
     /* ── Tech selection ── */
+    $(document).on('click', '.att-preview-trigger', function () {
+        openAttachmentPreview($(this).data('id'), $(this).data('name'), $(this).data('mime'));
+    });
+
     $(document).on('click', '.tech-select-option:not(.disabled)', function () {
         $(this).closest('#techListReassign').find('.tech-select-option').removeClass('selected');
         $(this).addClass('selected');
@@ -1148,7 +1209,10 @@ $(function () {
                 $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}"
                      data-priority="${sub.priority}" data-response="${sub.response}" data-resolution="${sub.resolution}">
                     <div class="sub-check"></div>
-                    <span style="flex:1">${sub.name}</span>
+                    <div style="flex:1">
+                        <div>${sub.name}</div>
+                        ${sub.description ? `<div style="font-size:11px;font-weight:400;color:var(--tm);margin-top:2px">${escAdminHtml(sub.description)}</div>` : ''}
+                    </div>
                     <span style="font-size:10px;font-weight:800;color:${priColor}">${sub.priority} · ${sub.resolution}m SLA</span>
                 </div>`);
             });
@@ -1178,6 +1242,7 @@ $(function () {
     /* ── History modal ── */
     window.openHistoryModal = function (ticketId, ticketNumber) {
         $('#historyRef').text('#' + ticketNumber);
+        $('#historyAttachments').html('');
         $('#historyTimeline').html(`
             <div class="text-center py-4" style="color:var(--tm)">
                 <div class="spinner-border spinner-border-sm me-2"></div>
@@ -1189,6 +1254,40 @@ $(function () {
         fetch('/admin/tickets/' + ticketId + '/history')
             .then(r => r.json())
             .then(data => {
+                const attachments = data.attachments || [];
+                if (attachments.length) {
+                    const formatSize = bytes => {
+                        if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+                        if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                        return bytes + ' B';
+                    };
+                    const viewableMimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'text/plain'];
+                    let attHtml = `
+                        <div style="font-size:12px;font-weight:800;color:var(--tm);margin-bottom:6px">
+                            <i class="bi bi-paperclip me-1"></i>Attachments
+                        </div>
+                        <div class="d-flex flex-column gap-1">
+                    `;
+                    attachments.forEach(a => {
+                        const safeName = escAdminHtml(a.original_name);
+                        attHtml += `
+                            <div class="d-flex align-items-center gap-2 p-2" style="background:var(--ygl);border-radius:8px;font-size:12px">
+                                <i class="bi bi-file-earmark-text" style="color:var(--tm)"></i>
+                                <span style="font-weight:600;color:var(--gd)">${safeName}</span>
+                                <span style="color:var(--tm)">(${formatSize(a.size)})</span>
+                                <div class="ms-auto d-flex gap-2">
+                                    ${viewableMimes.includes(a.mime_type)
+                                        ? `<button type="button" class="att-preview-trigger text-decoration-none border-0 bg-transparent p-0" data-id="${a.id}" data-name="${safeName}" data-mime="${a.mime_type}" style="color:var(--gd);font-weight:700"><i class="bi bi-eye me-1"></i>View</button>`
+                                        : `<a href="/attachments/${a.id}/view" target="_blank" rel="noopener" class="text-decoration-none" style="color:var(--gd);font-weight:700"><i class="bi bi-box-arrow-up-right me-1"></i>Open in New Tab</a>`}
+                                    <a href="/attachments/${a.id}/download" class="text-decoration-none" style="color:var(--tm);font-weight:700"><i class="bi bi-download me-1"></i>Download</a>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    attHtml += '</div>';
+                    $('#historyAttachments').html(attHtml);
+                }
+
                 const histories = data.status_histories || [];
                 if (!histories.length) {
                     $('#historyTimeline').html('<div style="color:var(--tm);font-size:13px">No history available.</div>');
@@ -1248,9 +1347,12 @@ $(function () {
 let currentAdminChatTicketId = null;
 let adminChatPollInterval    = null;
 
-window.openAdminChatModal = function (ticketId, ticketNumber) {
+window.openAdminChatModal = function (ticketId, ticketNumber, requestorName, subject, concern) {
     currentAdminChatTicketId = ticketId;
     $('#adminChatTicketRef').text('#' + ticketNumber);
+    $('#adminChatRequestor').text(requestorName || '—');
+    $('#adminChatSubject').text(subject || '');
+    $('#adminChatConcern').text(concern || '');
     $('#badge-' + ticketId).remove();
     $('#adminChatMessages').html(`
         <div class="text-center py-4" style="color:var(--tm);font-size:13px">
