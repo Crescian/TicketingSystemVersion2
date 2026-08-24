@@ -91,6 +91,7 @@ class ProfileController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        return back()->with('success', '✅ Password updated successfully! Please keep it safe.');
+        return redirect()->route($user->dashboardRoute())
+            ->with('success', '✅ Password updated successfully! Please keep it safe.');
     }
 }

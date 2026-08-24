@@ -24,6 +24,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'abilities' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
             'ability' => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
         ]);
+
+        // Runs after session/auth so Auth::user() is available; redirects anyone
+        // still on the shared default password to the profile page on every
+        // request except the profile/password/logout routes themselves.
+        $middleware->web(append: [
+            \App\Http\Middleware\RequirePasswordChange::class,
+        ]);
     })
     ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
         $withinNotificationWindow = fn () => BusinessClock::isWithinNotificationWindow(now());

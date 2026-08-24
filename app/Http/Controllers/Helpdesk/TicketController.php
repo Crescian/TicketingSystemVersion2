@@ -29,7 +29,7 @@ class TicketController extends Controller
         $search = $request->get('search', '');
         $sort = $request->get('sort', 'newest');
 
-        $query = Tickets::with(['user.department', 'assignedTo', 'statusHistories.changedBy'])
+        $query = Tickets::with(['user.department', 'assignedTo', 'statusHistories.changedBy', 'attachments'])
             ->orderByRaw("CASE
                 WHEN status = 'For Acknowledgment' AND pending_role = 'Helpdesk' THEN 1
                 WHEN status = 'For Acknowledgment' AND pending_role = 'Supervisor - Support Specialist' THEN 2
@@ -269,7 +269,7 @@ class TicketController extends Controller
     // ownership gate here — the role middleware is the boundary.
     public function show(Tickets $ticket)
     {
-        $ticket->load(['user.department', 'assignedTo', 'statusHistories.changedBy', 'feedback', 'attachments.uploader', 'slaCategory']);
+        $ticket->load(['user.department', 'assignedTo.role', 'statusHistories.changedBy', 'feedback', 'attachments.uploader', 'slaCategory']);
 
         return view('helpdesk.ticket-detail', compact('ticket'));
     }

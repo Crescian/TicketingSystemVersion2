@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Jobs\SendTicketChatDigest;
 use App\Models\Tickets;
+use App\Models\TicketAttachment;
 use App\Models\TicketMessage;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class MessageController extends Controller
 {
@@ -28,7 +30,7 @@ class MessageController extends Controller
             ]);
 
         $messages = TicketMessage::where('ticket_id', $ticket->id)
-            ->with('sender.role')
+            ->with(['sender.role', 'attachments'])
             ->orderBy('created_at', 'asc')
             ->get()
             ->map(function ($msg) {
@@ -48,6 +50,7 @@ class MessageController extends Controller
                     'time' => \Carbon\Carbon::parse($msg->created_at)->timezone('Asia/Manila')->format('M d, g:i A'),
                     'time_ago' => \Carbon\Carbon::parse($msg->created_at)->diffForHumans(),
                     'created_at' => $msg->created_at,
+                    'attachments' => $msg->attachments->map(fn ($a) => $this->formatAttachment($a))->values(),
                 ];
             });
 
@@ -62,22 +65,43 @@ class MessageController extends Controller
         ]);
     }
 
-    // Send a message
+    // Send a message — text, attachments (image/PDF), or both. At least one
+    // of the two is required.
     public function store(Request $request, Tickets $ticket)
     {
         $this->authorizeAccess($ticket);
 
         $request->validate([
-            'message' => 'required|string|max:1000',
+            'message' => 'nullable|string|max:1000',
+            'attachments' => 'nullable|array|max:5',
+            'attachments.*' => 'file|max:10240|mimes:jpg,jpeg,png,gif,pdf',
         ]);
+
+        if (! $request->filled('message') && ! $request->hasFile('attachments')) {
+            return response()->json(['message' => 'Enter a message or attach a file.'], 422);
+        }
 
         $msg = TicketMessage::create([
             'ticket_id' => $ticket->id,
             'sender_id' => Auth::id(),
-            'message' => $request->message,
+            'message' => $request->message ?? '',
             'is_read' => false,
             'created_at' => now(),
         ]);
+
+        $attachments = collect($request->file('attachments', []))->map(function ($file) use ($ticket, $msg) {
+            $storedPath = $file->store('ticket-attachments/' . $ticket->id, 'local');
+
+            return TicketAttachment::create([
+                'ticket_id' => $ticket->id,
+                'ticket_message_id' => $msg->id,
+                'uploaded_by' => Auth::id(),
+                'original_name' => $file->getClientOriginalName(),
+                'stored_path' => $storedPath,
+                'mime_type' => $file->getClientMimeType(),
+                'size' => $file->getSize(),
+            ]);
+        });
 
         // Only staff replies need to notify the employee by email — the
         // employee already knows what they themselves just typed.
@@ -100,6 +124,7 @@ class MessageController extends Controller
             'initials' => $initials,
             'is_me' => true,
             'is_read' => false,
+            'attachments' => $attachments->map(fn ($a) => $this->formatAttachment($a))->values(),
             'time' => $msg->created_at->format('M d, g:i A'),
             'time_ago' => $msg->created_at->diffForHumans(),
         ]);
@@ -133,6 +158,21 @@ class MessageController extends Controller
             ->count();
 
         return response()->json(['count' => $count]);
+    }
+
+    // Shared shape for a chat attachment — reuses the same view/download routes
+    // (and authorization) as ticket-level attachments, since a chat attachment
+    // is just a TicketAttachment row that also happens to be tied to a message.
+    private function formatAttachment(TicketAttachment $attachment): array
+    {
+        return [
+            'id' => $attachment->id,
+            'name' => $attachment->original_name,
+            'mime_type' => $attachment->mime_type,
+            'size' => $attachment->humanSize(),
+            'view_url' => route('attachments.view', $attachment),
+            'download_url' => route('attachments.download', $attachment),
+        ];
     }
 
     // Authorize user can access ticket messages

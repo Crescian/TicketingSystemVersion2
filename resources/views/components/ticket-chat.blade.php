@@ -50,7 +50,14 @@
             <div class="chat-role-pill role-{{ $roleSlug }}">
                 {{ $roleName }}
             </div>
+            <div id="chatPendingAttachments" class="chat-pending-attachments"></div>
             <div class="chat-input-row">
+                <input type="file" id="chatFileInput" accept=".jpg,.jpeg,.png,.gif,.pdf" multiple hidden
+                    onchange="handleChatFilePick(event)">
+                <button type="button" class="chat-attach-btn" title="Attach image or PDF"
+                    onclick="document.getElementById('chatFileInput').click()">
+                    <i class="bi bi-paperclip"></i>
+                </button>
                 <textarea id="chatInput" placeholder="Type a message…" rows="1"
                     onkeydown="handleChatKey(event)"></textarea>
                 <button class="chat-send-btn" onclick="sendMessage()">
@@ -75,6 +82,17 @@
         z-index: 1000;
         border: 1.5px solid var(--bd);
         border-bottom: none;
+    }
+
+    /* Mobile — a fixed 380px box pinned to `right: 28px` overflows off-screen
+       on phone widths instead of centering. Stretch it edge-to-edge (minus
+       equal side margins) so it reads as centered instead. */
+    @media (max-width: 576px) {
+        .chat-widget {
+            left: 12px;
+            right: 12px;
+            width: auto;
+        }
     }
 
     /* Header */
@@ -377,6 +395,124 @@
         background: #fff;
     }
 
+    .chat-attach-btn {
+        width: 38px;
+        height: 38px;
+        background: var(--cr);
+        color: var(--tm);
+        border: 1.5px solid var(--bd);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: all .2s;
+        font-size: 14px;
+    }
+
+    .chat-attach-btn:hover {
+        border-color: var(--gl);
+        color: var(--gd);
+        background: var(--ygl);
+    }
+
+    /* Pending attachments (picked, not yet sent) */
+    .chat-pending-attachments {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+
+    .chat-pending-attachments:empty {
+        display: none;
+    }
+
+    .chat-pending-chip {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--ygl);
+        border: 1px solid var(--bd);
+        border-radius: 8px;
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--gd);
+        max-width: 160px;
+    }
+
+    .chat-pending-chip span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .chat-pending-chip button {
+        background: none;
+        border: none;
+        color: var(--tm);
+        cursor: pointer;
+        font-size: 13px;
+        line-height: 1;
+        padding: 0;
+        flex-shrink: 0;
+    }
+
+    .chat-pending-chip button:hover {
+        color: #e24b4a;
+    }
+
+    /* Attachments inside a sent bubble */
+    .msg-attachments {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 6px;
+    }
+
+    .msg-bubble.me .msg-attachments,
+    .me .msg-attachments {
+        align-items: flex-end;
+    }
+
+    .msg-attach-img {
+        max-width: 200px;
+        max-height: 160px;
+        border-radius: 10px;
+        cursor: pointer;
+        display: block;
+        object-fit: cover;
+        border: 1.5px solid var(--bd);
+    }
+
+    .msg-attach-file {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--cr);
+        border: 1.5px solid var(--bd);
+        border-radius: 10px;
+        padding: 6px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--gd);
+        cursor: pointer;
+        max-width: 200px;
+    }
+
+    .msg-attach-file span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .msg-attach-file:hover {
+        border-color: var(--gl);
+        background: var(--ygl);
+    }
+
     .chat-send-btn {
         width: 38px;
         height: 38px;
@@ -426,9 +562,12 @@
 <script>
     const TICKET_ID = '{{ $ticket->id }}';
     const CURRENT_USER_ID = '{{ Auth::id() }}';
+    const CHAT_MAX_ATTACHMENTS = 5;
+    const CHAT_MAX_ATTACHMENT_MB = 10;
     let pollInterval = null;
     let lastMsgId = null;
     let isCollapsed = false;
+    let pendingFiles = [];
 
     // ── Avatar class from role
     function avatarClass(role) {
@@ -453,6 +592,8 @@
         const side = msg.is_me ? 'me' : 'them';
         const avClass = avatarClass(msg.role);
         const tagCls = roleTagClass(msg.role);
+        const textHtml = msg.message ? `<div class="msg-bubble ${side}">${escapeHtml(msg.message)}</div>` : '';
+        const attachHtml = buildAttachmentsHtml(msg.attachments);
         return `
         <div class="msg-wrap ${msg.is_me ? 'me' : ''}" data-id="${msg.id}">
             <div class="msg-av ${avClass}">${msg.initials}</div>
@@ -461,17 +602,92 @@
                     <span class="msg-role-tag ${tagCls}">${msg.role || 'User'}</span>
                     ${msg.is_me ? 'You' : msg.sender}
                 </div>
-                <div class="msg-bubble ${side}">${escapeHtml(msg.message)}</div>
+                ${textHtml}
+                ${attachHtml}
                 <div class="msg-time">${msg.time_ago}</div>
             </div>
         </div>
     `;
     }
 
+    // ── Build attachment thumbnails/chips for a bubble — images auto-preview
+    // inline, everything else (PDFs) shows as a clickable file chip. Both use
+    // data-attach-* attributes (not inline onclick) so an arbitrary filename
+    // can't break out of the HTML attribute.
+    function buildAttachmentsHtml(attachments) {
+        if (!attachments || !attachments.length) return '';
+
+        const items = attachments.map(a => {
+            const nameAttr = escapeAttr(a.name);
+            const mimeAttr = escapeAttr(a.mime_type || '');
+            const isImage = (a.mime_type || '').startsWith('image/');
+
+            if (isImage) {
+                return `<img class="msg-attach-img" src="${a.view_url}" alt="${nameAttr}"
+                    data-attach-id="${a.id}" data-attach-name="${nameAttr}" data-attach-mime="${mimeAttr}">`;
+            }
+
+            return `<div class="msg-attach-file" data-attach-id="${a.id}" data-attach-name="${nameAttr}" data-attach-mime="${mimeAttr}">
+                <i class="bi bi-file-earmark-pdf"></i><span>${escapeHtml(a.name)}</span>
+            </div>`;
+        }).join('');
+
+        return `<div class="msg-attachments">${items}</div>`;
+    }
+
     // ── Escape HTML
     function escapeHtml(str) {
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;')
             .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ── Escape a value for safe use inside an HTML attribute
+    function escapeAttr(str) {
+        return escapeHtml(String(str)).replace(/'/g, '&#039;');
+    }
+
+    // ── File picker: client-side cap (count + size) + type filter, same rules
+    // as every other attachment picker in the app
+    function handleChatFilePick(e) {
+        const files = Array.from(e.target.files);
+        const accepted = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+
+        const oversize = files.find(f => f.size > CHAT_MAX_ATTACHMENT_MB * 1024 * 1024);
+        if (oversize) {
+            alert(`"${oversize.name}" exceeds the ${CHAT_MAX_ATTACHMENT_MB}MB limit and will be skipped.`);
+        }
+
+        const rejected = files.find(f => !accepted.includes(f.type));
+        if (rejected) {
+            alert(`"${rejected.name}" isn't an image or PDF and will be skipped.`);
+        }
+
+        const valid = files.filter(f => f.size <= CHAT_MAX_ATTACHMENT_MB * 1024 * 1024 && accepted.includes(f.type));
+        const combined = [...pendingFiles, ...valid];
+
+        if (combined.length > CHAT_MAX_ATTACHMENTS) {
+            alert(`You can attach up to ${CHAT_MAX_ATTACHMENTS} files per message.`);
+        }
+
+        pendingFiles = combined.slice(0, CHAT_MAX_ATTACHMENTS);
+        e.target.value = '';
+        renderPendingAttachments();
+    }
+
+    function removePendingFile(index) {
+        pendingFiles.splice(index, 1);
+        renderPendingAttachments();
+    }
+
+    function renderPendingAttachments() {
+        const box = document.getElementById('chatPendingAttachments');
+        box.innerHTML = pendingFiles.map((f, i) => `
+            <div class="chat-pending-chip">
+                <i class="bi bi-paperclip"></i>
+                <span>${escapeHtml(f.name)}</span>
+                <button type="button" onclick="removePendingFile(${i})">✕</button>
+            </div>
+        `).join('');
     }
 
     // ── Load all messages
@@ -577,23 +793,29 @@
         }, 3000);
     }
 
-    // ── Send message
+    // ── Send message (text, attachments, or both)
     function sendMessage() {
         const input = document.getElementById('chatInput');
         const msg = input.value.trim();
-        if (!msg) return;
+        if (!msg && !pendingFiles.length) return;
 
+        const filesToSend = pendingFiles;
         input.value = '';
         input.style.height = 'auto';
+        pendingFiles = [];
+        renderPendingAttachments();
+
+        const formData = new FormData();
+        formData.append('message', msg);
+        filesToSend.forEach(f => formData.append('attachments[]', f));
 
         fetch(`/tickets/${TICKET_ID}/messages`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 'X-Requested-With': 'XMLHttpRequest',
             },
-            body: JSON.stringify({ message: msg }),
+            body: formData,
         })
             .then(r => r.json())
             .then(data => {
@@ -655,5 +877,14 @@
     document.addEventListener('DOMContentLoaded', function () {
         loadMessages();
         startPolling();
+
+        // Delegated so it keeps working as messages are re-rendered on load/poll —
+        // relies on window.openAttachmentPreview, defined by the attachment
+        // preview modal component that every page hosting this chat also includes.
+        document.getElementById('chatMessages').addEventListener('click', function (e) {
+            const el = e.target.closest('[data-attach-id]');
+            if (!el) return;
+            openAttachmentPreview(el.dataset.attachId, el.dataset.attachName, el.dataset.attachMime);
+        });
     });
 </script>

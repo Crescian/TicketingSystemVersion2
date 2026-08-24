@@ -229,6 +229,8 @@
     /* Cancel button */
     .btn-cancel-ticket { background: none; border: 1.5px solid #e24b4a; color: #e24b4a; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; padding: 7px 18px; border-radius: 50px; transition: all .2s; cursor: pointer; }
     .btn-cancel-ticket:hover { background: #e24b4a; color: #fff; }
+    .btn-edit-ticket { background: none; border: 1.5px solid var(--gl); color: var(--gd); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; padding: 7px 18px; border-radius: 50px; transition: all .2s; cursor: pointer; }
+    .btn-edit-ticket:hover { background: var(--gd); color: var(--yg); border-color: var(--gd); }
 
     /* View details button */
     .btn-view-detail { background: none; border: 1.5px solid var(--bd); color: var(--tm); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; padding: 7px 18px; border-radius: 50px; transition: all .2s; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
@@ -846,6 +848,10 @@
                     @endif
 
                     @if($ticket->status === 'For Acknowledgment' && is_null($ticket->date_acknowledged))
+                        <button type="button" class="btn-edit-ticket"
+                                onclick="openEditModal({{ Illuminate\Support\Js::from($ticket->id) }}, {{ Illuminate\Support\Js::from($ticket->ticket_number) }}, {{ Illuminate\Support\Js::from($ticket->subject) }}, {{ Illuminate\Support\Js::from($ticket->concern) }}, {{ Illuminate\Support\Js::from($ticket->request_details) }}, {{ Illuminate\Support\Js::from($ticket->location) }})">
+                            <i class="bi bi-pencil me-1"></i>Edit
+                        </button>
                         <button class="btn-cancel-ticket"
                                 onclick="confirmCancel('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-x-circle me-1"></i>Cancel
@@ -1284,11 +1290,6 @@
                                 
                                 <hr>
 
-                                <div class="mb-2"><b>Date Acknowledged:</b> <span id="rv-ack-date">—</span></div>
-                                <div class="mb-2"><b>Time Acknowledged:</b> <span id="rv-ack-time">—</span></div>
-
-                                <hr>
-
                                 <div class="mb-2"><b>Location:</b> <span id="rv-location">—</span></div>
                                 <div class="mb-2"><b>Attachments:</b> <span id="rv-attachments">None</span></div>
 
@@ -1300,8 +1301,10 @@
                                 <div style="font-size:13px;color:var(--tm);margin-bottom:12px" id="rv-desc-preview">—</div>
                                 <div class="review-lbl mb-1">What happens next</div>
                                 <div style="font-size:13px;color:var(--tm)">
-                                    Your support request will be assigned to an available IT Support Specialist.
-                                    Average first response: <strong style="color:var(--gd)">under 2 hours</strong>.
+                                    Helpdesk will review and classify your request, then route it to whoever can
+                                    resolve it — themselves, a Support Specialist, or IT Admin, depending on what
+                                    it needs. Helpdesk typically reviews new requests within
+                                    <strong style="color:var(--gd)">1 hour</strong>.
                                 </div>
                             </div>
                         </div>
@@ -1316,7 +1319,7 @@
                             </h5>
                             <p class="mb-2" style="color:var(--tm)">
                                 Your request has been received.<br>
-                                Helpdesk will assign a technician shortly.
+                                Helpdesk will review it and route it to the right team shortly.
                             </p>
                             <div class="ticket-ref my-3" id="newTicketRef">—</div>
                             <div class="text-start p-3 mb-3 rounded" style="background:var(--ygl);font-size:12.5px;color:var(--gd)">
@@ -1343,6 +1346,76 @@
     </div>
 
     {{-- Cancel Confirmation Modal --}}
+    {{-- Edit Request Modal — shared across every card; populated via JS on open.
+         Guard mirrors the button's own @if — controller re-checks it on submit too. --}}
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Edit <em>Support</em> Request — <em id="editTicketRef"></em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form id="editForm" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    @method('PATCH')
+                    <div class="modal-body px-4 py-4">
+                        <div class="p-2 px-3 mb-3 rounded" style="background:var(--ygl);font-size:12px;color:var(--tm);font-weight:600">
+                            <i class="bi bi-info-circle me-1"></i>
+                            You can only edit this request until Helpdesk acknowledges it.
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Subject <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="editSubject" name="subject" maxlength="255" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Describe the issue <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="editConcern" name="concern" rows="3" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Additional details</label>
+                            <textarea class="form-control" id="editDetails" name="request_details" rows="2"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Location</label>
+                            <select class="form-select" id="editLocation" name="location">
+                                <option value="">— Select location —</option>
+                                <optgroup label="HQ">
+                                    <option value="3rd Floor - HQ">3rd Floor - HQ</option>
+                                    <option value="5th Floor - HQ">5th Floor - HQ</option>
+                                    <option value="6th Floor - HQ">6th Floor - HQ</option>
+                                    <option value="7th Floor - HQ">7th Floor - HQ</option>
+                                </optgroup>
+                                <optgroup label="Sites">
+                                    <option value="Zambales Site">Zambales Site</option>
+                                    <option value="Porac Site">Porac Site</option>
+                                    <option value="Bauan Site">Bauan Site</option>
+                                </optgroup>
+                                <optgroup label="Vessels">
+                                    <option value="Petro Elise">Petro Elise</option>
+                                    <option value="Petro Cara">Petro Cara</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="mb-1">
+                            <label class="form-label">Add more supporting files <span style="font-weight:400;color:var(--tm)">(optional)</span></label>
+                            <input type="file" class="form-control" name="attachments[]"
+                                   multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                            <div style="font-size:11px;color:var(--tm);margin-top:4px">
+                                Up to 5 files, 10MB each.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-back-modal" data-bs-dismiss="modal">Go Back</button>
+                        <button type="submit" class="btn-submit-ticket">
+                            <i class="bi bi-check2-circle me-1"></i>Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="cancelModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -1399,7 +1472,14 @@
                     <div style="font-size:10px;font-weight:800;background:var(--ygl);color:var(--gd);border-radius:4px;padding:2px 8px;display:inline-block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px">
                         {{ Auth::user()->role?->role_name ?? 'You' }}
                     </div>
+                    <div id="empChatPendingAttachments" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
                     <div class="d-flex gap-2 align-items-end">
+                        <input type="file" id="empChatFileInput" accept=".jpg,.jpeg,.png,.gif,.pdf" multiple hidden
+                               onchange="handleEmpChatFilePick(event)">
+                        <button type="button" title="Attach image or PDF" onclick="document.getElementById('empChatFileInput').click()"
+                                style="width:38px;height:38px;background:var(--cr);color:var(--tm);border:1.5px solid var(--bd);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0">
+                            <i class="bi bi-paperclip"></i>
+                        </button>
                         <textarea id="empChatInput"
                                   placeholder="Type a message… (Enter to send)"
                                   rows="1"
@@ -1569,6 +1649,9 @@
 
     let currentEmpChatTicketId = null;
     let empChatPollInterval    = null;
+    let empChatPendingFiles    = [];
+    const EMP_CHAT_MAX_ATTACHMENTS = 5;
+    const EMP_CHAT_MAX_ATTACHMENT_MB = 10;
 
     window.openEmpChatModal = function (ticketId, ticketNumber) {
         currentEmpChatTicketId = ticketId;
@@ -1583,6 +1666,10 @@
         // ── Clear unread badge immediately on click
         $('#badge-' + ticketId).remove();
 
+        // ── Reset any leftover picked files from a previous ticket's chat
+        empChatPendingFiles = [];
+        renderEmpPendingAttachments();
+
         new bootstrap.Modal('#empChatModal').show();
         loadEmpChatMessages();
 
@@ -1590,22 +1677,74 @@
         empChatPollInterval = setInterval(loadEmpChatMessages, 3000);
     };
 
+    // ── File picker: same rules as every other attachment picker in the app
+    window.handleEmpChatFilePick = function (e) {
+        const files = Array.from(e.target.files);
+        const accepted = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+
+        const oversize = files.find(f => f.size > EMP_CHAT_MAX_ATTACHMENT_MB * 1024 * 1024);
+        if (oversize) {
+            alert(`"${oversize.name}" exceeds the ${EMP_CHAT_MAX_ATTACHMENT_MB}MB limit and will be skipped.`);
+        }
+
+        const rejected = files.find(f => !accepted.includes(f.type));
+        if (rejected) {
+            alert(`"${rejected.name}" isn't an image or PDF and will be skipped.`);
+        }
+
+        const valid = files.filter(f => f.size <= EMP_CHAT_MAX_ATTACHMENT_MB * 1024 * 1024 && accepted.includes(f.type));
+        const combined = [...empChatPendingFiles, ...valid];
+
+        if (combined.length > EMP_CHAT_MAX_ATTACHMENTS) {
+            alert(`You can attach up to ${EMP_CHAT_MAX_ATTACHMENTS} files per message.`);
+        }
+
+        empChatPendingFiles = combined.slice(0, EMP_CHAT_MAX_ATTACHMENTS);
+        e.target.value = '';
+        renderEmpPendingAttachments();
+    };
+
+    window.removeEmpPendingFile = function (index) {
+        empChatPendingFiles.splice(index, 1);
+        renderEmpPendingAttachments();
+    };
+
+    function renderEmpPendingAttachments() {
+        const box = document.getElementById('empChatPendingAttachments');
+        if (!box) return;
+        box.innerHTML = empChatPendingFiles.map((f, i) => `
+            <div style="display:flex;align-items:center;gap:6px;background:var(--ygl);border:1px solid var(--bd);border-radius:8px;padding:4px 8px;font-size:11px;font-weight:700;color:var(--gd);max-width:160px">
+                <i class="bi bi-paperclip"></i>
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escEmpHtml(f.name)}</span>
+                <button type="button" onclick="removeEmpPendingFile(${i})"
+                        style="background:none;border:none;color:var(--tm);cursor:pointer;font-size:13px;line-height:1;padding:0;flex-shrink:0">✕</button>
+            </div>
+        `).join('');
+    }
+
     window.sendEmpMessage = function () {
         const input = document.getElementById('empChatInput');
         const msg   = input.value.trim();
-        if (!msg || !currentEmpChatTicketId) return;
+        if (!msg && !empChatPendingFiles.length) return;
+        if (!currentEmpChatTicketId) return;
 
+        const filesToSend = empChatPendingFiles;
         input.value = '';
         input.style.height = 'auto';
+        empChatPendingFiles = [];
+        renderEmpPendingAttachments();
+
+        const formData = new FormData();
+        formData.append('message', msg);
+        filesToSend.forEach(f => formData.append('attachments[]', f));
 
         fetch(`/tickets/${currentEmpChatTicketId}/messages`, {
             method:  'POST',
             headers: {
-                'Content-Type':     'application/json',
                 'X-CSRF-TOKEN':     document.querySelector('meta[name="csrf-token"]').content,
                 'X-Requested-With': 'XMLHttpRequest',
             },
-            body: JSON.stringify({ message: msg }),
+            body: formData,
         })
         .then(r => r.json())
         .then(() => loadEmpChatMessages())
@@ -1678,6 +1817,13 @@
                 const avText = avTextColors[msg.role] || '#1a3c1a';
                 const isMe   = msg.is_me;
 
+                const textHtml = msg.message ? `
+                    <div style="padding:9px 13px;border-radius:16px;font-size:13px;line-height:1.5;word-break:break-word;${isMe
+                        ? 'background:var(--gd);color:var(--yg);border-bottom-right-radius:4px'
+                        : 'background:#fff;color:var(--gd);border-bottom-left-radius:4px;border:1.5px solid var(--bd)'}">
+                        ${escEmpHtml(msg.message)}
+                    </div>` : '';
+
                 html += `
                     <div data-msg-id="${msg.id}"
                         style="display:flex;gap:8px;align-items:flex-end;${isMe ? 'flex-direction:row-reverse' : ''}">
@@ -1691,11 +1837,8 @@
                                     ${msg.role || 'User'}
                                 </span>
                             </div>
-                            <div style="padding:9px 13px;border-radius:16px;font-size:13px;line-height:1.5;word-break:break-word;${isMe
-                                ? 'background:var(--gd);color:var(--yg);border-bottom-right-radius:4px'
-                                : 'background:#fff;color:var(--gd);border-bottom-left-radius:4px;border:1.5px solid var(--bd)'}">
-                                ${escEmpHtml(msg.message)}
-                            </div>
+                            ${textHtml}
+                            ${buildEmpAttachmentsHtml(msg.attachments)}
                             <div style="font-size:10px;color:var(--tm);margin-top:3px;font-weight:600;${isMe ? 'text-align:right' : ''}">
                                 ${msg.time_ago}
                             </div>
@@ -1714,6 +1857,37 @@
         return String(str || '')
             .replace(/&/g, '&amp;').replace(/</g, '&lt;')
             .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function escEmpAttr(str) {
+        return escEmpHtml(String(str)).replace(/'/g, '&#039;');
+    }
+
+    // ── Images auto-preview inline, PDFs show as a clickable file chip — both
+    // use data-attach-* attributes (not inline onclick) so an arbitrary
+    // filename can't break out of the HTML attribute.
+    function buildEmpAttachmentsHtml(attachments) {
+        if (!attachments || !attachments.length) return '';
+
+        const items = attachments.map(a => {
+            const nameAttr = escEmpAttr(a.name);
+            const mimeAttr = escEmpAttr(a.mime_type || '');
+            const isImage = (a.mime_type || '').startsWith('image/');
+
+            if (isImage) {
+                return `<img src="${a.view_url}" alt="${nameAttr}"
+                    data-attach-id="${a.id}" data-attach-name="${nameAttr}" data-attach-mime="${mimeAttr}"
+                    style="max-width:200px;max-height:160px;border-radius:10px;cursor:pointer;display:block;object-fit:cover;border:1.5px solid var(--bd)">`;
+            }
+
+            return `<div data-attach-id="${a.id}" data-attach-name="${nameAttr}" data-attach-mime="${mimeAttr}"
+                style="display:flex;align-items:center;gap:6px;background:var(--cr);border:1.5px solid var(--bd);border-radius:10px;padding:6px 10px;font-size:11px;font-weight:700;color:var(--gd);cursor:pointer;max-width:200px">
+                <i class="bi bi-file-earmark-pdf"></i>
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escEmpHtml(a.name)}</span>
+            </div>`;
+        }).join('');
+
+        return `<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${items}</div>`;
     }
 
     /* ══ FEEDBACK RATING LABELS ══ */
@@ -1741,6 +1915,12 @@
     /* ══ DOM-READY — everything that needs the DOM ══ */
     $(function () {
 
+        /* ── Chat attachment preview — delegated since #empChatMessages content
+             is replaced wholesale on every poll/load ── */
+        $(document).on('click', '#empChatMessages [data-attach-id]', function () {
+            openAttachmentPreview($(this).data('attach-id'), $(this).data('attach-name'), $(this).data('attach-mime'));
+        });
+
         /* ── Search debounce ── */
         let searchTimer;
         $('#searchInput').on('input', function () {
@@ -1753,6 +1933,17 @@
             $('#cancelTicketRef').text('#' + ticketNumber);
             $('#cancelForm').attr('action', '{{ url(rtrim($routePrefix, '.') . '/tickets') }}/' + ticketId + '/cancel');
             new bootstrap.Modal('#cancelModal').show();
+        };
+
+        /* ── Edit modal ── */
+        window.openEditModal = function (ticketId, ticketNumber, subject, concern, requestDetails, location) {
+            $('#editTicketRef').text('#' + ticketNumber);
+            $('#editForm').attr('action', '{{ url(rtrim($routePrefix, '.') . '/tickets') }}/' + ticketId);
+            $('#editSubject').val(subject || '');
+            $('#editConcern').val(concern || '');
+            $('#editDetails').val(requestDetails || '');
+            $('#editLocation').val(location || '');
+            new bootstrap.Modal('#editModal').show();
         };
 
         /* ── Star rating ── */

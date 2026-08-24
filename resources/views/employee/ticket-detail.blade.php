@@ -86,6 +86,8 @@
     .btn-service-report:hover { background:#c8ead8; }
     .btn-cancel-ticket { background: none; border: 1.5px solid #e24b4a; color: #e24b4a; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; padding: 8px 20px; border-radius: 50px; transition: all .2s; cursor: pointer; }
     .btn-cancel-ticket:hover { background: #e24b4a; color: #fff; }
+    .btn-edit-ticket { background: none; border: 1.5px solid var(--gl); color: var(--gd); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; padding: 8px 20px; border-radius: 50px; transition: all .2s; cursor: pointer; }
+    .btn-edit-ticket:hover { background: var(--gd); color: var(--yg); border-color: var(--gd); }
 @endsection
 
 @section('sidebar')
@@ -201,6 +203,25 @@
         </div>
     @endif
 
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show mb-3">
+            <i class="bi bi-exclamation-triangle me-2"></i>{{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="alert alert-danger alert-dismissible fade show mb-3">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <ul class="mb-0 ps-3">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
     {{-- Subject & concern --}}
     <div class="detail-card p-4 mb-3">
         <div class="ticket-id mb-2">#{{ $ticket->ticket_number }}</div>
@@ -275,12 +296,17 @@
             </div>
         @endif
 
-        {{-- Cancel button — only while Helpdesk hasn't acknowledged the request yet --}}
+        {{-- Edit / Cancel buttons — only while Helpdesk hasn't acknowledged the request yet --}}
         @if($ticket->status === 'For Acknowledgment' && $ticket->pending_role === 'Helpdesk' && is_null($ticket->date_acknowledged))
-            <button class="btn-cancel-ticket"
-                    onclick="confirmCancel('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                <i class="bi bi-x-circle me-1"></i>Cancel This Support Request
-            </button>
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="button" class="btn-edit-ticket" data-bs-toggle="modal" data-bs-target="#editModal">
+                    <i class="bi bi-pencil me-1"></i>Edit This Support Request
+                </button>
+                <button class="btn-cancel-ticket"
+                        onclick="confirmCancel('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                    <i class="bi bi-x-circle me-1"></i>Cancel This Support Request
+                </button>
+            </div>
         @endif
     </div>
 
@@ -335,6 +361,94 @@
 @endsection
 
 @section('modals')
+    {{-- Edit Request Modal — only reachable while the ticket is still
+         unacknowledged (controller re-checks the same gate on submit). --}}
+    @if($ticket->status === 'For Acknowledgment' && $ticket->pending_role === 'Helpdesk' && is_null($ticket->date_acknowledged))
+        <div class="modal fade" id="editModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0">Edit <em>Support</em> Request</h5>
+                        <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                    </div>
+                    <form method="POST" action="{{ route($routePrefix.'tickets.update', $ticket) }}" enctype="multipart/form-data">
+                        @csrf
+                        @method('PATCH')
+                        <div class="modal-body px-4 py-4">
+                            <div class="p-2 px-3 mb-3 rounded" style="background:var(--ygl);font-size:12px;color:var(--tm);font-weight:600">
+                                <i class="bi bi-info-circle me-1"></i>
+                                You can only edit this request until Helpdesk acknowledges it.
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Subject <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="subject" maxlength="255" required
+                                       value="{{ old('subject', $ticket->subject) }}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Describe the issue <span class="text-danger">*</span></label>
+                                <textarea class="form-control" name="concern" rows="3" required>{{ old('concern', $ticket->concern) }}</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Additional details</label>
+                                <textarea class="form-control" name="request_details" rows="2">{{ old('request_details', $ticket->request_details) }}</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Location</label>
+                                <select class="form-select" name="location">
+                                    <option value="">— Select location —</option>
+                                    <optgroup label="HQ">
+                                        <option value="3rd Floor - HQ" @selected(old('location', $ticket->location) === '3rd Floor - HQ')>3rd Floor - HQ</option>
+                                        <option value="5th Floor - HQ" @selected(old('location', $ticket->location) === '5th Floor - HQ')>5th Floor - HQ</option>
+                                        <option value="6th Floor - HQ" @selected(old('location', $ticket->location) === '6th Floor - HQ')>6th Floor - HQ</option>
+                                        <option value="7th Floor - HQ" @selected(old('location', $ticket->location) === '7th Floor - HQ')>7th Floor - HQ</option>
+                                    </optgroup>
+                                    <optgroup label="Sites">
+                                        <option value="Zambales Site" @selected(old('location', $ticket->location) === 'Zambales Site')>Zambales Site</option>
+                                        <option value="Porac Site" @selected(old('location', $ticket->location) === 'Porac Site')>Porac Site</option>
+                                        <option value="Bauan Site" @selected(old('location', $ticket->location) === 'Bauan Site')>Bauan Site</option>
+                                    </optgroup>
+                                    <optgroup label="Vessels">
+                                        <option value="Petro Elise" @selected(old('location', $ticket->location) === 'Petro Elise')>Petro Elise</option>
+                                        <option value="Petro Cara" @selected(old('location', $ticket->location) === 'Petro Cara')>Petro Cara</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            @if($ticket->attachments->isNotEmpty())
+                                <div class="mb-3">
+                                    <label class="form-label">Current supporting files</label>
+                                    <div class="d-flex flex-column gap-1">
+                                        @foreach($ticket->attachments as $attachment)
+                                            <div class="d-flex align-items-center gap-2 p-2"
+                                                 style="background:var(--ygl);border-radius:8px;font-size:12px">
+                                                <i class="bi bi-paperclip" style="color:var(--tm)"></i>
+                                                <span style="font-weight:600;color:var(--gd)">{{ $attachment->original_name }}</span>
+                                                <span style="color:var(--tm)">({{ $attachment->humanSize() }})</span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+                            <div class="mb-1">
+                                <label class="form-label">Add more supporting files <span style="font-weight:400;color:var(--tm)">(optional)</span></label>
+                                <input type="file" class="form-control" name="attachments[]"
+                                       multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                                <div style="font-size:11px;color:var(--tm);margin-top:4px">
+                                    Up to 5 files, 10MB each.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                            <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Go Back</button>
+                            <button type="submit" class="btn-confirm">
+                                <i class="bi bi-check2-circle me-1"></i>Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Cancel Confirmation Modal --}}
     <div class="modal fade" id="cancelModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">

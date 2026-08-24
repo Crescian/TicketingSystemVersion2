@@ -182,6 +182,8 @@
         </div>
     @endif
 
+    <x-ticket-tracker :ticket="$ticket" />
+
     {{-- Subject & concern --}}
     <div class="detail-card p-4 mb-3">
         <div class="ticket-id mb-2">#{{ $ticket->ticket_number }}</div>

@@ -236,10 +236,20 @@
           font-size: 10px; transition: all .2s;
       }
       .cat-sub-opt.selected .sub-check { background: var(--gd); border-color: var(--gd); color: var(--yg); }
+
+      .pagination { flex-wrap: wrap; justify-content: center; gap: 6px; }
+      .pagination li { margin: 2px; }
+      .pagination .page-link { border-radius: 8px !important; padding: 6px 12px; font-size: 13px; }
+      @media (max-width: 768px) {
+          .pagination { font-size: 12px; }
+          .pagination .page-link { padding: 4px 8px; }
+      }
 @endsection
 
 {{-- ══ SIDEBAR ══ --}}
 @section('sidebar')
+
+      <x-recent-tickets-widget />
 
       <div class="sidebar-card mb-3">
           <ul class="list-group sidebar-menu rounded-0">
@@ -1107,7 +1117,7 @@
       </div>
 
       @if($tickets->hasPages())
-        <div class="mt-4">{{ $tickets->links() }}</div>
+        <div class="mt-4">{{ $tickets->onEachSide(1)->links('pagination::bootstrap-5') }}</div>
       @endif
 
 @endsection

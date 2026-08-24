@@ -176,6 +176,8 @@
 {{-- ══ SIDEBAR ══ --}}
 @section('sidebar')
 
+    <x-recent-tickets-widget />
+
     {{-- Queue nav --}}
     <div class="sidebar-card mb-3">
         <div class="sidebar-head">Queue</div>
@@ -592,6 +594,48 @@
                         </span>
                     @endif
                 </div>
+
+                {{-- Attachments (requestor's originals + resolution/update evidence) --}}
+                @if($ticket->attachments->isNotEmpty())
+                    <div class="mb-3">
+                        <div style="font-size:12px;font-weight:800;color:var(--tm);margin-bottom:6px">
+                            <i class="bi bi-paperclip me-1"></i>Attachments
+                        </div>
+                        <div class="d-flex flex-column gap-1">
+                            @foreach($ticket->attachments as $attachment)
+                                @php
+                                    $viewableMimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'text/plain'];
+                                    $isViewable = in_array($attachment->mime_type, $viewableMimes);
+                                @endphp
+                                <div class="d-flex align-items-center gap-2 p-2"
+                                     style="background:var(--ygl);border-radius:8px;font-size:12px">
+                                    <i class="bi bi-file-earmark-text" style="color:var(--tm)"></i>
+                                    <span style="font-weight:600;color:var(--gd)">{{ $attachment->original_name }}</span>
+                                    <span style="color:var(--tm)">({{ $attachment->humanSize() }})</span>
+                                    <div class="ms-auto d-flex gap-2">
+                                        @if($isViewable)
+                                            <button type="button"
+                                                    onclick="openAttachmentPreview('{{ $attachment->id }}', {{ Illuminate\Support\Js::from($attachment->original_name) }}, '{{ $attachment->mime_type }}')"
+                                                    class="text-decoration-none border-0 bg-transparent p-0" style="color:var(--gd);font-weight:700">
+                                                <i class="bi bi-eye me-1"></i>View
+                                            </button>
+                                        @else
+                                            <a href="{{ route('attachments.view', $attachment) }}"
+                                               target="_blank" rel="noopener"
+                                               class="text-decoration-none" style="color:var(--gd);font-weight:700">
+                                                <i class="bi bi-box-arrow-up-right me-1"></i>Open in New Tab
+                                            </a>
+                                        @endif
+                                        <a href="{{ route('attachments.download', $attachment) }}"
+                                           class="text-decoration-none" style="color:var(--tm);font-weight:700">
+                                            <i class="bi bi-download me-1"></i>Download
+                                        </a>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
 
                 {{-- Action buttons --}}
                 <div class="d-flex gap-2 flex-wrap">
@@ -1386,6 +1430,7 @@
     </div>
 
     <x-service-report-modal />
+    <x-attachment-preview-modal />
 @endsection
 
 @section('scripts')

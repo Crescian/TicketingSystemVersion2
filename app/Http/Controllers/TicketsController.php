@@ -552,7 +552,60 @@ class TicketsController extends Controller
         return back()->with('success', 'Thank you for your feedback! ⭐');
     }
 
-    public function edit(Tickets $tickets) {}
-    public function update(Request $request, Tickets $tickets) {}
-    public function destroy(Tickets $tickets) {}
+    // Edit the request's own details — only while it's still sitting
+    // unacknowledged in Helpdesk's queue (same gate as cancel()). Once
+    // Helpdesk acknowledges it, the requestor loses the ability to change
+    // what they filed.
+    public function update(Request $request, Tickets $ticket)
+    {
+        if ($ticket->users_id !== Auth::id()) {
+            abort(403);
+        }
+
+        if ($ticket->status !== TicketStatus::FOR_ACKNOWLEDGMENT
+            || $ticket->pending_role !== TicketStatus::QUEUE_HELPDESK
+            || !is_null($ticket->date_acknowledged)) {
+            return back()->with('error', 'This support request can no longer be edited — it has already been acknowledged by Helpdesk.');
+        }
+
+        $request->validate([
+            'subject'           => 'required|string|max:255',
+            'concern'           => 'required|string',
+            'request_details'   => 'nullable|string',
+            'location'          => 'nullable|string|max:255',
+            'attachments'       => 'nullable|array|max:5',
+            'attachments.*'     => 'file|max:10240|mimes:jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,txt',
+        ]);
+
+        $ticket->update([
+            'subject'          => $request->subject,
+            'concern'          => $request->concern,
+            'request_details'  => $request->request_details,
+            'location'         => $request->location,
+        ]);
+
+        foreach ($request->file('attachments', []) as $file) {
+            $storedPath = $file->store('ticket-attachments/' . $ticket->id, 'local');
+
+            TicketAttachment::create([
+                'ticket_id'     => $ticket->id,
+                'uploaded_by'   => Auth::id(),
+                'original_name' => $file->getClientOriginalName(),
+                'stored_path'   => $storedPath,
+                'mime_type'     => $file->getClientMimeType(),
+                'size'          => $file->getSize(),
+            ]);
+        }
+
+        TicketStatusHistories::create([
+            'ticket_id'  => $ticket->id,
+            'old_status' => $ticket->status,
+            'new_status' => $ticket->status,
+            'changed_by' => Auth::id(),
+            'notes'      => 'Request details updated by employee.',
+            'changed_at' => now(),
+        ]);
+
+        return back()->with('success', "Support request #{$ticket->ticket_number} updated successfully.");
+    }
 }

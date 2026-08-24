@@ -948,6 +948,50 @@
             }
         }
 
+        /* ── Responsive: mobile (phones) — the navbar row (brand + back-to-
+             dashboard/my-requests buttons + role badge + profile chip) had no
+             wrap behavior of its own, so on narrow screens everything got
+             squeezed onto one line and overlapped instead of stacking. ── */
+        @media (max-width: 576px) {
+            #topbar {
+                flex-wrap: wrap;
+                row-gap: 4px;
+                padding-top: 6px;
+                padding-bottom: 6px;
+            }
+
+            .navbar {
+                padding-top: 8px;
+                padding-bottom: 8px;
+            }
+
+            .navbar .container-fluid {
+                flex-wrap: wrap;
+                row-gap: 10px;
+            }
+
+            .navbar-brand {
+                font-size: 16px;
+            }
+
+            .navbar-brand span {
+                display: none;
+            }
+
+            .navbar .ms-auto {
+                margin-left: 0 !important;
+                width: 100%;
+                flex-wrap: wrap;
+                row-gap: 8px;
+                justify-content: flex-start;
+            }
+
+            .btn-back-dashboard {
+                font-size: 11px;
+                padding: 5px 12px;
+            }
+        }
+
         /* ── Page-specific styles injected per view ── */
         @yield('styles')
     </style>
@@ -986,10 +1030,10 @@
                     </a>
                 @endif
                 @yield('nav-role-badge')
-                <a href="{{ route('profile') }}"
-                    class="d-flex align-items-center gap-2 text-decoration-none text-reset">
-                    <div class="avatar-chip @yield('avatar-class')">@yield('avatar-initials')</div>
-                    <span class="fw-bold" style="font-size:14px">@yield('nav-username')</span>
+                <a href="{{ route('profile') }}" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View Profile"
+                    class="btn-back-dashboard d-flex align-items-center gap-2" style="padding:4px 14px 4px 4px">
+                    <div class="avatar-chip @yield('avatar-class')" style="width:24px;height:24px;font-size:10px">@yield('avatar-initials')</div>
+                    <span style="font-size:12px;font-weight:800">@yield('nav-username')</span>
                 </a>
             </div>
         </div>
@@ -1016,13 +1060,14 @@
     <div id="pageBody" class="container-fluid py-4 px-4" style="max-width:1160px">
         <div class="row g-4">
 
-            {{-- ── SIDEBAR ── --}}
-            <div class="col-lg-3">
+            {{-- ── SIDEBAR ── (order-2 below lg so mobile sees the ticket list
+                 before the sidebar's recent-activity widgets, not after) --}}
+            <div class="col-lg-3 order-2 order-lg-1">
                 @yield('sidebar')
             </div>
 
             {{-- ── MAIN CONTENT ── --}}
-            <div class="col-lg-9">
+            <div class="col-lg-9 order-1 order-lg-2">
                 @yield('content')
             </div>
 
@@ -1031,6 +1076,7 @@
 
     {{-- ── MODALS ── --}}
     @yield('modals')
+    <x-change-password-modal />
 
     {{-- ── Scripts ── --}}
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -1048,6 +1094,13 @@
                 $(this).toggle(val === 'all' || $(this).data('status') === val);
             });
         }
+
+        /* ── Shared: Bootstrap tooltips (opt-in — must be instantiated per element) ── */
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+                new bootstrap.Tooltip(el);
+            });
+        });
 
         /* ── Shared: search ── */
         $(function () {

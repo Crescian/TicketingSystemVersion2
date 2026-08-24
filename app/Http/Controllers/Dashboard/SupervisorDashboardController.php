@@ -66,7 +66,7 @@ class SupervisorDashboardController extends Controller
         $search = $request->get('search', '');
         $sort = $request->get('sort', 'newest');
 
-        $query = Tickets::with(['user.department', 'assignedTo', 'statusHistories.changedBy', 'reclassificationRequests']);
+        $query = Tickets::with(['user.department', 'assignedTo', 'statusHistories.changedBy', 'reclassificationRequests', 'attachments']);
 
         // In Progress – Service Report and Done – Service Report are shared across
         // every resolver track (see TicketReportProgress), so this dashboard has to
@@ -312,7 +312,7 @@ class SupervisorDashboardController extends Controller
     // assigned_to ownership gate here — the role middleware is the boundary.
     public function show(Tickets $ticket)
     {
-        $ticket->load(['user.department', 'assignedTo', 'statusHistories.changedBy', 'feedback', 'attachments.uploader', 'slaCategory']);
+        $ticket->load(['user.department', 'assignedTo.role', 'statusHistories.changedBy', 'feedback', 'attachments.uploader', 'slaCategory']);
 
         return view('supervisor.support.ticket-detail', compact('ticket'));
     }
@@ -1342,7 +1342,7 @@ class SupervisorDashboardController extends Controller
         $search = $request->get('search', '');
         $sort = $request->get('sort', 'newest');
 
-        $query = Tickets::with(['user.department', 'assignedTo', 'statusHistories.changedBy', 'reclassificationRequests'])
+        $query = Tickets::with(['user.department', 'assignedTo', 'statusHistories.changedBy', 'reclassificationRequests', 'attachments'])
             ->orderByRaw("CASE
             WHEN status = 'Escalated' AND pending_role = 'Supervisor - IT Admin' THEN 1
             WHEN status = 'For Acknowledgment' AND pending_role = 'Supervisor - IT Admin' THEN 2

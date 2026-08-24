@@ -112,10 +112,20 @@
         0%, 100% { box-shadow: 0 4px 14px rgba(255, 122, 26, .35); }
         50%      { box-shadow: 0 4px 22px rgba(255, 122, 26, .65); }
     }
+
+    .pagination { flex-wrap: wrap; justify-content: center; gap: 6px; }
+    .pagination li { margin: 2px; }
+    .pagination .page-link { border-radius: 8px !important; padding: 6px 12px; font-size: 13px; }
+    @media (max-width: 768px) {
+        .pagination { font-size: 12px; }
+        .pagination .page-link { padding: 4px 8px; }
+    }
 @endsection
 
 {{-- ══ SIDEBAR ══ --}}
 @section('sidebar')
+
+    <x-recent-tickets-widget />
 
     {{-- Queue nav --}}
     <div class="sidebar-card mb-3">
@@ -351,6 +361,7 @@
                 // so the two are now told apart by that timestamp instead of by status string.
                 $isAwaitingAck = $ticket->status === 'Assigned' && is_null($ticket->tech_acknowledged_at);
                 $isReadyStart  = $ticket->status === 'Assigned' && !is_null($ticket->tech_acknowledged_at);
+                $isAdminInProgress = in_array($ticket->status, ['In Progress Service Request', 'In Progress Service Report'], true);
 
                 $cardClass = match(true) {
                     $isAwaitingAck                                     => 'awaiting-ack',
@@ -403,7 +414,7 @@
                     default    => ''
                 };
 
-                $hoursOpen   = $ticket->created_at->diffInHours(now());
+                $hoursOpen   = (int) $ticket->created_at->diffInHours(now());
                 $isSlaBreach = $hoursOpen >= 24 && $ticket->status !== 'Closed';
             @endphp
 
@@ -478,7 +489,79 @@
                             {{ $hoursOpen }}h open{{ $isSlaBreach ? ' — SLA breach' : '' }}
                         </span>
                     </span>
+
+                    {{-- Scheduled start + estimated response/resolution windows —
+                         same as the IT Support Specialist list, shown while the
+                         request is Assigned (awaiting ack or ready to start). --}}
+                    @if($ticket->status === 'Assigned' && $ticket->scheduled_start)
+                        @php
+                            $respMin = $ticket->effectiveResponseTimeMinutes();
+                            $responseDue = $respMin ? $ticket->scheduled_start->copy()->addMinutes($respMin) : null;
+                            $resolutionDue = $ticket->scheduled_end;
+                        @endphp
+                        <span class="meta-item" style="background:var(--ygl);border-radius:20px;padding:4px 12px;font-weight:800">
+                            <i class="bi bi-clock"></i>
+                            Scheduled to start {{ $ticket->scheduled_start->timezone('Asia/Manila')->format('g:i A, M d') }}
+                            @if($ticket->is_overtime)<span style="color:#e24b4a"> (Overtime)</span>@endif
+                        </span>
+                        @if($responseDue)
+                            <span class="meta-item" style="background:#e6f0ff;color:#1a4d8f;border-radius:20px;padding:4px 12px;font-weight:800"
+                                  title="Estimated from the scheduled start time — the official SLA clock begins once you click Start">
+                                <i class="bi bi-hourglass-split"></i>
+                                Est. response by {{ $responseDue->timezone('Asia/Manila')->format('g:i A, M d') }}
+                            </span>
+                        @endif
+                        @if($resolutionDue)
+                            <span class="meta-item" style="background:#d4f0d4;color:#1a5a3a;border-radius:20px;padding:4px 12px;font-weight:800"
+                                  title="Estimated from the scheduled start time — the official SLA clock begins once you click Start">
+                                <i class="bi bi-check-circle"></i>
+                                Est. resolution by {{ $resolutionDue->timezone('Asia/Manila')->format('g:i A, M d') }}
+                            </span>
+                        @endif
+                    @endif
                 </div>
+
+                {{-- Attachments (requestor's originals + resolution/update evidence) --}}
+                @if($ticket->attachments->isNotEmpty())
+                    <div class="mb-3">
+                        <div style="font-size:12px;font-weight:800;color:var(--tm);margin-bottom:6px">
+                            <i class="bi bi-paperclip me-1"></i>Attachments
+                        </div>
+                        <div class="d-flex flex-column gap-1">
+                            @foreach($ticket->attachments as $attachment)
+                                @php
+                                    $viewableMimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'text/plain'];
+                                    $isViewable = in_array($attachment->mime_type, $viewableMimes);
+                                @endphp
+                                <div class="d-flex align-items-center gap-2 p-2"
+                                     style="background:var(--ygl);border-radius:8px;font-size:12px">
+                                    <i class="bi bi-file-earmark-text" style="color:var(--tm)"></i>
+                                    <span style="font-weight:600;color:var(--gd)">{{ $attachment->original_name }}</span>
+                                    <span style="color:var(--tm)">({{ $attachment->humanSize() }})</span>
+                                    <div class="ms-auto d-flex gap-2">
+                                        @if($isViewable)
+                                            <button type="button"
+                                                    onclick="openAttachmentPreview('{{ $attachment->id }}', {{ Illuminate\Support\Js::from($attachment->original_name) }}, '{{ $attachment->mime_type }}')"
+                                                    class="text-decoration-none border-0 bg-transparent p-0" style="color:var(--gd);font-weight:700">
+                                                <i class="bi bi-eye me-1"></i>View
+                                            </button>
+                                        @else
+                                            <a href="{{ route('attachments.view', $attachment) }}"
+                                               target="_blank" rel="noopener"
+                                               class="text-decoration-none" style="color:var(--gd);font-weight:700">
+                                                <i class="bi bi-box-arrow-up-right me-1"></i>Open in New Tab
+                                            </a>
+                                        @endif
+                                        <a href="{{ route('attachments.download', $attachment) }}"
+                                           class="text-decoration-none" style="color:var(--tm);font-weight:700">
+                                            <i class="bi bi-download me-1"></i>Download
+                                        </a>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
 
                 {{-- Action buttons --}}
                 <div class="d-flex gap-2 flex-wrap">
@@ -501,43 +584,39 @@
                                 onclick="openStartModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', '{{ $ticket->ticket_type }}', '{{ $ticket->effectiveResponseTimeMinutes() }}', '{{ $ticket->effectiveResolutionTimeMinutes() }}')">
                             <i class="bi bi-play-circle me-1"></i>Start Work
                         </button>
-                        <button class="btn-reassign-a"
-                                onclick="openReassignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-arrow-left-right me-1"></i>Reassign
-                        </button>
                         <button class="btn-cancel-modal"
                                 onclick="openDeclineModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-x-circle me-1"></i>Decline
                         </button>
                     @endif
 
-                    {{-- In Progress Service Request / In Progress Service Report --}}
-                    @if(in_array($ticket->status, ['In Progress Service Request', 'In Progress Service Report']))
-                        <button class="btn-reassign-a"
-                                onclick="openReassignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-arrow-left-right me-1"></i>Reassign
-                        </button>
+                    {{-- In Progress Service Request / In Progress Service Report — every
+                         action here shares one button style (size + color) instead of each
+                         action carrying its own accent, so the row reads as one uniform set.
+                         Reassign is deliberately not offered here — only the Supervisor - IT
+                         Admin can reassign a ticket to another admin. --}}
+                    @if($isAdminInProgress)
                         {{-- Fix is done — mark it so, separate from writing up the report. --}}
                         @if($ticket->status === 'In Progress Service Request')
-                            <form method="POST" action="{{ route('admin.tickets.start-report', $ticket) }}">
+                            <form method="POST" action="{{ route('admin.tickets.start-report', $ticket) }}" class="d-inline">
                                 @csrf
-                                <button type="submit" class="btn-resolve-a">
+                                <button type="submit" class="btn-admin-ip green">
                                     <i class="bi bi-check2 me-1"></i>Mark Fixed
                                 </button>
                             </form>
                         @endif
                         {{-- Fix already marked done — now prepare & submit the service report. --}}
                         @if($ticket->status === 'In Progress Service Report')
-                            <button class="btn-resolve-a"
+                            <button class="btn-admin-ip green"
                                     onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', '{{ $ticket->started_at?->toIso8601String() }}')">
                                 <i class="bi bi-file-earmark-text me-1"></i>Prepare Service Report
                             </button>
                         @endif
-                        <button class="btn-cancel-modal"
+                        <button class="btn-admin-ip red"
                                 onclick="openEscModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-exclamation-triangle me-1"></i>Escalate
                         </button>
-                        <button class="btn-cancel-modal"
+                        <button class="btn-admin-ip red"
                                 onclick="openReclassifyModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-tags me-1"></i>Request Re-classification
                         </button>
@@ -589,7 +668,7 @@
     </div>
 
     @if($tickets->hasPages())
-        <div class="mt-4">{{ $tickets->links() }}</div>
+        <div class="mt-4">{{ $tickets->onEachSide(1)->links('pagination::bootstrap-5') }}</div>
     @endif
 
 @endsection
@@ -694,71 +773,6 @@
                         <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn-confirm red">
                             <i class="bi bi-x-circle me-1"></i>Decline Support Request
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    {{-- Reassign modal --}}
-    <div class="modal fade" id="reassignModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-hdr-dark d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Reassign <em>to Another Admin</em></h5>
-                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
-                </div>
-                <form method="POST" id="reassignForm">
-                    @csrf
-                    <div class="modal-body px-4 py-4">
-                        <div class="info-box-red p-3 mb-3">
-                            <i class="bi bi-info-circle me-1"></i>
-                            Ticket <strong id="reassignRef"></strong> — reassigning to a different IT Admin.
-                        </div>
-                        <label class="form-label mb-2">Select IT Admin</label>
-                        <div class="d-flex flex-column gap-2 mb-3" id="techListReassign">
-                            @foreach($technicians as $tech)
-                                @php
-                                    $initials = strtoupper(substr($tech->name, 0, 1)) .
-                                                strtoupper(substr($tech->name, strpos($tech->name, ' ') + 1, 1));
-                                    $isFull   = $tech->availability === 'full';
-                                    $loadPct  = min(100, $tech->active_tickets * 25);
-                                    $barClass = match($tech->availability) { 'busy' => 'busy', 'full' => 'full', default => '' };
-                                    $badge = match($tech->availability) {
-                                        'free' => ['cls' => 'green', 'label' => 'Available'],
-                                        'busy' => ['cls' => 'dark',  'label' => 'Busy'],
-                                        'full' => ['cls' => 'red',   'label' => 'Full'],
-                                    };
-                                @endphp
-                                <div class="tech-select-option {{ $isFull ? 'disabled' : '' }} {{ $loop->first && !$isFull ? 'selected' : '' }}"
-                                     data-tech-id="{{ $tech->id }}" data-tech-name="{{ $tech->name }}">
-                                    <div class="d-flex align-items-center gap-2 mb-1">
-                                        <div class="tc-av normal">{{ $initials }}</div>
-                                        <div>
-                                            <div class="ts-name">{{ $tech->name }}</div>
-                                            <div class="ts-load">
-                                                {{ $tech->active_tickets }} active support request{{ $tech->active_tickets !== 1 ? 's' : '' }}
-                                            </div>
-                                        </div>
-                                        <span class="badge-count {{ $badge['cls'] }} ms-auto">{{ $badge['label'] }}</span>
-                                    </div>
-                                    <div class="load-bar-wrap">
-                                        <div class="load-bar {{ $barClass }}" style="width:{{ $loadPct }}%"></div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                        <input type="hidden" name="technician_id" id="selectedReassignTechId"
-                               value="{{ $technicians->where('availability', '!=', 'full')->first()?->id }}">
-                        <label class="form-label">Reassignment notes</label>
-                        <textarea class="form-control" name="notes" rows="2"
-                                  placeholder="Instructions or context…"></textarea>
-                    </div>
-                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
-                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn-confirm">
-                            <i class="bi bi-person-plus me-1"></i>Confirm Reassignment
                         </button>
                     </div>
                 </form>
@@ -1062,12 +1076,6 @@ $(function () {
         openAttachmentPreview($(this).data('id'), $(this).data('name'), $(this).data('mime'));
     });
 
-    $(document).on('click', '.tech-select-option:not(.disabled)', function () {
-        $(this).closest('#techListReassign').find('.tech-select-option').removeClass('selected');
-        $(this).addClass('selected');
-        $('#selectedReassignTechId').val($(this).data('tech-id'));
-    });
-
     /* ── Acknowledge modal ── */
     window.openAckModal = function (ticketId, ticketNumber) {
         $('#ackRef').text('#' + ticketNumber);
@@ -1090,13 +1098,6 @@ $(function () {
         $('#declineRef').text('#' + ticketNumber);
         $('#declineForm').attr('action', '/admin/tickets/' + ticketId + '/decline');
         new bootstrap.Modal('#declineModal').show();
-    };
-
-    /* ── Reassign modal ── */
-    window.openReassignModal = function (ticketId, ticketNumber) {
-        $('#reassignRef').text('#' + ticketNumber);
-        $('#reassignForm').attr('action', '/admin/tickets/' + ticketId + '/reassign');
-        new bootstrap.Modal('#reassignModal').show();
     };
 
     /* ── Resolve modal ── */

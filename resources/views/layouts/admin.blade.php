@@ -797,21 +797,46 @@
     }
 
     /* ── Action buttons ── */
-    .btn-reassign-a {
-      background: var(--gd);
-      color: var(--yg);
+    /* ── In Progress action row — pale bordered pills, same look/colors
+         Technician and Support Supervisor already use for their equivalent
+         actions (.btn-update/.btn-reassign, .btn-resolve-t, .btn-escalate-t),
+         so this row matches the rest of the app instead of its own palette. ── */
+    .btn-admin-ip {
+      background: var(--ygl);
+      color: var(--gd);
       font-family: 'Nunito', sans-serif;
       font-weight: 800;
       font-size: 12px;
       padding: 7px 16px;
       border-radius: 20px;
-      border: none;
+      border: 1.5px solid var(--bd);
       cursor: pointer;
       transition: all .2s;
     }
 
-    .btn-reassign-a:hover {
-      background: var(--gm);
+    .btn-admin-ip:hover {
+      border-color: var(--gl);
+      background: #d8eda0;
+    }
+
+    .btn-admin-ip.green {
+      background: #e8f5ee;
+      color: #1a5a3a;
+      border-color: #a8ddc0;
+    }
+
+    .btn-admin-ip.green:hover {
+      background: #c8ead8;
+    }
+
+    .btn-admin-ip.red {
+      background: #fde8e8;
+      color: #8b1a1a;
+      border-color: #f0c0c0;
+    }
+
+    .btn-admin-ip.red:hover {
+      background: #f8c8c8;
     }
 
     .btn-takeover {
@@ -1302,6 +1327,54 @@
       }
     }
 
+    /* ── Responsive: mobile (phones) — the navbar row (brand + back-to-
+         dashboard/my-requests buttons + role badge + profile chip) had no
+         wrap behavior of its own, so on narrow screens everything got
+         squeezed onto one line and overlapped instead of stacking. ── */
+    @media (max-width: 576px) {
+      #topbar {
+        flex-wrap: wrap;
+        row-gap: 4px;
+        padding-top: 6px;
+        padding-bottom: 6px;
+      }
+
+      #topbar > span {
+        font-size: 11px;
+      }
+
+      .navbar {
+        padding-top: 8px;
+        padding-bottom: 8px;
+      }
+
+      .navbar .container-fluid {
+        flex-wrap: wrap;
+        row-gap: 10px;
+      }
+
+      .navbar-brand {
+        font-size: 16px;
+      }
+
+      .navbar-brand span {
+        display: none;
+      }
+
+      .navbar .ms-auto {
+        margin-left: 0 !important;
+        width: 100%;
+        flex-wrap: wrap;
+        row-gap: 8px;
+        justify-content: flex-start;
+      }
+
+      .btn-back-dashboard {
+        font-size: 11px;
+        padding: 5px 12px;
+      }
+    }
+
     /* ── Page-specific styles injected per view ── */
     @yield('styles')
   </style>
@@ -1371,13 +1444,14 @@
   <div id="pageBody" class="container-fluid py-4 px-2" style="max-width:1500px">
     <div class="row g-4">
 
-      {{-- Sidebar --}}
-      <div class="col-lg-3">
+      {{-- Sidebar — order-2 below lg so mobile sees the ticket list before
+           the sidebar's recent-activity widgets, not after --}}
+      <div class="col-lg-3 order-2 order-lg-1">
         @yield('sidebar')
       </div>
 
       {{-- Main content --}}
-      <div class="col-lg-9">
+      <div class="col-lg-9 order-1 order-lg-2">
         @yield('content')
       </div>
 
@@ -1386,6 +1460,7 @@
 
   {{-- ── MODALS ── --}}
   @yield('modals')
+  <x-change-password-modal />
 
   {{-- ── Scripts ── --}}
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

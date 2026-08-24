@@ -11,6 +11,7 @@ class TicketAttachment extends Model
 
     protected $fillable = [
         'ticket_id',
+        'ticket_message_id',
         'uploaded_by',
         'original_name',
         'stored_path',
@@ -21,6 +22,11 @@ class TicketAttachment extends Model
     public function ticket()
     {
         return $this->belongsTo(Tickets::class, 'ticket_id');
+    }
+
+    public function message()
+    {
+        return $this->belongsTo(TicketMessage::class, 'ticket_message_id');
     }
 
     public function uploader()

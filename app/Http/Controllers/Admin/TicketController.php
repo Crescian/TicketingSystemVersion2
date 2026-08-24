@@ -37,7 +37,7 @@ class TicketController extends Controller
             ? Tickets::whereHas('escalations', fn ($q) => $q->where('escalated_by', $user->id))
             : Tickets::where('assigned_to', $user->id);
 
-        $query->with(['user.department', 'statusHistories.changedBy'])
+        $query->with(['user.department', 'statusHistories.changedBy', 'attachments'])
             ->orderByRaw("CASE
                 WHEN status = 'Assigned'                    THEN 1
                 WHEN status = 'In Progress Service Request' THEN 2
@@ -459,80 +459,6 @@ class TicketController extends Controller
             ->with('success', "Ticket #{$ticket->ticket_number} declined and returned to Admin Supervisor.");
     }
 
-    // Reassign to another IT Admin
-    public function reassign(Request $request, Tickets $ticket)
-    {
-        $request->validate([
-            'technician_id' => 'required|uuid|exists:users,id',
-            'notes' => 'nullable|string|max:500',
-            'schedule_decision' => 'nullable|in:overtime,next_day',
-        ]);
-
-        $oldTechUser = $ticket->assignedTo;
-        $oldTech = $oldTechUser?->name ?? 'Unassigned';
-        $newTech = User::findOrFail($request->technician_id);
-
-        if ($activeTicket = $this->activeTicketFor($newTech, $ticket->id)) {
-            return back()->with(
-                'error',
-                "{$newTech->name} is already working on ticket #{$activeTicket->ticket_number} — they need to resolve or escalate it before taking on another."
-            );
-        }
-
-        $slot = TicketScheduler::commitDirectSlot(
-            $ticket,
-            $newTech,
-            TicketScheduler::effortMinutes($ticket),
-            $request->input('schedule_decision', 'auto')
-        );
-
-        if ($slot['needs_decision']) {
-            return back()->withInput()->with('scheduleConflict', [
-                'action_url' => route('admin.tickets.reassign', $ticket),
-                'ticket_number' => $ticket->ticket_number,
-                'technician_name' => $newTech->name,
-                'proposed_end' => $slot['end']->copy()->timezone('Asia/Manila')->format('g:i A, M d'),
-                'day_end' => $slot['day_end']->copy()->timezone('Asia/Manila')->format('g:i A'),
-                'overtime_minutes' => $slot['end']->gt($slot['day_end']) ? $slot['end']->diffInMinutes($slot['day_end'], true) : 0,
-                'extra_fields' => $request->except(['_token', 'schedule_decision']),
-            ]);
-        }
-
-        $oldStatus = $ticket->status;
-
-        $ticket->update([
-            'assigned_to' => $request->technician_id,
-            'assigned_at' => now(),
-            'status' => TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
-            'pending_role' => null,
-            'scheduled_start' => $slot['scheduled_start'],
-            'scheduled_end' => $slot['scheduled_end'],
-            'is_overtime' => $slot['is_overtime'],
-            'queued_at' => $slot['queued_at'],
-        ]);
-
-        // Ticket just left the outgoing admin's active slot and/or not-started
-        // queue — their remaining queued tickets need to slide to match reality.
-        if ($oldTechUser && $oldTechUser->id !== $newTech->id) {
-            TicketScheduler::resequence($oldTechUser);
-        }
-
-        TicketStatusHistories::create([
-            'ticket_id' => $ticket->id,
-            'old_status' => $oldStatus,
-            'new_status' => TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
-            'changed_by' => Auth::id(),
-            'notes' => "Reassigned by IT Admin from {$oldTech} to {$newTech->name}."
-                . ($request->notes ? " Notes: {$request->notes}" : ''),
-            'changed_at' => now(),
-        ]);
-
-        return back()->with(
-            'success',
-            "Ticket #{$ticket->ticket_number} reassigned to {$newTech->name}."
-        );
-    }
-
     // Take over ticket directly (e.g. picking up an unassigned queue ticket)
     public function takeover(Request $request, Tickets $ticket)
     {
@@ -729,7 +655,7 @@ class TicketController extends Controller
     {
         $this->authorizeAdmin($ticket);
 
-        $ticket->load(['user.department', 'assignedTo', 'statusHistories.changedBy', 'feedback', 'attachments.uploader', 'slaCategory']);
+        $ticket->load(['user.department', 'assignedTo.role', 'statusHistories.changedBy', 'feedback', 'attachments.uploader', 'slaCategory']);
 
         return view('admin.ticket-detail', compact('ticket'));
     }
