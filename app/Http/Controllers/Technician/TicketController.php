@@ -12,6 +12,7 @@ use App\Models\TicketStatusHistories;
 use App\Models\User;
 use App\Services\TicketScheduler;
 use App\Support\BusinessClock;
+use App\Support\TicketHold;
 use App\Support\TicketReportProgress;
 use App\Support\TicketResolutionRules;
 use App\Support\TicketStatus;
@@ -56,7 +57,7 @@ class TicketController extends Controller
             TicketStatus::REQUESTOR_CONFIRMATION,
         ];
         $activeStatuses = array_merge(
-            [TicketStatus::ASSIGNED, TicketStatus::IN_PROGRESS_SERVICE_REQUEST, TicketStatus::IN_PROGRESS_SERVICE_REPORT, TicketStatus::ESCALATED],
+            [TicketStatus::ASSIGNED, TicketStatus::IN_PROGRESS_SERVICE_REQUEST, TicketStatus::ON_HOLD, TicketStatus::IN_PROGRESS_SERVICE_REPORT, TicketStatus::ESCALATED],
             $awaitingClosureStatuses
         );
 
@@ -74,6 +75,7 @@ class TicketController extends Controller
         } else {
             $mappedStatus = match ($status) {
                 'in-progress' => TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
+                'on-hold' => TicketStatus::ON_HOLD,
                 // Its own tab now, separate from "In Progress" — see TicketReportProgress.
                 'preparing-report' => TicketStatus::IN_PROGRESS_SERVICE_REPORT,
                 // Also its own tab now, separate from the general "Requestor
@@ -111,6 +113,8 @@ class TicketController extends Controller
                 ->where('status', TicketStatus::ASSIGNED)->whereNotNull('tech_acknowledged_at')->count(),
             'in_progress' => Tickets::where('assigned_to', $user->id)
                 ->where('status', TicketStatus::IN_PROGRESS_SERVICE_REQUEST)->count(),
+            'on_hold' => Tickets::where('assigned_to', $user->id)
+                ->where('status', TicketStatus::ON_HOLD)->count(),
             'preparing_report' => Tickets::where('assigned_to', $user->id)
                 ->where('status', TicketStatus::IN_PROGRESS_SERVICE_REPORT)->count(),
             'report_for_review' => Tickets::where('assigned_to', $user->id)
@@ -123,7 +127,7 @@ class TicketController extends Controller
                 ->where('status', TicketStatus::CLOSED)->count(),
         ];
         $counts['active'] = $counts['awaiting_ack'] + $counts['ready_start']
-            + $counts['in_progress'] + $counts['preparing_report'] + $counts['escalated'] + $counts['awaiting_closure'];
+            + $counts['in_progress'] + $counts['on_hold'] + $counts['preparing_report'] + $counts['escalated'] + $counts['awaiting_closure'];
 
         $freeMinutesToday = TicketScheduler::freeMinutesToday($user);
         $freeTimeLabel = TicketScheduler::freeTimeLabel($user);
@@ -136,14 +140,13 @@ class TicketController extends Controller
             ->whereIn('status', [TicketStatus::IN_PROGRESS_SERVICE_REQUEST, TicketStatus::IN_PROGRESS_SERVICE_REPORT])
             ->first();
 
-        // Saturday Mine-site coverage gap — see selfTriage(). Not scoped to this
+        // Helpdesk/Supervisor coverage gap — see selfTriage(). Not scoped to this
         // technician (it's unassigned/unacknowledged), so it's a global queue, not
         // per-user like everything else on this dashboard.
-        $selfTriageQueue = $this->isSelfTriageWindow()
+        $selfTriageQueue = $this->isCoverageGapActive()
             ? Tickets::where('status', TicketStatus::FOR_ACKNOWLEDGMENT)
                 ->where('pending_role', TicketStatus::QUEUE_HELPDESK)
                 ->whereNull('date_acknowledged')
-                ->whereIn('location', self::MINE_SITE_LOCATIONS)
                 ->with('user')
                 ->orderBy('created_at')
                 ->get()
@@ -204,6 +207,39 @@ class TicketController extends Controller
             ])->values()->toArray(),
         ])->values()->toArray();
 
+        // ── SLA categories restricted to non-admin-only rules, for the Self-Triage
+        // modal specifically — an IT Support Specialist standing in for
+        // Helpdesk/Supervisor should only be able to self-assign Support
+        // Specialist-track work. Admin-track categories are reserved for the IT
+        // Admin's own self-triage (see Admin\TicketController::selfTriage()).
+        // Kept separate from $slaCategoriesJson above, which stays unfiltered for
+        // the Request Re-classification modal.
+        $selfTriageCategories = \App\Models\SlaCategory::with([
+            'rules' => function ($q) {
+                $q->where('is_active', true)
+                    ->where('admin_only', false)
+                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes', 'description')
+                    ->orderBy('subcategory_name');
+            }
+        ])
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        $selfTriageCategoriesJson = $selfTriageCategories->map(fn($c) => [
+            'id' => $c->id,
+            'name' => $c->name,
+            'subs' => $c->rules->map(fn($r) => [
+                'rule_id' => $r->id,
+                'name' => $r->subcategory_name,
+                'priority' => $r->priority,
+                'response' => $r->response_time_minutes,
+                'resolution' => $r->resolution_time_minutes,
+                'description' => $r->description,
+            ])->values()->toArray(),
+        ])->values()->toArray();
+
         return view('dashboard.technician', compact(
             'tickets',
             'counts',
@@ -212,6 +248,7 @@ class TicketController extends Controller
             'sort',
             'weekStats',
             'slaCategoriesJson',
+            'selfTriageCategoriesJson',
             'freeMinutesToday',
             'freeTimeLabel',
             'withinBusinessHours',
@@ -597,6 +634,41 @@ class TicketController extends Controller
         );
     }
 
+    // Pause/Resume — for when finishing the ticket needs more information from
+    // the requestor. See TicketHold: doesn't touch the SLA clock, and freeing
+    // the In-Progress slot means this technician can start another ticket while
+    // they wait (activeTicketFor()-style checks above only look for
+    // IN_PROGRESS_SERVICE_REQUEST/REPORT, which On Hold isn't).
+    public function pause(Request $request, Tickets $ticket)
+    {
+        $this->authorizeTech($ticket);
+
+        if ($ticket->status !== TicketStatus::IN_PROGRESS_SERVICE_REQUEST) {
+            return back()->with('error', 'Only tickets currently in progress can be paused.');
+        }
+
+        $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        TicketHold::pause($ticket, $request->reason);
+
+        return back()->with('success', "Ticket #{$ticket->ticket_number} paused. The requestor has been notified.");
+    }
+
+    public function resume(Tickets $ticket)
+    {
+        $this->authorizeTech($ticket);
+
+        if ($ticket->status !== TicketStatus::ON_HOLD) {
+            return back()->with('error', 'This ticket is not on hold.');
+        }
+
+        TicketHold::resume($ticket);
+
+        return back()->with('success', "Work resumed on ticket #{$ticket->ticket_number}.");
+    }
+
     // Request re-classification (only while In Progress) — proposes a corrected category/
     // subcategory/priority for the Supervisor to approve. Unlike escalate(), this doesn't hand
     // the ticket to a higher tier, and — unlike before — it no longer touches the ticket's own
@@ -680,21 +752,36 @@ class TicketController extends Controller
         }
     }
 
-    // ── Mine-site Saturday coverage gap ──
-    // Mine site locations run Mon-Sat; Helpdesk and Supervisor both follow HQ's
-    // Mon-Fri schedule, so nothing acts on a new request submitted from these
-    // locations on a Saturday. selfTriage() below lets any active Technician
-    // stand in for the normally-separate Helpdesk-acknowledge +
+    // ── Helpdesk/Supervisor coverage gap ──
+    // When neither Helpdesk nor the Support Specialist Supervisor is currently
+    // online (session presence, same mechanism as the Admin/Executive "IT Team
+    // Status" panels), nothing acts on a new request. selfTriage() below lets any
+    // active Technician stand in for the normally-separate Helpdesk-acknowledge +
     // Helpdesk/Supervisor-classify + Supervisor-assign steps, scoped narrowly to
-    // this specific gap (Saturday + Mine-site location + still-unacknowledged).
-    private const MINE_SITE_LOCATIONS = ['Zambales Site', 'Porac Site', 'Bauan Site'];
+    // this specific gap (both roles offline + still-unacknowledged) — not tied to
+    // any day of week or location.
+    private const COVERAGE_ROLES = [TicketStatus::QUEUE_HELPDESK, TicketStatus::QUEUE_SUPPORT_SUPERVISOR];
 
-    private function isSelfTriageWindow(): bool
+    private const ONLINE_WINDOW_MINUTES = 5;
+
+    private function isCoverageGapActive(): bool
     {
-        return now()->timezone('Asia/Manila')->isSaturday();
+        $onlineUserIds = DB::table('sessions')
+            ->whereNotNull('user_id')
+            ->where('last_activity', '>=', now()->subMinutes(self::ONLINE_WINDOW_MINUTES)->timestamp)
+            ->distinct()
+            ->pluck('user_id');
+
+        if ($onlineUserIds->isEmpty()) {
+            return true;
+        }
+
+        return !User::whereIn('id', $onlineUserIds)
+            ->whereHas('role', fn($q) => $q->whereIn('role_name', self::COVERAGE_ROLES))
+            ->exists();
     }
 
-    // Self-triage: acknowledge + classify + self-assign a Mine-site request in
+    // Self-triage: acknowledge + classify + self-assign an unattended request in
     // one action. Priority/response/resolution come from the chosen SLA Rule,
     // same as Helpdesk/Supervisor classification elsewhere — nothing about the
     // SLA data model changes, only who is allowed to trigger it, and only under
@@ -703,12 +790,8 @@ class TicketController extends Controller
     // any other assignment.
     public function selfTriage(Request $request, Tickets $ticket)
     {
-        if (!$this->isSelfTriageWindow()) {
-            return back()->with('error', 'Self-triage is only available on Saturdays, when Helpdesk and Supervisor are not on duty.');
-        }
-
-        if (!in_array($ticket->location, self::MINE_SITE_LOCATIONS, true)) {
-            return back()->with('error', 'Self-triage is only available for Mine site requests.');
+        if (!$this->isCoverageGapActive()) {
+            return back()->with('error', 'Self-triage is only available when Helpdesk and Supervisor are offline.');
         }
 
         if ($ticket->status !== TicketStatus::FOR_ACKNOWLEDGMENT || $ticket->pending_role !== TicketStatus::QUEUE_HELPDESK || !is_null($ticket->date_acknowledged)) {
@@ -725,6 +808,11 @@ class TicketController extends Controller
         ]);
 
         $slaRule = SlaRule::findOrFail($request->sla_rule_id);
+
+        if ($slaRule->admin_only) {
+            return back()->with('error', 'This category routes to IT Admin — an IT Admin must self-triage it instead.');
+        }
+
         $technician = Auth::user();
         $priority = $slaRule->priority;
         $responseTime = $slaRule->response_time_minutes;
@@ -759,7 +847,7 @@ class TicketController extends Controller
             'old_status' => $oldStatus,
             'new_status' => TicketStatus::CLASSIFIED,
             'changed_by' => Auth::id(),
-            'notes' => "Self-triaged by {$technician->name} — Helpdesk/Supervisor not on duty (Saturday, {$ticket->location})."
+            'notes' => "Self-triaged by {$technician->name} — Helpdesk/Supervisor offline."
                 . " Classified as {$slaRule->subcategory_name} ({$priority}).",
             'changed_at' => now(),
         ]);

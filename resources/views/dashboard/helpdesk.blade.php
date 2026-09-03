@@ -51,6 +51,14 @@
             <span class="num">{{ $counts['closed'] }}</span>
             <span class="lbl">Closed</span>
         </div>
+        <div class="stat-pill">
+            <span class="num">{{ $counts['closed_today'] }}</span>
+            <span class="lbl">Closed Today</span>
+        </div>
+        <div class="stat-pill warn">
+            <span class="num">{{ $counts['in_progress_today'] }}</span>
+            <span class="lbl">In Progress Today</span>
+        </div>
     </div>
 @endsection
 
@@ -410,7 +418,7 @@
             <li class="list-group-item {{ $status === 'new-request' ? 'active' : '' }} {{ $counts['new_request'] > 0 ? 'queue-glow' : '' }}">
                 <a href="{{ route('helpdesk.dashboard', ['status' => 'new-request']) }}"
                    class="d-flex justify-content-between align-items-center text-decoration-none">
-                    <span><i class="bi bi-grid me-2"></i>New Requests</span>
+                    <span><i class="bi bi-grid me-2"></i>For Acknowledgment</span>
                     <span class="badge-count">{{ $counts['new_request'] }}</span>
                 </a>
             </li>
@@ -440,6 +448,13 @@
                    class="d-flex justify-content-between align-items-center text-decoration-none">
                     <span><i class="bi bi-file-earmark-text me-2"></i>In Progress Service Report</span>
                     <span class="badge-count">{{ $counts['l1_preparing_report'] }}</span>
+                </a>
+            </li>
+            <li class="list-group-item {{ $status === 'on-hold' ? 'active' : '' }}">
+                <a href="{{ route('helpdesk.dashboard', ['status' => 'on-hold']) }}"
+                   class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-pause-circle me-2"></i>On Hold</span>
+                    <span class="badge-count">{{ $counts['on_hold'] }}</span>
                 </a>
             </li>
             <li class="list-group-item {{ $status === 'escalated' ? 'active' : '' }}">
@@ -576,7 +591,7 @@
                 $labels = [
                     'active' => 'Active',
                     'new-request' => 'For Acknowledgment', 'for-classification' => 'For Classification', 'awaiting-supervisor' => 'Supervisor Assignment',
-                    'in-progress' => 'In Progress Service Request', 'l1-preparing-report' => 'In Progress Service Report', 'escalated' => 'Escalated', 'pending-supervisor-approval' => 'Report For Review',
+                    'in-progress' => 'In Progress Service Request', 'on-hold' => 'On Hold', 'l1-preparing-report' => 'In Progress Service Report', 'escalated' => 'Escalated', 'pending-supervisor-approval' => 'Report For Review',
                     'awaiting-requestor' => 'Requestor Confirmation',
                     'closed' => 'Closed', 'cancelled' => 'Cancelled',
                 ];
@@ -601,7 +616,7 @@
     </div>
 
     {{-- Tab pills --}}
-    <div class="d-flex flex-wrap gap-2 mb-3">
+    <!-- <div class="d-flex flex-wrap gap-2 mb-3">
         @php
             $tabs = [
                 'active'              => ['label' => 'Active',              'count' => $counts['active']],
@@ -609,6 +624,7 @@
                 'for-classification'  => ['label' => 'For Classification',  'count' => $counts['for_classification']],
                 'awaiting-supervisor'  => ['label' => 'Supervisor Assignment',  'count' => $counts['awaiting_supervisor']],
                 'in-progress' => ['label' => 'In Progress Service Request', 'count' => $counts['in_progress']],
+                'on-hold' => ['label' => 'On Hold', 'count' => $counts['on_hold']],
                 'l1-preparing-report' => ['label' => 'In Progress Service Report', 'count' => $counts['l1_preparing_report']],
                 'escalated'   => ['label' => 'Escalated',   'count' => $counts['escalated']],
                 'pending-supervisor-approval' => ['label' => 'Report For Review', 'count' => $counts['pending_supervisor_approval']],
@@ -623,14 +639,21 @@
                 {{ $tab['label'] }} ({{ $tab['count'] }})
             </a>
         @endforeach
-    </div>
+    </div> -->
 
     {{-- Ticket list --}}
     <div class="d-flex flex-column gap-3" id="ticketList">
 
         @forelse($tickets as $ticket)
             @php
-                $needsAck      = is_null($ticket->date_acknowledged) && $ticket->status === 'For Acknowledgment';
+                // The 'new-request' tab now also surfaces other levels' own
+                // incoming queues (Support/IT Admin Supervisor, Manager) for
+                // visibility — pending_role must still be Helpdesk's own for
+                // these action gates, or Acknowledge/Cancel would light up on
+                // tickets Helpdesk has no authority to act on.
+                $needsAck      = is_null($ticket->date_acknowledged)
+                    && $ticket->status === 'For Acknowledgment'
+                    && $ticket->pending_role === 'Helpdesk';
                 // Classify is the only action after acknowledging — no separate
                 // "Start L1" claim/investigate step (removed: it never changed
                 // what happened next, Classify was always still required either
@@ -638,7 +661,8 @@
                 // moves status to For Classification (Helpdesk-only), so that's
                 // what gates Classify now instead of For Acknowledgment.
                 $needsClassify = $ticket->status === 'For Classification';
-                $canCancel     = in_array($ticket->status, ['For Acknowledgment', 'For Classification'], true);
+                $canCancel     = in_array($ticket->status, ['For Acknowledgment', 'For Classification'], true)
+                    && $ticket->pending_role === 'Helpdesk';
                 // Classified & kept for L1 self-resolve via classify()'s "handle_myself"
                 // option. Which track a ticket belongs to is now disambiguated via
                 // assignedTo.role rather than a dedicated status string (see
@@ -650,6 +674,11 @@
                 $canMarkFixed     = $ticket->status === 'In Progress Service Request' && $ticket->assigned_to === Auth::id();
                 $canPrepareReport = $ticket->status === 'In Progress Service Report' && $ticket->assigned_to === Auth::id();
                 $canResolveMyself = $canMarkFixed || $canPrepareReport;
+                // Paused waiting on more information from the requestor (see
+                // TicketHold) — visible to Helpdesk across every track (no role
+                // scoping, matches 'in-progress'/'l1-preparing-report'), but only
+                // resumable for their own L1 self-resolve ticket.
+                $canResume = $ticket->status === 'On Hold' && $ticket->assigned_to === Auth::id();
 
                 // ── Draft "Service Details / Action Taken" from this agent's own Add
                 //    Update log — same convention as Technician\TicketController::update():
@@ -679,6 +708,7 @@
                     $ticket->status === 'In Progress Service Request' => 'in-progress',
                     $ticket->status === 'Closed Service Request'  => 'in-progress',
                     $ticket->status === 'In Progress Service Report'  => 'in-progress',
+                    $ticket->status === 'On Hold'  => 'escalated',
                     $ticket->status === 'Escalated'   => 'escalated',
                     $ticket->status === 'Done Service Report'      => 'pending-supervisor-approval',
                     $ticket->status === 'Report For Review'        => 'pending-supervisor-approval',
@@ -697,6 +727,7 @@
                     $ticket->status === 'In Progress Service Request' => 'badge-in-progress',
                     $ticket->status === 'Closed Service Request'  => 'badge-in-progress',
                     $ticket->status === 'In Progress Service Report'  => 'badge-in-progress',
+                    $ticket->status === 'On Hold'  => 'badge-escalated',
                     $ticket->status === 'Escalated'   => 'badge-escalated',
                     $ticket->status === 'Done Service Report'      => 'badge-pending-supervisor-approval',
                     $ticket->status === 'Report For Review'        => 'badge-pending-supervisor-approval',
@@ -719,6 +750,7 @@
                         => '<i class="bi bi-file-earmark-text me-1"></i>Preparing Report',
                     $ticket->status === 'In Progress Service Request' => '<i class="bi bi-gear-fill me-1"></i>In Progress',
                     $ticket->status === 'Closed Service Request' => '<i class="bi bi-gear-fill me-1"></i>In Progress',
+                    $ticket->status === 'On Hold'   => '<i class="bi bi-pause-circle me-1"></i>On Hold',
                     $ticket->status === 'Escalated'   => '<i class="bi bi-exclamation-triangle-fill me-1"></i>Escalated',
                     $ticket->status === 'Done Service Report'      => '<i class="bi bi-clock-history me-1"></i>Done Service Report',
                     $ticket->status === 'Report For Review'        => '<i class="bi bi-clock-history me-1"></i>Report For Review',
@@ -739,6 +771,30 @@
                     ? strtoupper(substr($ticket->assignedTo->name, 0, 1)) .
                       strtoupper(substr($ticket->assignedTo->name, strpos($ticket->assignedTo->name, ' ') + 1, 1))
                     : '—';
+
+                // "With: ..." — purely informational, doesn't touch $badgeLabel/
+                // $cardClass above. Tells Helpdesk where a ticket currently sits
+                // once it's left Helpdesk's own hands: which supervisor queue
+                // (L2 Support Specialist vs L3 IT Admin), which track's assignee
+                // is holding it, or the requestor for final confirmation. Null
+                // (no badge shown) whenever it's still Helpdesk's own turn.
+                $roleLevelLabels = [
+                    'Helpdesk' => 'Helpdesk',
+                    'IT Support Specialist' => 'IT Support Specialist (L2)',
+                    'Supervisor - Support Specialist' => 'Supervisor - Support Specialist (L2)',
+                    'IT Admin' => 'IT Admin (L3)',
+                    'Supervisor - IT Admin' => 'Supervisor - IT Admin (L3)',
+                    'Manager' => 'Manager',
+                ];
+                $withLabel = match(true) {
+                    $ticket->status === 'Requestor Confirmation' => 'Requestor',
+                    $ticket->pending_role && $ticket->pending_role !== 'Helpdesk'
+                        => $roleLevelLabels[$ticket->pending_role] ?? $ticket->pending_role,
+                    !$ticket->pending_role && $ticket->assignedTo?->role
+                        && $ticket->assignedTo->role->role_name !== 'Helpdesk'
+                        => $roleLevelLabels[$ticket->assignedTo->role->role_name] ?? $ticket->assignedTo->role->role_name,
+                    default => null,
+                };
             @endphp
 
             <div class="ticket-card {{ $cardClass }} p-3"
@@ -761,7 +817,14 @@
                             </span>
                         @endif
                     </div>
-                    <span class="badge-status {{ $badgeClass }}">{!! $badgeLabel !!}</span>
+                    <span class="d-flex align-items-center gap-2">
+                        <span class="badge-status {{ $badgeClass }}">{!! $badgeLabel !!}</span>
+                        @if($withLabel)
+                            <span class="badge-status" style="background:#eef1f6;color:#4a5568;border:1px solid #d8dee8">
+                                <i class="bi bi-arrow-right-circle me-1"></i>With: {{ $withLabel }}
+                            </span>
+                        @endif
+                    </span>
                 </div>
 
                 {{-- Title & desc --}}
@@ -942,6 +1005,10 @@
                                 <i class="bi bi-check2 me-1"></i>Mark Fixed
                             </button>
                         </form>
+                        <button type="button" class="btn-acknowledge"
+                                onclick="openPauseModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-pause-circle me-1"></i>Pause — Need Info
+                        </button>
                     @endif
                     {{-- Fix already marked done — now prepare & submit the service report. --}}
                     @if($canPrepareReport)
@@ -950,6 +1017,22 @@
                                 onclick="openHelpdeskResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', this.dataset.progressDraft)">
                             <i class="bi bi-file-earmark-text me-1"></i>Prepare Service Report
                         </button>
+                    @endif
+
+                    {{-- Paused, waiting on the requestor — Resume Work only --}}
+                    @if($canResume)
+                        @if($ticket->hold_reason)
+                            <div class="w-100 mb-2 p-2 px-3 rounded" style="background:var(--ygl);font-size:12px;color:var(--gd)">
+                                <i class="bi bi-pause-circle me-1"></i>
+                                <strong>Waiting on requestor:</strong> {{ $ticket->hold_reason }}
+                            </div>
+                        @endif
+                        <form method="POST" action="{{ route('helpdesk.tickets.resume', $ticket) }}">
+                            @csrf
+                            <button type="submit" class="btn-resolve">
+                                <i class="bi bi-play-circle me-1"></i>Resume Work
+                            </button>
+                        </form>
                     @endif
 
                     {{-- Cancel: available any time before classification --}}
@@ -1070,7 +1153,7 @@
                     <h5 class="mb-0">New <em>Support</em> Request</h5>
                     <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
                 </div>
-                <form method="POST" action="{{ route('helpdesk.tickets.store') }}" id="ticketForm">
+                <form method="POST" action="{{ route('helpdesk.tickets.store') }}" id="ticketForm" enctype="multipart/form-data">
                     @csrf
                     <input type="hidden" name="ticket_type"      id="hTicketType"   value="Medium">
                     <input type="hidden" name="request_category" id="hCategory"     value="">
@@ -1235,6 +1318,16 @@
                                         </optgroup>
                                     </select>
                             </div>
+
+                            <div class="mb-1">
+                                <label class="form-label">Supporting files <span style="font-weight:400;color:var(--tm)">(optional)</span></label>
+                                <input type="file" class="form-control" id="mAttachments" name="attachments[]"
+                                       multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                                <div style="font-size:11px;color:var(--tm);margin-top:4px">
+                                    Up to 5 files, 10MB each. Screenshots, documents, or logs that help explain the issue.
+                                </div>
+                                <div id="attachmentList" class="d-flex flex-column gap-1 mt-2"></div>
+                            </div>
                         </div>
 
                         {{-- Step 3: Review --}}
@@ -1270,6 +1363,7 @@
 
                                 <div class="mb-2"><b>Method:</b> <span id="rv-method">—</span></div>
                                 <div class="mb-2"><b>Location:</b> <span id="rv-location">—</span></div>
+                                <div class="mb-2"><b>Attachments:</b> <span id="rv-attachments">None</span></div>
 
                             </div>
                             <div class="review-detail p-3">
@@ -1609,6 +1703,41 @@
                         <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Back</button>
                         <button type="submit" class="btn-confirm" style="background:#8b1a1a">
                             <i class="bi bi-x-circle me-1"></i>Confirm Cancellation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Pause modal --}}
+    <div class="modal fade" id="pauseModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Pause <em>Support Request</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="pauseForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="esc-banner p-2 mb-3">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            <strong id="pauseRef"></strong> — the requestor will be emailed this
+                            reason right away. Work resumes once you click Resume Work.
+                        </div>
+                        <div>
+                            <label class="form-label">
+                                What do you need from the requestor? <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" name="reason" rows="3" required
+                                      placeholder="e.g. Which laptop unit needs the backup — the old one or the replacement?"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm">
+                            <i class="bi bi-pause-circle me-1"></i>Pause &amp; Notify Requestor
                         </button>
                     </div>
                 </form>
@@ -1985,12 +2114,8 @@ $(function () {
         $('#hTicketType').val($(this).data('pri'));
     });
 
-    /* ── Search debounce ── */
-    let searchTimer;
-    $('#searchInput').on('input', function () {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => $('#searchForm').submit(), 500);
-    });
+    /* ── Search submits on Enter only (native form submit) — no more
+           reloading the page mid-keystroke while the user is still typing. ── */
 
     /* ── Tech selection in modal ── */
     $(document).on('click', '.tech-select-option:not(.disabled)', function () {
@@ -2138,6 +2263,12 @@ $(function () {
         $('#cancelTicketForm').attr('action', '/helpdesk/tickets/' + ticketId + '/cancel');
         $('#cancelTicketForm textarea[name="reason"]').val('');
         new bootstrap.Modal('#cancelTicketModal').show();
+    };
+
+    window.openPauseModal = function (ticketId, ticketNumber) {
+        $('#pauseRef').text('#' + ticketNumber);
+        $('#pauseForm').attr('action', '/helpdesk/tickets/' + ticketId + '/pause');
+        new bootstrap.Modal('#pauseModal').show();
     };
 
     $(document).on('click', '#acCategoryList .cat-main-opt', function () {
@@ -2294,6 +2425,13 @@ function showStep(n) {
         $('#rv-subject-preview').text($('#mSubject').val() || '—');
         $('#rv-desc-preview').text($('#mDesc').val() || '—');
 
+        const attachedFiles = document.getElementById('mAttachments').files;
+        $('#rv-attachments').text(
+            attachedFiles.length
+                ? attachedFiles.length + ' file' + (attachedFiles.length > 1 ? 's' : '')
+                : 'None'
+        );
+
         $('#mFooter').show();
         $('#btnNext').removeClass('btn-continue').addClass('btn-submit-ticket').text('Submit ticket');
     } else if (n === 3) {
@@ -2303,6 +2441,40 @@ function showStep(n) {
         $('#btnNext').removeClass('btn-submit-ticket').addClass('btn-continue').text('Continue →');
     }
 }
+
+    /* ── Attachment picker: client-side limits + preview list ── */
+    const MAX_ATTACHMENTS = 5;
+    const MAX_ATTACHMENT_MB = 10;
+
+    $('#mAttachments').on('change', function () {
+        const files = Array.from(this.files);
+        const list  = $('#attachmentList').empty();
+
+        if (files.length > MAX_ATTACHMENTS) {
+            alert(`You can attach up to ${MAX_ATTACHMENTS} files. Only the first ${MAX_ATTACHMENTS} will be kept.`);
+        }
+
+        const oversize = files.find(f => f.size > MAX_ATTACHMENT_MB * 1024 * 1024);
+        if (oversize) {
+            alert(`"${oversize.name}" exceeds the ${MAX_ATTACHMENT_MB}MB limit and will be removed.`);
+        }
+
+        const kept = files
+            .filter(f => f.size <= MAX_ATTACHMENT_MB * 1024 * 1024)
+            .slice(0, MAX_ATTACHMENTS);
+
+        // Rebuild the input's file list to only the valid/kept files
+        const dt = new DataTransfer();
+        kept.forEach(f => dt.items.add(f));
+        this.files = dt.files;
+
+        kept.forEach(f => {
+            const sizeKb = (f.size / 1024).toFixed(0);
+            list.append(
+                `<div style="font-size:12px;color:var(--tm)"><i class="bi bi-paperclip me-1"></i>${$('<div>').text(f.name).html()} <span style="color:var(--tm)">(${sizeKb} KB)</span></div>`
+            );
+        });
+    });
 
     /* ── Next / Submit ── */
     $('#btnNext').on('click', function () {
@@ -2330,10 +2502,14 @@ function showStep(n) {
             $('#hCategory').val(mainCat + ' — ' + subCat);
             $('#hTicketType').val(pri);
 
+            const formData = new FormData(document.getElementById('ticketForm'));
+
             $.ajax({
                 url: $('#ticketForm').attr('action'),
                 type: 'POST',
-                data: $('#ticketForm').serialize(),
+                data: formData,
+                processData: false,
+                contentType: false,
                 success: function (response) {
                     $('#newTicketRef').text(response.ticket_number);
                     showStep(3);
@@ -2373,6 +2549,10 @@ function showStep(n) {
         $('#mSubject, #mDesc, #mDetails').val('');
         $('#mAsset').val('');
         $('#mLocation').val('');
+
+        // Reset attachments
+        $('#mAttachments').val('');
+        $('#attachmentList').empty();
 
         $('.pri-opt').removeClass('selected').filter('.medium').addClass('selected');
         $('#hTicketType').val('Medium');

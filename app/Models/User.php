@@ -29,6 +29,8 @@ class User extends Authenticatable
         'department_id',
         'position',
         'active',
+        'must_change_password',
+        'needs_account_setup',
         'org_info_updated_at',
         'onboarded_at',
     ];
@@ -55,6 +57,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'active' => 'boolean',
+            'must_change_password' => 'boolean',
+            'needs_account_setup' => 'boolean',
             'org_info_updated_at' => 'datetime',
             'onboarded_at' => 'datetime',
         ];

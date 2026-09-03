@@ -292,6 +292,13 @@
                       <span class="badge-count">{{ $counts['in_progress'] }}</span>
                   </a>
               </li>
+              <li class="list-group-item {{ $status === 'on-hold' ? 'active' : '' }}">
+                  <a href="{{ route('technician.dashboard', ['status' => 'on-hold']) }}"
+                     class="d-flex justify-content-between align-items-center text-decoration-none">
+                      <span><i class="bi bi-pause-circle me-2"></i>On Hold</span>
+                      <span class="badge-count">{{ $counts['on_hold'] }}</span>
+                  </a>
+              </li>
               <li class="list-group-item {{ $status === 'preparing-report' ? 'active' : '' }}">
                   <a href="{{ route('technician.dashboard', ['status' => 'preparing-report']) }}"
                      class="d-flex justify-content-between align-items-center text-decoration-none">
@@ -406,19 +413,19 @@
         </div>
       @endif
 
-      {{-- Saturday Mine-site coverage gap: Helpdesk/Supervisor are both HQ Mon-Fri,
-           so nobody's around to acknowledge/classify these — any technician can
-           pick one up directly. Only ever renders on a Saturday (see
-           TicketController::isSelfTriageWindow()). --}}
+      {{-- Helpdesk/Supervisor coverage gap: neither is currently online, so
+           nobody's around to acknowledge/classify these — any technician can
+           pick one up directly. Only renders while both are offline (see
+           TicketController::isCoverageGapActive()). --}}
       @if($selfTriageQueue->isNotEmpty())
         <div class="self-triage-panel">
             <div class="d-flex align-items-center gap-2 mb-1">
                 <i class="bi bi-exclamation-triangle-fill" style="color:#b8860b"></i>
                 <span class="font-brand fw-900" style="font-size:14px;color:#7a5c00">
-                    Mine Site — Needs Triage
+                    Needs Triage
                 </span>
                 <span style="font-size:11px;color:#9a7b00">
-                    (Helpdesk/Supervisor aren't on duty Saturdays — any of you can pick these up)
+                    (Helpdesk/Supervisor are offline — any of you can pick these up)
                 </span>
             </div>
             @foreach($selfTriageQueue as $stTicket)
@@ -449,6 +456,7 @@
                     'awaiting-ack' => 'For Acknowledgment',
                     'ready-start' => 'Start Support Request — Ready to Start',
                     'in-progress' => 'In Progress Service Request',
+                    'on-hold' => 'On Hold',
                     'preparing-report' => 'In Progress Service Report',
                     'escalated' => 'Escalated',
                     'report-for-review' => 'Report For Review',
@@ -475,13 +483,14 @@
           </form>
       </div>
 
-      <div class="d-flex flex-wrap gap-2 mb-3">
+      <!-- <div class="d-flex flex-wrap gap-2 mb-3">
           @php
             $tabs = [
                 'active' => ['label' => 'Active Queue', 'count' => $counts['active']],
                 'awaiting-ack' => ['label' => 'For Acknowledgment', 'count' => $counts['awaiting_ack']],
                 'ready-start' => ['label' => 'Start Support Request', 'count' => $counts['ready_start']],
                 'in-progress' => ['label' => 'In Progress Service Request', 'count' => $counts['in_progress']],
+                'on-hold' => ['label' => 'On Hold', 'count' => $counts['on_hold']],
                 'preparing-report' => ['label' => 'In Progress Service Report', 'count' => $counts['preparing_report']],
                 'escalated' => ['label' => 'Escalated', 'count' => $counts['escalated']],
                 'report-for-review' => ['label' => 'Report For Review', 'count' => $counts['report_for_review']],
@@ -495,7 +504,7 @@
                 {{ $tab['label'] }} ({{ $tab['count'] }})
             </a>
           @endforeach
-      </div>
+      </div> -->
 
       {{-- Ticket list --}}
       <div class="d-flex flex-column gap-3" id="ticketList">
@@ -518,6 +527,10 @@
                 $isInProgress = in_array($ticket->status, ['In Progress Service Request', 'In Progress Service Report'], true);
                 $canMarkFixed     = $ticket->status === 'In Progress Service Request';
                 $canPrepareReport = $ticket->status === 'In Progress Service Report';
+                // Paused waiting on more information from the requestor (see TicketHold) —
+                // a detour off $isInProgress, not folded into it, so it gets its own card
+                // styling/badge and doesn't show the Add Update/Mark Fixed actions.
+                $isOnHold     = $ticket->status === 'On Hold';
                 $isEscalated  = $ticket->status === 'Escalated';
                 // Once the report leaves the tech's hands (Done Service Report) it's with the
                 // Supervisor for review/approval, then the requestor — none of those remaining
@@ -536,6 +549,7 @@
                     $isNew => 'new-assigned',
                     $isAcknowledged => 'accepted',
                     $isInProgress => 'in-progress',
+                    $isOnHold => 'escalated',
                     $isEscalated => 'escalated',
                     $isClosed => 'resolved',
                     default => 'open'
@@ -559,12 +573,13 @@
                 $step4 = match (true) {
                     $isClosed => 'done',
                     $isEscalated => 'active',
+                    $isOnHold => 'active',
                     $isInProgress => 'active',
                     default => ''
                 };
                 $line1 = $isNew ? '' : 'done';
-                $line2 = $isAcknowledged || $isInProgress || $isClosed || $isEscalated ? 'done' : '';
-                $line3 = $isInProgress || $isClosed || $isEscalated ? 'done' : '';
+                $line2 = $isAcknowledged || $isInProgress || $isOnHold || $isClosed || $isEscalated ? 'done' : '';
+                $line3 = $isInProgress || $isOnHold || $isClosed || $isEscalated ? 'done' : '';
 
                 $recentHistory = $ticket->statusHistories->sortByDesc('changed_at')->take(3)->reverse();
 
@@ -979,6 +994,12 @@
                                 <i class="bi bi-file-earmark-text me-1"></i>Prepare Service Report
                             </button>
                         @endif
+                        @if($canMarkFixed)
+                            <button class="btn-escalate-t"
+                                    onclick="openPauseModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                <i class="bi bi-pause-circle me-1"></i>Pause — Need Info
+                            </button>
+                        @endif
                         <button class="btn-escalate-t"
                                 onclick="openEscModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-exclamation-triangle me-1"></i>Escalate
@@ -989,7 +1010,23 @@
                         </button>
                     @endif
 
-                    @if($isInProgress || $isAcknowledged)
+                    {{-- On Hold: waiting on the requestor — Resume Work + Message only --}}
+                    @if($isOnHold)
+                        @if($ticket->hold_reason)
+                            <div class="w-100 mb-2 p-2 px-3 rounded" style="background:var(--ygl);font-size:12px;color:var(--gd)">
+                                <i class="bi bi-pause-circle me-1"></i>
+                                <strong>Waiting on requestor:</strong> {{ $ticket->hold_reason }}
+                            </div>
+                        @endif
+                        <form method="POST" action="{{ route('technician.tickets.resume', $ticket) }}">
+                            @csrf
+                            <button type="submit" class="btn-resolve-t">
+                                <i class="bi bi-play-circle me-1"></i>Resume Work
+                            </button>
+                        </form>
+                    @endif
+
+                    @if($isInProgress || $isOnHold || $isAcknowledged)
                         <button class="btn-chat"
                                 onclick="openTechChatModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', {{ Illuminate\Support\Js::from($ticket->user->name ?? 'Unknown') }}, {{ Illuminate\Support\Js::from($ticket->subject) }}, {{ Illuminate\Support\Js::from($ticket->concern) }})">
                             <i class="bi bi-chat-dots me-1"></i>Message
@@ -1414,6 +1451,43 @@
           </div>
       </div>
 
+      {{-- Pause modal --}}
+      <div class="modal fade" id="pauseModal" tabindex="-1">
+          <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content">
+                  <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                      <h5 class="mb-0">Pause <em>Support Request</em></h5>
+                      <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                  </div>
+                  <form method="POST" id="pauseForm">
+                      @csrf
+                      <div class="modal-body px-4 py-4">
+                          <div class="info-box-red p-3 mb-3">
+                              <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                              <strong id="pauseRef"></strong> — the requestor will be emailed this
+                              reason right away. Work resumes once you click Resume Work.
+                          </div>
+                          <div>
+                              <label class="form-label">
+                                  What do you need from the requestor? <span class="text-danger">*</span>
+                              </label>
+                              <textarea class="form-control" name="reason"
+                                        rows="3" required
+                                        placeholder="e.g. Which laptop unit needs the backup — the old one or the replacement?"></textarea>
+                          </div>
+                      </div>
+                      <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                          <button type="button" class="btn-cancel-modal"
+                                  data-bs-dismiss="modal">Cancel</button>
+                          <button type="submit" class="btn-confirm">
+                              <i class="bi bi-pause-circle me-1"></i>Pause &amp; Notify Requestor
+                          </button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      </div>
+
       {{-- Escalate modal --}}
       <div class="modal fade" id="escModal" tabindex="-1">
           <div class="modal-dialog modal-dialog-centered">
@@ -1542,7 +1616,7 @@
           </div>
       </div>
 
-      {{-- Self-Triage Modal (Saturday Mine-site coverage gap) --}}
+      {{-- Self-Triage Modal (Helpdesk/Supervisor coverage gap) --}}
       <div class="modal fade" id="selfTriageModal" tabindex="-1">
           <div class="modal-dialog modal-dialog-centered modal-lg">
               <div class="modal-content">
@@ -1558,7 +1632,7 @@
                           <div class="info-box-red p-3 mb-3">
                               <i class="bi bi-exclamation-triangle-fill me-1"></i>
                               This acknowledges the request and assigns it to <strong>you</strong> directly —
-                              standing in for Helpdesk/Supervisor, who aren't on duty today. Pick the category
+                              standing in for Helpdesk/Supervisor, who are currently offline. Pick the category
                               that best matches the issue; the priority and response/resolution targets come
                               from that category's SLA rule automatically.
                           </div>
@@ -1751,11 +1825,8 @@
     /* ══ DOM-READY ══ */
     $(function () {
 
-        let searchTimer;
-        $('#searchInput').on('input', function () {
-            clearTimeout(searchTimer);
-            searchTimer = setTimeout(() => $('#searchForm').submit(), 500);
-        });
+        // Search submits on Enter only (native form submit) — no more
+        // reloading the page mid-keystroke while the user is still typing.
 
         $(document).on('click', '.status-opt', function () {
             $(this).siblings().removeClass('selected');
@@ -1902,6 +1973,13 @@
             new bootstrap.Modal('#escModal').show();
         };
 
+        /* ── Pause modal ── */
+        window.openPauseModal = function (ticketId, ticketNumber) {
+            $('#pauseRef').text('#' + ticketNumber);
+            $('#pauseForm').attr('action', '/technician/tickets/' + ticketId + '/pause');
+            new bootstrap.Modal('#pauseModal').show();
+        };
+
         /* ── Request Re-classification modal ── */
         const slaCategories = @json($slaCategoriesJson);
 
@@ -1969,7 +2047,11 @@
             }
         });
 
-        /* ── Self-Triage modal (Saturday Mine-site coverage gap) ── */
+        /* ── Self-Triage modal (Helpdesk/Supervisor coverage gap) ──
+           Uses selfTriageCategories (admin_only rules excluded), not the
+           slaCategories used above by the Re-classification modal. */
+        const selfTriageCategories = @json($selfTriageCategoriesJson);
+
         window.openSelfTriageModal = function (ticketId, ticketNumber) {
             $('#stTicketRef').text('#' + ticketNumber);
             $('#selfTriageForm').attr('action', '/technician/tickets/' + ticketId + '/self-triage');
@@ -1979,7 +2061,7 @@
             $('#stCategoryList .cat-main-opt').removeClass('selected');
 
             const $catList = $('#stCategoryList').empty();
-            slaCategories.forEach(cat => {
+            selfTriageCategories.forEach(cat => {
                 $catList.append(`<div class="cat-main-opt" data-cat-id="${cat.id}">${cat.name}</div>`);
             });
 
@@ -1991,7 +2073,7 @@
             $(this).addClass('selected');
 
             const catId = $(this).data('cat-id');
-            const cat = slaCategories.find(c => c.id === catId);
+            const cat = selfTriageCategories.find(c => c.id === catId);
             const $subList = $('#stSubList').empty();
 
             if (!cat || !cat.subs.length) {

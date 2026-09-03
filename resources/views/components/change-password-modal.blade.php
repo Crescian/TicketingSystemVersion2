@@ -1,4 +1,4 @@
-{{-- Hard-blocks anyone still on the shared default password ("password" — set by
+{{-- Hard-blocks anyone flagged must_change_password (set by
      UserManagementController::store()/resetPassword() for new/reset accounts):
      no close button, static backdrop, no Escape-to-close. The actual enforcement
      is server-side (App\Http\Middleware\RequirePasswordChange redirects every
@@ -17,7 +17,7 @@
         // cover the very form the user is there to fill in.
         $usingDefaultPassword = Auth::user()->role?->role_name === 'Employee'
             && !request()->routeIs('profile')
-            && \Illuminate\Support\Facades\Hash::check('password', Auth::user()->password);
+            && Auth::user()->must_change_password;
     @endphp
     @if($usingDefaultPassword)
         <div class="modal fade" id="defaultPasswordModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
@@ -32,7 +32,7 @@
                         <div style="background:#fff4cc;border:1px solid #f0d878;border-radius:12px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start">
                             <i class="bi bi-exclamation-triangle-fill" style="color:#8a6d00;font-size:18px;margin-top:1px"></i>
                             <div style="font-size:13.5px;color:#5a4700;font-weight:600;line-height:1.5">
-                                You're signed in with the default account password. For your account's security,
+                                Your account requires a password change. For your account's security,
                                 please change your password immediately.
                             </div>
                         </div>

@@ -12,6 +12,7 @@ use App\Models\TicketStatusHistories;
 use App\Models\User;
 use App\Services\TicketScheduler;
 use App\Support\BusinessClock;
+use App\Support\TicketHold;
 use App\Support\TicketReportProgress;
 use App\Support\TicketResolutionRules;
 use App\Support\TicketStatus;
@@ -59,6 +60,7 @@ class TicketController extends Controller
         $activeStatuses = [
             TicketStatus::ASSIGNED,
             TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
+            TicketStatus::ON_HOLD,
             TicketStatus::IN_PROGRESS_SERVICE_REPORT,
             TicketStatus::REPORT_FOR_REVIEW,
             TicketStatus::REQUESTOR_CONFIRMATION,
@@ -68,6 +70,8 @@ class TicketController extends Controller
             $query->whereIn('status', $activeStatuses);
         } elseif ($status === 'in-progress') {
             $query->where('status', TicketStatus::IN_PROGRESS_SERVICE_REQUEST);
+        } elseif ($status === 'on-hold') {
+            $query->where('status', TicketStatus::ON_HOLD);
         } elseif ($status === 'in-progress-report') {
             $query->where('status', TicketStatus::IN_PROGRESS_SERVICE_REPORT);
         } elseif ($status === 'escalated') {
@@ -124,6 +128,8 @@ class TicketController extends Controller
                 ->where('status', TicketStatus::ASSIGNED)->whereNotNull('tech_acknowledged_at')->count(),
             'in_progress' => Tickets::where('assigned_to', $user->id)
                 ->where('status', TicketStatus::IN_PROGRESS_SERVICE_REQUEST)->count(),
+            'on_hold' => Tickets::where('assigned_to', $user->id)
+                ->where('status', TicketStatus::ON_HOLD)->count(),
             'in_progress_report' => Tickets::where('assigned_to', $user->id)
                 ->where('status', TicketStatus::IN_PROGRESS_SERVICE_REPORT)->count(),
             'escalated' => Tickets::whereHas('escalations', fn ($q) => $q->where('escalated_by', $user->id))
@@ -139,7 +145,7 @@ class TicketController extends Controller
         // (see escalate() below), so they can never actually appear in this
         // assigned_to-scoped "Active" list; counting them in the sum would make
         // the Active badge show a number the tab itself could never produce.
-        $counts['active'] = $counts['awaiting_ack'] + $counts['ready_start'] + $counts['in_progress'] + $counts['in_progress_report']
+        $counts['active'] = $counts['awaiting_ack'] + $counts['ready_start'] + $counts['in_progress'] + $counts['on_hold'] + $counts['in_progress_report']
             + $counts['report_for_review'] + $counts['awaiting_requestor'];
 
         // Technicians (other IT Admins) — used for reassign
@@ -226,6 +232,49 @@ class TicketController extends Controller
             ])->values()->toArray(),
         ])->values()->toArray();
 
+        // ── SLA categories restricted to admin-only rules, for the Self-Triage
+        // modal specifically — an IT Admin standing in for Helpdesk/Supervisor -
+        // IT Admin should only be able to self-assign Admin-track work. Kept
+        // separate from $slaCategoriesJson above, which stays unfiltered for the
+        // Request Re-classification modal.
+        $selfTriageCategories = \App\Models\SlaCategory::with([
+            'rules' => function ($q) {
+                $q->where('is_active', true)
+                    ->where('admin_only', true)
+                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes', 'description')
+                    ->orderBy('subcategory_name');
+            }
+        ])
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        $selfTriageCategoriesJson = $selfTriageCategories->map(fn($c) => [
+            'id' => $c->id,
+            'name' => $c->name,
+            'subs' => $c->rules->map(fn($r) => [
+                'rule_id' => $r->id,
+                'name' => $r->subcategory_name,
+                'priority' => $r->priority,
+                'response' => $r->response_time_minutes,
+                'resolution' => $r->resolution_time_minutes,
+                'description' => $r->description,
+            ])->values()->toArray(),
+        ])->values()->toArray();
+
+        // Helpdesk/Supervisor - IT Admin coverage gap — see selfTriage(). Not
+        // scoped to this admin (it's unassigned/unacknowledged), so it's a global
+        // queue, not per-user like everything else on this dashboard.
+        $selfTriageQueue = $this->isCoverageGapActive()
+            ? Tickets::where('status', TicketStatus::FOR_ACKNOWLEDGMENT)
+                ->where('pending_role', TicketStatus::QUEUE_HELPDESK)
+                ->whereNull('date_acknowledged')
+                ->with('user')
+                ->orderBy('created_at')
+                ->get()
+            : collect();
+
         return view('dashboard.admin', compact(
             'tickets',
             'counts',
@@ -235,7 +284,9 @@ class TicketController extends Controller
             'technicians',
             'systemStats',
             'weekStats',
-            'slaCategoriesJson'
+            'slaCategoriesJson',
+            'selfTriageCategoriesJson',
+            'selfTriageQueue'
         ));
     }
 
@@ -574,6 +625,38 @@ class TicketController extends Controller
         );
     }
 
+    // Pause/Resume — for when finishing the ticket needs more information from
+    // the requestor. See TicketHold.
+    public function pause(Request $request, Tickets $ticket)
+    {
+        $this->authorizeAdmin($ticket);
+
+        if ($ticket->status !== TicketStatus::IN_PROGRESS_SERVICE_REQUEST) {
+            return back()->with('error', 'Only tickets currently in progress can be paused.');
+        }
+
+        $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        TicketHold::pause($ticket, $request->reason);
+
+        return back()->with('success', "Ticket #{$ticket->ticket_number} paused. The requestor has been notified.");
+    }
+
+    public function resume(Tickets $ticket)
+    {
+        $this->authorizeAdmin($ticket);
+
+        if ($ticket->status !== TicketStatus::ON_HOLD) {
+            return back()->with('error', 'This ticket is not on hold.');
+        }
+
+        TicketHold::resume($ticket);
+
+        return back()->with('success', "Work resumed on ticket #{$ticket->ticket_number}.");
+    }
+
     // The IT Admin thinks this ticket was miscategorized — propose a corrected
     // classification for the Admin Supervisor to approve or reject. Mirrors
     // Technician\TicketController::requestReclassification() — the ticket itself
@@ -679,6 +762,124 @@ class TicketController extends Controller
         if ($ticket->assigned_to !== Auth::id()) {
             abort(403, 'You are not assigned to this ticket.');
         }
+    }
+
+    // ── Helpdesk/Supervisor - IT Admin coverage gap ──
+    // When neither Helpdesk nor the IT Admin Supervisor is currently online
+    // (session presence, same mechanism as the Admin/Executive "IT Team Status"
+    // panels), nothing acts on a new request. selfTriage() below lets any active
+    // IT Admin stand in for the normally-separate Helpdesk-acknowledge +
+    // Helpdesk/Supervisor-classify + Supervisor-assign steps, scoped narrowly to
+    // this specific gap (both roles offline + still-unacknowledged). Mirrors
+    // Technician\TicketController::isCoverageGapActive() for the Support
+    // Specialist track.
+    private const COVERAGE_ROLES = [TicketStatus::QUEUE_HELPDESK, TicketStatus::QUEUE_ADMIN_SUPERVISOR];
+
+    private const ONLINE_WINDOW_MINUTES = 5;
+
+    private function isCoverageGapActive(): bool
+    {
+        $onlineUserIds = DB::table('sessions')
+            ->whereNotNull('user_id')
+            ->where('last_activity', '>=', now()->subMinutes(self::ONLINE_WINDOW_MINUTES)->timestamp)
+            ->distinct()
+            ->pluck('user_id');
+
+        if ($onlineUserIds->isEmpty()) {
+            return true;
+        }
+
+        return !User::whereIn('id', $onlineUserIds)
+            ->whereHas('role', fn($q) => $q->whereIn('role_name', self::COVERAGE_ROLES))
+            ->exists();
+    }
+
+    // Self-triage: acknowledge + classify + self-assign an unattended request in
+    // one action. Priority/response/resolution come from the chosen SLA Rule,
+    // same as Helpdesk/Supervisor classification elsewhere — nothing about the
+    // SLA data model changes, only who is allowed to trigger it, and only under
+    // this narrow condition. Cascades through Classified and lands on Assigned —
+    // the admin still separately acknowledges/starts it afterward, same as any
+    // other assignment. Mirrors Technician\TicketController::selfTriage(),
+    // restricted to admin_only SLA rules instead of the Support Specialist track.
+    public function selfTriage(Request $request, Tickets $ticket)
+    {
+        if (!$this->isCoverageGapActive()) {
+            return back()->with('error', 'Self-triage is only available when Helpdesk and Supervisor are offline.');
+        }
+
+        if ($ticket->status !== TicketStatus::FOR_ACKNOWLEDGMENT || $ticket->pending_role !== TicketStatus::QUEUE_HELPDESK || !is_null($ticket->date_acknowledged)) {
+            return back()->with('error', 'Only unacknowledged new requests can be self-triaged.');
+        }
+
+        $request->validate([
+            'sla_rule_id' => 'required|exists:sla_rules,id',
+            'schedule_decision' => 'nullable|in:overtime,next_day',
+        ]);
+
+        $slaRule = SlaRule::findOrFail($request->sla_rule_id);
+
+        if (!$slaRule->admin_only) {
+            return back()->with('error', 'This category routes to a Support Specialist — an IT Support Specialist must self-triage it instead.');
+        }
+
+        $admin = Auth::user();
+        $priority = $slaRule->priority;
+        $responseTime = $slaRule->response_time_minutes;
+        $resolutionTime = $slaRule->resolution_time_minutes;
+
+        $slot = TicketScheduler::commitAssignment(
+            $ticket,
+            $admin,
+            $priority,
+            $responseTime + $resolutionTime,
+            $request->input('schedule_decision', 'next_day')
+        );
+
+        $oldStatus = $ticket->status;
+
+        $ticket->update([
+            'date_acknowledged' => now()->timezone('Asia/Manila')->toDateString(),
+            'time_acknowledged' => now()->timezone('Asia/Manila')->toTimeString(),
+            'sla_category_id' => $slaRule->sla_category_id,
+            'subcategory_name' => $slaRule->subcategory_name,
+            'ticket_type' => $priority,
+            'response_time_minutes' => $responseTime,
+            'resolution_time_minutes' => $resolutionTime,
+            'status' => TicketStatus::CLASSIFIED,
+            'pending_role' => null,
+        ]);
+
+        TicketStatusHistories::create([
+            'ticket_id' => $ticket->id,
+            'old_status' => $oldStatus,
+            'new_status' => TicketStatus::CLASSIFIED,
+            'changed_by' => Auth::id(),
+            'notes' => "Self-triaged by {$admin->name} — Helpdesk/Supervisor offline."
+                . " Classified as {$slaRule->subcategory_name} ({$priority}).",
+            'changed_at' => now(),
+        ]);
+
+        $ticket->update([
+            'assigned_to' => $admin->id,
+            'assigned_at' => now(),
+            'status' => TicketStatus::ASSIGNED,
+            'scheduled_start' => $slot['scheduled_start'],
+            'scheduled_end' => $slot['scheduled_end'],
+            'is_overtime' => $slot['is_overtime'],
+            'queued_at' => $slot['queued_at'],
+        ]);
+
+        TicketStatusHistories::create([
+            'ticket_id' => $ticket->id,
+            'old_status' => TicketStatus::CLASSIFIED,
+            'new_status' => TicketStatus::ASSIGNED,
+            'changed_by' => Auth::id(),
+            'notes' => "Self-assigned by {$admin->name}.",
+            'changed_at' => now(),
+        ]);
+
+        return back()->with('success', "Ticket #{$ticket->ticket_number} self-triaged and assigned to you.");
     }
 
     // An admin can only ever have one ticket in their "in progress" anchor slot

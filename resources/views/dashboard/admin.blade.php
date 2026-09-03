@@ -61,6 +61,10 @@
 @endsection
 
 @section('styles')
+    .self-triage-panel { background:#fffaf0; border:1.5px solid #f5c842; border-radius:14px; padding:14px 16px; margin-bottom:16px; }
+    .self-triage-row { display:flex; align-items:center; gap:12px; padding:8px 0; border-top:1px solid rgba(245,200,66,.35); }
+    .self-triage-row:first-of-type { border-top:none; }
+
     {{-- Category/subcategory picker for the Request Re-classification modal —
          same rules used by the Classify & Assign modal on the other dashboards. --}}
     .cat-main-opt {
@@ -139,6 +143,7 @@
                     ['key' => 'awaiting-ack', 'icon' => 'bi-hourglass-split',   'label' => 'For Acknowledgment',     'count' => $counts['awaiting_ack'], 'cls' => 'red', 'glow' => true],
                     ['key' => 'ready-start',  'icon' => 'bi-stopwatch',        'label' => 'Start Admin Request',    'count' => $counts['ready_start'],  'cls' => 'red'],
                     ['key' => 'in-progress',  'icon' => 'bi-gear-fill',        'label' => 'In Progress Service Request',       'count' => $counts['in_progress'],  'cls' => 'green'],
+                    ['key' => 'on-hold',      'icon' => 'bi-pause-circle',     'label' => 'On Hold',       'count' => $counts['on_hold'],  'cls' => 'red'],
                     ['key' => 'in-progress-report', 'icon' => 'bi-file-earmark-text', 'label' => 'In Progress Service Report', 'count' => $counts['in_progress_report'], 'cls' => 'green'],
                     ['key' => 'escalated', 'icon' => 'bi-exclamation-triangle', 'label' => 'Escalated', 'count' => $counts['escalated'], 'cls' => 'red'],
                     ['key' => 'report-for-review', 'icon' => 'bi-clock-history', 'label' => 'Report For Review', 'count' => $counts['report_for_review'], 'cls' => 'green'],
@@ -272,6 +277,41 @@
         </div>
     @endif
 
+    {{-- Helpdesk/Supervisor - IT Admin coverage gap: neither is currently online,
+         so nobody's around to acknowledge/classify these — any IT Admin can pick
+         one up directly. Only renders while both are offline (see
+         Admin\TicketController::isCoverageGapActive()). --}}
+    @if($selfTriageQueue->isNotEmpty())
+      <div class="self-triage-panel">
+          <div class="d-flex align-items-center gap-2 mb-1">
+              <i class="bi bi-exclamation-triangle-fill" style="color:#b8860b"></i>
+              <span class="font-brand fw-900" style="font-size:14px;color:#7a5c00">
+                  Needs Triage
+              </span>
+              <span style="font-size:11px;color:#9a7b00">
+                  (Helpdesk/Supervisor are offline — any of you can pick these up)
+              </span>
+          </div>
+          @foreach($selfTriageQueue as $stTicket)
+              <div class="self-triage-row">
+                  <div class="flex-grow-1">
+                      <div style="font-weight:700;font-size:13px">
+                          #{{ $stTicket->ticket_number }} — {{ $stTicket->subject }}
+                      </div>
+                      <div style="font-size:11.5px;color:var(--tm)">
+                          {{ $stTicket->user->name ?? 'Unknown requestor' }} · {{ $stTicket->location }}
+                          · submitted {{ $stTicket->created_at->timezone('Asia/Manila')->format('g:i A') }}
+                      </div>
+                  </div>
+                  <button class="btn-resolve-a"
+                          onclick="openSelfTriageModal('{{ $stTicket->id }}', '{{ $stTicket->ticket_number }}')">
+                      <i class="bi bi-hand-index-thumb me-1"></i>Self-Triage
+                  </button>
+              </div>
+          @endforeach
+      </div>
+    @endif
+
     @include('partials.schedule-conflict-modal')
 
     {{-- Awaiting-you attention banner — assigned tickets you haven't
@@ -300,6 +340,7 @@
                     'awaiting-ack' => 'For Acknowledgment',
                     'ready-start'  => 'Start Admin Request',
                     'in-progress'  => 'In Progress Service Request',
+                    'on-hold' => 'On Hold',
                     'in-progress-report' => 'In Progress Service Report',
                     'escalated' => 'Escalated',
                     'report-for-review' => 'Report For Review',
@@ -327,13 +368,14 @@
     </div>
 
     {{-- Tab pills --}}
-    <div class="d-flex flex-wrap gap-2 mb-3">
+    <!-- <div class="d-flex flex-wrap gap-2 mb-3">
         @php
             $tabs = [
                 'active'       => ['label' => 'Active',       'count' => $counts['active'],       'red' => false],
                 'awaiting-ack' => ['label' => 'For Acknowledgment', 'count' => $counts['awaiting_ack'], 'red' => true],
                 'ready-start'  => ['label' => 'Start Admin Request','count' => $counts['ready_start'],  'red' => true],
                 'in-progress'  => ['label' => 'In Progress Service Request',   'count' => $counts['in_progress'],  'red' => false],
+                'on-hold' => ['label' => 'On Hold', 'count' => $counts['on_hold'], 'red' => true],
                 'in-progress-report' => ['label' => 'In Progress Service Report', 'count' => $counts['in_progress_report'], 'red' => false],
                 'escalated' => ['label' => 'Escalated', 'count' => $counts['escalated'], 'red' => true],
                 'report-for-review' => ['label' => 'Report For Review', 'count' => $counts['report_for_review'], 'red' => false],
@@ -347,7 +389,7 @@
                 {{ $tab['label'] }} ({{ $tab['count'] }})
             </a>
         @endforeach
-    </div>
+    </div> -->
 
     {{-- Ticket list --}}
     <div class="d-flex flex-column gap-3" id="ticketList">
@@ -362,10 +404,13 @@
                 $isAwaitingAck = $ticket->status === 'Assigned' && is_null($ticket->tech_acknowledged_at);
                 $isReadyStart  = $ticket->status === 'Assigned' && !is_null($ticket->tech_acknowledged_at);
                 $isAdminInProgress = in_array($ticket->status, ['In Progress Service Request', 'In Progress Service Report'], true);
+                // Paused waiting on more information from the requestor (see TicketHold).
+                $isOnHold = $ticket->status === 'On Hold';
 
                 $cardClass = match(true) {
                     $isAwaitingAck                                     => 'awaiting-ack',
                     $isReadyStart                                      => 'ready-start',
+                    $isOnHold                                          => 'awaiting-ack',
                     $ticket->status === 'In Progress Service Request'  => 'admin-progress',
                     $ticket->status === 'Closed Service Request'       => 'admin-progress',
                     $ticket->status === 'In Progress Service Report'   => 'admin-progress',
@@ -379,6 +424,7 @@
                 $badgeClass = match(true) {
                     $isAwaitingAck                                     => 'bs-await-ack',
                     $isReadyStart                                      => 'bs-ready-start',
+                    $isOnHold                                          => 'bs-await-ack',
                     $ticket->status === 'In Progress Service Request'  => 'bs-admin-progress',
                     $ticket->status === 'Closed Service Request'       => 'bs-admin-progress',
                     $ticket->status === 'In Progress Service Report'   => 'bs-admin-progress',
@@ -396,6 +442,7 @@
                 $badgeLabel = match(true) {
                     $isAwaitingAck                                     => '<i class="bi bi-hourglass-split me-1"></i>Awaiting Your Ack.',
                     $isReadyStart                                      => '<i class="bi bi-stopwatch me-1"></i>Start Admin Request',
+                    $isOnHold                                          => '<i class="bi bi-pause-circle me-1"></i>On Hold',
                     $ticket->status === 'In Progress Service Request'  => '<i class="bi bi-gear-fill me-1"></i>In Progress Service Request',
                     $ticket->status === 'Closed Service Request'       => '<i class="bi bi-gear-fill me-1"></i>In Progress Service Request',
                     $ticket->status === 'In Progress Service Report'   => '<i class="bi bi-file-earmark-text me-1"></i>Preparing Report',
@@ -604,6 +651,10 @@
                                     <i class="bi bi-check2 me-1"></i>Mark Fixed
                                 </button>
                             </form>
+                            <button class="btn-admin-ip red"
+                                    onclick="openPauseModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                <i class="bi bi-pause-circle me-1"></i>Pause — Need Info
+                            </button>
                         @endif
                         {{-- Fix already marked done — now prepare & submit the service report. --}}
                         @if($ticket->status === 'In Progress Service Report')
@@ -620,6 +671,22 @@
                                 onclick="openReclassifyModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-tags me-1"></i>Request Re-classification
                         </button>
+                    @endif
+
+                    {{-- On Hold: waiting on the requestor — Resume Work only --}}
+                    @if($isOnHold)
+                        @if($ticket->hold_reason)
+                            <div class="w-100 mb-2 p-2 px-3 rounded" style="background:var(--ygl);font-size:12px;color:var(--gd)">
+                                <i class="bi bi-pause-circle me-1"></i>
+                                <strong>Waiting on requestor:</strong> {{ $ticket->hold_reason }}
+                            </div>
+                        @endif
+                        <form method="POST" action="{{ route('admin.tickets.resume', $ticket) }}" class="d-inline">
+                            @csrf
+                            <button type="submit" class="btn-admin-ip green">
+                                <i class="bi bi-play-circle me-1"></i>Resume Work
+                            </button>
+                        </form>
                     @endif
 
                     {{-- Available on every non-closed status --}}
@@ -855,6 +922,47 @@
         </div>
     </div>
 
+    {{-- Self-Triage Modal (Helpdesk/Supervisor - IT Admin coverage gap) --}}
+    <div class="modal fade" id="selfTriageModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-hdr-dark d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Self-Triage — <em id="stTicketRef">#TKT-0000</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="selfTriageForm">
+                    @csrf
+                    <input type="hidden" name="sla_rule_id" id="stSlaRuleId">
+
+                    <div class="modal-body px-4 py-4">
+                        <div class="info-box-red p-3 mb-3">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            This acknowledges the request and assigns it to <strong>you</strong> directly —
+                            standing in for Helpdesk/Supervisor, who are currently offline. Pick the category
+                            that best matches the issue; the priority and response/resolution targets come
+                            from that category's SLA rule automatically.
+                        </div>
+
+                        <label class="form-label mb-2">Category</label>
+                        <div class="d-flex flex-wrap gap-2 mb-3" id="stCategoryList"></div>
+
+                        <div id="stSubWrap" class="d-none">
+                            <label class="form-label mb-2">Subcategory &amp; Priority</label>
+                            <div class="d-flex flex-column gap-2 mb-3" id="stSubList"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal"
+                                data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm">
+                            <i class="bi bi-hand-index-thumb me-1"></i>Self-Assign This Request
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {{-- Resolve modal --}}
     <div class="modal fade" id="resolveModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -975,6 +1083,37 @@
                         <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn-confirm red">
                             <i class="bi bi-exclamation-triangle me-1"></i>Confirm Escalation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Pause modal --}}
+    <div class="modal fade" id="pauseModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-hdr-red d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Pause <em>Support Request</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="pauseForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="info-box-red p-3 mb-3">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            <strong id="pauseRef"></strong> — the requestor will be emailed this
+                            reason right away. Work resumes once you click Resume Work.
+                        </div>
+                        <label class="form-label">What do you need from the requestor? <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="reason" rows="3" required
+                                  placeholder="e.g. Which laptop unit needs the backup — the old one or the replacement?"></textarea>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm red">
+                            <i class="bi bi-pause-circle me-1"></i>Pause &amp; Notify Requestor
                         </button>
                     </div>
                 </form>
@@ -1173,6 +1312,12 @@ $(function () {
         new bootstrap.Modal('#escModal').show();
     };
 
+    window.openPauseModal = function (ticketId, ticketNumber) {
+        $('#pauseRef').text('#' + ticketNumber);
+        $('#pauseForm').attr('action', '/admin/tickets/' + ticketId + '/pause');
+        new bootstrap.Modal('#pauseModal').show();
+    };
+
     /* ── Request Re-classification modal ── */
     const slaCategories = @json($slaCategoriesJson);
 
@@ -1235,6 +1380,67 @@ $(function () {
 
     $('#reclassifyForm').on('submit', function (e) {
         if (!$('#rcSlaRuleId').val()) {
+            e.preventDefault();
+            alert('Please select a subcategory.');
+        }
+    });
+
+    /* ── Self-Triage modal (Helpdesk/Supervisor - IT Admin coverage gap) ──
+       Uses selfTriageCategories (admin_only rules only), not the slaCategories
+       used above by the Re-classification modal. */
+    const selfTriageCategories = @json($selfTriageCategoriesJson);
+
+    window.openSelfTriageModal = function (ticketId, ticketNumber) {
+        $('#stTicketRef').text('#' + ticketNumber);
+        $('#selfTriageForm').attr('action', '/admin/tickets/' + ticketId + '/self-triage');
+        $('#stSlaRuleId').val('');
+        $('#stSubWrap').addClass('d-none');
+        $('#stSubList').empty();
+        $('#stCategoryList .cat-main-opt').removeClass('selected');
+
+        const $catList = $('#stCategoryList').empty();
+        selfTriageCategories.forEach(cat => {
+            $catList.append(`<div class="cat-main-opt" data-cat-id="${cat.id}">${cat.name}</div>`);
+        });
+
+        new bootstrap.Modal('#selfTriageModal').show();
+    };
+
+    $(document).on('click', '#stCategoryList .cat-main-opt', function () {
+        $('#stCategoryList .cat-main-opt').removeClass('selected');
+        $(this).addClass('selected');
+
+        const catId = $(this).data('cat-id');
+        const cat = selfTriageCategories.find(c => c.id === catId);
+        const $subList = $('#stSubList').empty();
+
+        if (!cat || !cat.subs.length) {
+            $subList.append(`<div style="font-size:12px;color:var(--tm)">No SLA rules defined for this category yet.</div>`);
+        } else {
+            cat.subs.forEach(sub => {
+                const priColor = sub.priority === 'Critical' ? '#8b0000' : (sub.priority === 'High' ? '#e24b4a' : (sub.priority === 'Medium' ? '#f5c842' : '#4a7c4a'));
+                $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}"
+                     data-priority="${sub.priority}" data-response="${sub.response}" data-resolution="${sub.resolution}">
+                    <div class="sub-check"></div>
+                    <div style="flex:1">
+                        <div>${sub.name}</div>
+                        ${sub.description ? `<div style="font-size:11px;font-weight:400;color:var(--tm);margin-top:2px">${escAdminHtml(sub.description)}</div>` : ''}
+                    </div>
+                    <span style="font-size:10px;font-weight:800;color:${priColor}">${sub.priority} · ${sub.resolution}m SLA</span>
+                </div>`);
+            });
+        }
+        $('#stSubWrap').removeClass('d-none');
+    });
+
+    $(document).on('click', '#stSubList .cat-sub-opt', function () {
+        $('#stSubList .cat-sub-opt').removeClass('selected');
+        $(this).addClass('selected');
+        $('#stSlaRuleId').val($(this).data('rule-id'));
+    });
+
+    $('#selfTriageForm').on('submit', function (e) {
+        if (!$('#stSlaRuleId').val()) {
             e.preventDefault();
             alert('Please select a subcategory.');
         }

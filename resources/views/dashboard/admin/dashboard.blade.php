@@ -189,6 +189,13 @@
                     <span class="badge-count">{{ $counts['active'] }}</span>
                 </a>
             </li>
+            <li class="list-group-item {{ $status === 'awaiting-admin-supervisor' ? 'active' : '' }}">
+                <a href="{{ route('supervisor.dashboard', ['status' => 'awaiting-admin-supervisor']) }}"
+                class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-inbox me-2"></i>For Acknowledgment</span>
+                    <span class="badge-count">{{ $counts['awaiting_admin_supervisor'] }}</span>
+                </a>
+            </li>
             <li class="list-group-item {{ $status === 'awaiting-admin-classification' ? 'active' : '' }}">
                 <a href="{{ route('supervisor.dashboard', ['status' => 'awaiting-admin-classification']) }}"
                 class="d-flex justify-content-between align-items-center text-decoration-none">
@@ -215,6 +222,13 @@
                 class="d-flex justify-content-between align-items-center text-decoration-none">
                     <span><i class="bi bi-arrow-repeat me-2"></i>In Progress Service Request</span>
                     <span class="badge-count">{{ $counts['admin_in_progress'] }}</span>
+                </a>
+            </li>
+            <li class="list-group-item {{ $status === 'admin-on-hold' ? 'active' : '' }}">
+                <a href="{{ route('supervisor.dashboard', ['status' => 'admin-on-hold']) }}"
+                class="d-flex justify-content-between align-items-center text-decoration-none">
+                    <span><i class="bi bi-pause-circle me-2"></i>On Hold</span>
+                    <span class="badge-count">{{ $counts['admin_on_hold'] }}</span>
                 </a>
             </li>
             <li class="list-group-item {{ $status === 'admin-in-progress-report' ? 'active' : '' }}">
@@ -374,10 +388,12 @@
             @php
                 $labels = [
                     'active'                             => 'Active',
+                    'awaiting-admin-supervisor'         => 'For Acknowledgment',
                     'awaiting-admin-classification'     => 'For Classification',
                     'awaiting-administrator-ack'        => 'Assigned',
                     'awaiting-administrator-sla-start'  => 'Assigned',
                     'admin-in-progress'                 => 'In Progress Service Request',
+                    'admin-on-hold'                     => 'On Hold',
                     'admin-in-progress-report'          => 'In Progress Service Report',
                     'pending-reclassification'          => 'For Reclassification',
                     'pending-admin-supervisor-approval' => 'Report For Review',
@@ -405,14 +421,16 @@
     </div>
 
     {{-- Tab pills --}}
-    <div class="d-flex flex-wrap gap-2 mb-3">
+    <!-- <div class="d-flex flex-wrap gap-2 mb-3">
         @php
             $tabs = [
                 'active'                            => ['label' => 'Active',                            'count' => $counts['active']],
+                'awaiting-admin-supervisor'        => ['label' => 'For Acknowledgment',        'count' => $counts['awaiting_admin_supervisor']],
                 'awaiting-admin-classification'    => ['label' => 'For Classification',    'count' => $counts['awaiting_admin_classification']],
                 'awaiting-administrator-ack'       => ['label' => 'For IT Admin Acknowledgment',      'count' => $counts['awaiting_administrator_ack']],
                 'awaiting-administrator-sla-start' => ['label' => 'Start IT Admin Request',               'count' => $counts['awaiting_administrator_sla_start']],
                 'admin-in-progress'                => ['label' => 'In Progress Service Request',                'count' => $counts['admin_in_progress']],
+                'admin-on-hold'                    => ['label' => 'On Hold',                    'count' => $counts['admin_on_hold']],
                 'admin-in-progress-report'         => ['label' => 'In Progress Service Report',         'count' => $counts['admin_in_progress_report']],
                 'pending-reclassification'         => ['label' => 'For Reclassification',         'count' => $counts['pending_admin_reclassification']],
                 'pending-admin-supervisor-approval'=> ['label' => 'Report For Review','count' => $counts['pending_admin_supervisor_approval']],
@@ -426,7 +444,7 @@
                 {{ $tab['label'] }} ({{ $tab['count'] }})
             </a>
         @endforeach
-    </div>
+    </div> -->
 
     {{-- Ticket list --}}
     <div class="d-flex flex-column gap-3" id="ticketList">
@@ -455,12 +473,15 @@
                 // tech_acknowledged_at (same field the Admin's own dashboard uses).
                 $isAwaitingAdminAck = $ticket->status === 'Assigned' && is_null($ticket->tech_acknowledged_at);
                 $isReadyForSlaStart = $ticket->status === 'Assigned' && !is_null($ticket->tech_acknowledged_at);
+                // Paused waiting on more information from the requestor (see TicketHold).
+                $isOnHold = $ticket->status === 'On Hold';
 
                 $cardClass = match(true) {
                     $isUnassigned                                      => 'unassigned',
                     $isAwaitingClassification                          => 'awaiting-admin-classification',
                     $isAwaitingAdminAck                                => 'awaiting-administrator-ack',
                     $isReadyForSlaStart                                => 'awaiting-administrator-sla-start',
+                    $isOnHold                                          => 'unassigned',
                     $ticket->status === 'In Progress Service Request'  => 'admin-in-progress',
                     $ticket->status === 'In Progress Service Report'   => 'admin-in-progress-report',
                     $ticket->status === 'Report For Review'            => 'pending-admin-supervisor-Approval',
@@ -474,6 +495,7 @@
                     $isAwaitingClassification                          => 'badge-awaiting-admin-classification',
                     $isAwaitingAdminAck                                => 'badge-awaiting-administrator-ack',
                     $isReadyForSlaStart                                => 'badge-awaiting-administrator-sla-start',
+                    $isOnHold                                          => 'badge-unassigned',
                     $ticket->status === 'In Progress Service Request'  => 'badge-admin-in-progress',
                     $ticket->status === 'In Progress Service Report'   => 'badge-admin-in-progress-report',
                     $ticket->status === 'Report For Review'            => 'badge-admin-in-progress',
@@ -487,6 +509,7 @@
                     $isAwaitingClassification                          => '<i class="bi bi-tags me-1"></i>For Classification',
                     $isAwaitingAdminAck                                => '<i class="bi bi-person-check me-1"></i>For IT Admin Ack.',
                     $isReadyForSlaStart                                => '<i class="bi bi-stopwatch me-1"></i>Start IT Admin Request',
+                    $isOnHold                                          => '<i class="bi bi-pause-circle me-1"></i>On Hold',
                     $ticket->status === 'In Progress Service Request'  => '<i class="bi bi-gear-fill me-1"></i>In Progress Service Request',
                     $ticket->status === 'In Progress Service Report'   => '<i class="bi bi-file-earmark-text me-1"></i>Preparing Report',
                     $ticket->status === 'Report For Review'            => '<i class="bi bi-clock-history me-1"></i>Report For Review',
@@ -713,30 +736,82 @@
                         </span>
                     @endif
 
-                    {{-- Assigned, acknowledged: begin work, starts the SLA clock --}}
+                    {{-- Assigned, acknowledged: view-only, only the assigned admin can start work
+                         (starting the SLA clock is their call, not the supervisor's) --}}
                     @if($isReadyForSlaStart)
-                        <form method="POST" action="/supervisor/tickets/{{ $ticket->id }}/start">
-                            @csrf
-                            <button type="submit" class="btn-resolve">
-                                <i class="bi bi-play-circle me-1"></i>Start Work
-                            </button>
-                        </form>
+                        <span class="resolve-info px-3 py-2">
+                            <i class="bi bi-play-circle me-1"></i>
+                            Waiting for {{ $ticket->assignedTo->name ?? 'the assigned admin' }} to start work
+                        </span>
                     @endif
 
+                    @php
+                        // Resolving/pausing an in-progress ticket is the assignee's own
+                        // call — the Supervisor only gets those actions on a ticket they
+                        // themselves took over (adminTakeover()/adminStartSla()); an IT
+                        // Admin's own ticket stays theirs to resolve/pause via their own
+                        // dashboard, same "only the assignee" rule as isReadyForSlaStart
+                        // above.
+                        $isOwnTakeover = $ticket->assigned_to === Auth::id();
+                    @endphp
                     {{-- In Progress Service Request / In Progress Service Report: Reassign + Resolve --}}
                     @if(in_array($ticket->status, ['In Progress Service Request', 'In Progress Service Report']))
                         <button class="btn-reassign"
                                 onclick="openReassignModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-arrow-left-right me-1"></i>Reassign
                         </button>
-                        <button class="btn-resolve"
-                                onclick="openValidateModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                            <i class="bi bi-check-circle-fill me-1"></i>Resolve & Close
-                        </button>
                         <button class="btn-reassign"
                                 onclick="openEscManagerModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-arrow-up-circle me-1"></i>Escalate to Manager
                         </button>
+                        @if($isOwnTakeover)
+                            @if($ticket->status === 'In Progress Service Request')
+                                <form method="POST" action="{{ route('supervisor.tickets.start-report', $ticket) }}" class="d-inline">
+                                    @csrf
+                                    <button type="submit" class="btn-resolve">
+                                        <i class="bi bi-check2 me-1"></i>Mark Fixed
+                                    </button>
+                                </form>
+                                <button class="btn-reassign"
+                                        onclick="openPauseModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                                    <i class="bi bi-pause-circle me-1"></i>Pause — Need Info
+                                </button>
+                            @else
+                                <button class="btn-resolve"
+                                        onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}', '{{ $ticket->started_at?->toIso8601String() }}')">
+                                    <i class="bi bi-file-earmark-text me-1"></i>Prepare Service Report
+                                </button>
+                            @endif
+                        @else
+                            <span class="resolve-info px-3 py-2">
+                                <i class="bi bi-hourglass-split me-1"></i>
+                                Only {{ $ticket->assignedTo->name ?? 'the assigned admin' }} can resolve this ticket
+                            </span>
+                        @endif
+                    @endif
+
+                    {{-- On Hold: waiting on the requestor — Resume Work only, and only for
+                         whoever paused it (the assignee) --}}
+                    @if($isOnHold)
+                        @if($ticket->hold_reason)
+                            <div class="w-100 mb-2 p-2 px-3 rounded" style="background:var(--ygl);font-size:12px;color:var(--gd)">
+                                <i class="bi bi-pause-circle me-1"></i>
+                                <strong>Waiting on requestor:</strong> {{ $ticket->hold_reason }}
+                            </div>
+                        @endif
+                        @if($isOwnTakeover)
+                            <form method="POST" action="{{ route('supervisor.tickets.resume', $ticket) }}">
+                                @csrf
+                                <button type="submit" class="btn-resolve">
+                                    <i class="bi bi-play-circle me-1"></i>Resume Work
+                                </button>
+                            </form>
+                        @else
+                            <span class="resolve-info px-3 py-2">
+                                <i class="bi bi-hourglass-split me-1"></i>
+                                Waiting for {{ $ticket->assignedTo->name ?? 'the assigned admin' }} to resume work
+                            </span>
+                        @endif
                     @endif
                 {{-- Report For Review: view the submitted PDF to check what the
                      specialist attached, then Validate Resolution / Request Revision --}}
@@ -873,28 +948,42 @@
 
                         <hr style="border-color:var(--bd)">
 
-                        <label class="form-label mb-2">Assign Support Specialist</label>
-                        <div class="d-flex flex-column gap-2" id="caTechList">
-                            @foreach($technicians as $tech)
-                                @php
-                                    $initials = strtoupper(substr($tech->name, 0, 1)) . strtoupper(substr($tech->name, strpos($tech->name, ' ') + 1, 1));
-                                    $isFull   = $tech->availability === 'full';
-                                    $loadPct  = min(100, $tech->active_tickets * 17);
-                                    $barClass = $tech->availability === 'busy' ? 'busy' : ($tech->availability === 'full' ? 'full' : '');
-                                @endphp
-                                <div class="tech-select-option {{ $isFull ? 'disabled' : '' }}"
-                                     data-tech-id="{{ $tech->id }}">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <div class="tech-av-lg">{{ $initials }}</div>
-                                        <div>
-                                            <div class="ts-name">{{ $tech->name }}</div>
-                                            <div class="ts-load">{{ $tech->active_tickets }} active</div>
+                        <div class="mb-3 p-3 rounded" style="background:#e8f5ee;border:1px solid #a8ddc0">
+                            <label class="d-flex align-items-center gap-2" style="cursor:pointer;font-weight:700;color:#1a5a3a">
+                                <input type="checkbox" name="take_over" id="caTakeOver" value="1"
+                                       style="width:16px;height:16px;cursor:pointer">
+                                Take over this ticket myself
+                            </label>
+                            <div style="font-size:11.5px;color:#1a5a3a;margin-top:4px">
+                                Keeps this ticket with you instead of assigning an IT Admin —
+                                it goes straight to In Progress, same as taking over an escalated ticket.
+                            </div>
+                        </div>
+
+                        <div id="caAssignWrap">
+                            <label class="form-label mb-2">Assign IT Admin</label>
+                            <div class="d-flex flex-column gap-2" id="caTechList">
+                                @foreach($technicians as $tech)
+                                    @php
+                                        $initials = strtoupper(substr($tech->name, 0, 1)) . strtoupper(substr($tech->name, strpos($tech->name, ' ') + 1, 1));
+                                        $isFull   = $tech->availability === 'full';
+                                        $loadPct  = min(100, $tech->active_tickets * 17);
+                                        $barClass = $tech->availability === 'busy' ? 'busy' : ($tech->availability === 'full' ? 'full' : '');
+                                    @endphp
+                                    <div class="tech-select-option {{ $isFull ? 'disabled' : '' }}"
+                                         data-tech-id="{{ $tech->id }}">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="tech-av-lg">{{ $initials }}</div>
+                                            <div>
+                                                <div class="ts-name">{{ $tech->name }}</div>
+                                                <div class="ts-load">{{ $tech->active_tickets }} active</div>
+                                            </div>
+                                            <span class="avail-dot {{ $tech->availability }} ms-auto"></span>
                                         </div>
-                                        <span class="avail-dot {{ $tech->availability }} ms-auto"></span>
+                                        <div class="load-bar-wrap"><div class="load-bar {{ $barClass }}" style="width:{{ $loadPct }}%"></div></div>
                                     </div>
-                                    <div class="load-bar-wrap"><div class="load-bar {{ $barClass }}" style="width:{{ $loadPct }}%"></div></div>
-                                </div>
-                            @endforeach
+                                @endforeach
+                            </div>
                         </div>
 
                         <div class="mt-3">
@@ -904,7 +993,7 @@
                     </div>
                     <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
                         <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn-confirm">Confirm Classification & Assignment</button>
+                        <button type="submit" class="btn-confirm"><span id="caSubmitBtnText">Confirm Classification & Assignment</span></button>
                     </div>
                 </form>
             </div>
@@ -1133,6 +1222,112 @@
             </div>
         </div>
     </div>
+    {{-- Pause modal --}}
+    <div class="modal fade" id="pauseModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Pause <em>Support Request</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="pauseForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="resolve-info p-3 mb-3">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            <strong id="pauseRef"></strong> — the requestor will be emailed this
+                            reason right away. Work resumes once you click Resume Work.
+                        </div>
+                        <label class="form-label">What do you need from the requestor? <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="reason" rows="3" required
+                                  placeholder="e.g. Which laptop unit needs the backup — the old one or the replacement?"></textarea>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm">
+                            <i class="bi bi-pause-circle me-1"></i>Pause &amp; Notify Requestor
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {{-- Resolve modal (Supervisor's own take-over ticket) --}}
+    <div class="modal fade" id="supResolveModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Resolve <em>& Close</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="supResolveForm" enctype="multipart/form-data">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="resolve-info p-3 mb-3">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Resolving <strong id="supResolveRef"></strong> — you have no reviewer
+                            above you on a take-over ticket, so this self-approves straight
+                            through to the requestor for confirmation.
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Service Type <span class="text-danger">*</span></label>
+                            <div class="d-flex gap-3 flex-wrap" style="font-size:13px;font-weight:600">
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="service_type" value="Onsite" checked>Onsite
+                                </label>
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="service_type" value="Remote">Remote
+                                </label>
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="service_type" value="Preventive">Preventive
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Service Details / Action Taken <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="resolution_notes" rows="3" required
+                                      placeholder="Describe exactly what was done to resolve the issue…"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Findings & Analysis <span style="font-weight:400;color:var(--tm)">(optional)</span></label>
+                            <textarea class="form-control" name="findings" rows="2"
+                                      placeholder="Root cause, diagnostics, what was found…"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Other Observation / Recommendation <span style="font-weight:400;color:var(--tm)">(optional)</span></label>
+                            <textarea class="form-control" name="recommendation" rows="2"
+                                      placeholder="Follow-up suggestions, preventive advice…"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Time spent</label>
+                            <div class="p-2 px-3 rounded d-flex align-items-center gap-2"
+                                 style="background:var(--ygl);font-weight:800;color:var(--gd)">
+                                <i class="bi bi-stopwatch"></i>
+                                <span id="supResolveTimeSpent">—</span>
+                                <span style="font-weight:600;font-size:11px;color:var(--tm)">(since you took this ticket over)</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="form-label">Supporting files <span style="font-weight:400;color:var(--tm)">(optional)</span></label>
+                            <input type="file" class="form-control" id="supResolveAttachments" name="attachments[]"
+                                   multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                            <div style="font-size:11px;color:var(--tm);margin-top:4px">
+                                Up to 5 files, 10MB each. Screenshots, logs, or documents that support the resolution.
+                            </div>
+                            <div id="supResolveAttachmentList" class="d-flex flex-column gap-1 mt-2"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm">
+                            <i class="bi bi-check-circle me-1"></i>Submit Resolution
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {{-- Submit Ticket Modal --}}
     <div class="modal fade" id="ticketModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -1608,6 +1803,9 @@
         $('#caSubList').empty();
         $('#caResponseTime, #caResolutionTime').val('');
         $('#caCategoryList .cat-main-opt, #caTechList .tech-select-option').removeClass('selected');
+        $('#caTakeOver').prop('checked', false);
+        $('#caAssignWrap').removeClass('d-none');
+        updateClassifyAssignSubmitLabel();
 
         const $catList = $('#caCategoryList').empty();
         slaCategories.forEach(cat => {
@@ -1680,12 +1878,8 @@
         $('#hTicketType').val($(this).data('pri'));
     });
 
-    /* ── Search debounce ── */
-    let searchTimer;
-    $('#searchInput').on('input', function () {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => $('#searchForm').submit(), 500);
-    });
+    /* ── Search submits on Enter only (native form submit) — no more
+           reloading the page mid-keystroke while the user is still typing. ── */
 
     /* ── Assign / Reassign modal ── */
     window.openAssignModal = function (ticketId, ticketNumber, isReassign) {
@@ -1707,12 +1901,67 @@
         new bootstrap.Modal('#escalateModal').show();
     };
 
-    /* ── Resolve modal ── */
-    window.openResolveModal = function (ticketId, ticketNumber) {
-        $('#resolveRef').text('#' + ticketNumber);
-        $('#resolveForm').attr('action', '/helpdesk/tickets/' + ticketId + '/resolve');
-        new bootstrap.Modal('#resolveModal').show();
+    /* ── Resolve modal (Supervisor's own take-over ticket) ── */
+    let supResolveTimeSpentTimer = null;
+    window.openResolveModal = function (ticketId, ticketNumber, startedAt) {
+        $('#supResolveRef').text('#' + ticketNumber);
+        $('#supResolveForm').attr('action', '/supervisor/tickets/' + ticketId + '/resolve');
+        $('#supResolveAttachments').val('');
+        $('#supResolveAttachmentList').empty();
+        $('#supResolveForm textarea[name="resolution_notes"], #supResolveForm textarea[name="findings"], #supResolveForm textarea[name="recommendation"]').val('');
+        $('#supResolveForm input[name="service_type"][value="Onsite"]').prop('checked', true);
+
+        clearInterval(supResolveTimeSpentTimer);
+        const startedMs = startedAt ? new Date(startedAt).getTime() : null;
+        const renderTimeSpent = () => {
+            if (!startedMs) { $('#supResolveTimeSpent').text('—'); return; }
+            const totalMinutes = Math.max(0, Math.floor((Date.now() - startedMs) / 60000));
+            const h = Math.floor(totalMinutes / 60);
+            const m = totalMinutes % 60;
+            $('#supResolveTimeSpent').text(h > 0 ? `${h}h ${m}m` : `${m}m`);
+        };
+        renderTimeSpent();
+        supResolveTimeSpentTimer = setInterval(renderTimeSpent, 1000);
+
+        new bootstrap.Modal('#supResolveModal').show();
     };
+
+    $('#supResolveModal').on('hidden.bs.modal', function () {
+        clearInterval(supResolveTimeSpentTimer);
+    });
+
+    /* ── Resolve modal attachment picker: client-side limits + preview list ── */
+    const SUP_RESOLVE_MAX_ATTACHMENTS = 5;
+    const SUP_RESOLVE_MAX_ATTACHMENT_MB = 10;
+
+    $('#supResolveAttachments').on('change', function () {
+        const files = Array.from(this.files);
+        const list  = $('#supResolveAttachmentList').empty();
+
+        if (files.length > SUP_RESOLVE_MAX_ATTACHMENTS) {
+            alert(`You can attach up to ${SUP_RESOLVE_MAX_ATTACHMENTS} files. Only the first ${SUP_RESOLVE_MAX_ATTACHMENTS} will be kept.`);
+        }
+
+        const oversize = files.find(f => f.size > SUP_RESOLVE_MAX_ATTACHMENT_MB * 1024 * 1024);
+        if (oversize) {
+            alert(`"${oversize.name}" exceeds the ${SUP_RESOLVE_MAX_ATTACHMENT_MB}MB limit and will be removed.`);
+        }
+
+        const kept = files
+            .filter(f => f.size <= SUP_RESOLVE_MAX_ATTACHMENT_MB * 1024 * 1024)
+            .slice(0, SUP_RESOLVE_MAX_ATTACHMENTS);
+
+        const dt = new DataTransfer();
+        kept.forEach(f => dt.items.add(f));
+        this.files = dt.files;
+
+        kept.forEach(f => {
+            const sizeKb = (f.size / 1024).toFixed(0);
+            list.append(
+                `<div style="font-size:12px;color:var(--tm)"><i class="bi bi-paperclip me-1"></i>${$('<div>').text(f.name).html()} <span style="color:var(--tm)">(${sizeKb} KB)</span></div>`
+            );
+        });
+    });
 
     /* ── Validate assign ── */
     $('#assignForm').on('submit', function (e) {
@@ -1957,6 +2206,12 @@ function showStep(n) {
         new bootstrap.Modal('#escManagerModal').show();
     };
 
+    window.openPauseModal = function (ticketId, ticketNumber) {
+        $('#pauseRef').text('#' + ticketNumber);
+        $('#pauseForm').attr('action', '/supervisor/tickets/' + ticketId + '/pause');
+        new bootstrap.Modal('#pauseModal').show();
+    };
+
 
 
 
@@ -1977,6 +2232,22 @@ function showStep(n) {
         $('#caTechList .tech-select-option').removeClass('selected');
         $(this).addClass('selected');
         $('#caTechId').val($(this).data('tech-id'));
+    });
+
+    function updateClassifyAssignSubmitLabel() {
+        $('#caSubmitBtnText').text(
+            $('#caTakeOver').is(':checked') ? 'Confirm Classification & Take Over' : 'Confirm Classification & Assignment'
+        );
+    }
+
+    $(document).on('change', '#caTakeOver', function () {
+        const takingOver = $(this).is(':checked');
+        $('#caAssignWrap').toggleClass('d-none', takingOver);
+        if (takingOver) {
+            $('#caTechList .tech-select-option').removeClass('selected');
+            $('#caTechId').val('');
+        }
+        updateClassifyAssignSubmitLabel();
     });
 
     /* ── Workload class — auto-fills response/resolution, requires manual entry
@@ -2003,7 +2274,11 @@ function showStep(n) {
 
     $('#classifyAssignForm').on('submit', function (e) {
         if (!$('#caSlaRuleId').val()) { e.preventDefault(); alert('Please select a subcategory.'); return; }
-        if (!$('#caTechId').val())    { e.preventDefault(); alert('Please assign a support specialist.'); return; }
+        if (!$('#caTakeOver').is(':checked') && !$('#caTechId').val()) {
+            e.preventDefault();
+            alert('Please assign an IT Admin, or check "Take over this ticket myself".');
+            return;
+        }
 
         const $wc = $('#caWorkloadClass').find(':selected');
         const wcManual = $wc.data('manual') === 1 || $wc.data('manual') === '1';

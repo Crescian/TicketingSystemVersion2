@@ -29,7 +29,7 @@ class ProfileController extends Controller
             'company_id' => $d->companies_id,
         ])->values();
 
-        $usingDefaultPassword = Hash::check('password', Auth::user()->password);
+        $usingDefaultPassword = (bool) Auth::user()->must_change_password;
 
         return view('profile', compact(
             'businessUnits',
@@ -62,6 +62,8 @@ class ProfileController extends Controller
             'org_info_updated_at' => $isEmployee ? now() : $user->org_info_updated_at,
         ]);
 
+        $this->maybeCompleteAccountSetup($user);
+
         return back()->with('success', 'Your account information has been updated.');
     }
 
@@ -89,9 +91,23 @@ class ProfileController extends Controller
 
         $user->update([
             'password' => Hash::make($request->password),
+            'must_change_password' => false,
         ]);
+
+        $this->maybeCompleteAccountSetup($user);
 
         return redirect()->route($user->dashboardRoute())
             ->with('success', '✅ Password updated successfully! Please keep it safe.');
+    }
+
+    // Releases the combined account-setup gate (see App\Http\Middleware\
+    // RequirePasswordChange) once both required steps — org info and password —
+    // are done. Only relevant for accounts that entered the gate in the first
+    // place (needs_account_setup); everyone else is a no-op.
+    private function maybeCompleteAccountSetup(\App\Models\User $user): void
+    {
+        if ($user->needs_account_setup && ! $user->must_change_password && $user->org_info_updated_at !== null) {
+            $user->update(['needs_account_setup' => false]);
+        }
     }
 }

@@ -49,7 +49,7 @@ class TicketsController extends Controller
             'response_time_minutes' => $t->response_time_minutes,
             'resolution_time_minutes' => $t->resolution_time_minutes,
             'actual_resolution_minutes' => ($t->started_at && $t->resolved_at)
-                ? $t->started_at->diffInMinutes($t->resolved_at, true)
+                ? max(0, $t->started_at->diffInMinutes($t->resolved_at, true) - $t->total_hold_minutes)
                 : null,
             'sla_met' => ($t->resolved_at && $t->sla_due_at)
                 ? $t->resolved_at->lte($t->sla_due_at)

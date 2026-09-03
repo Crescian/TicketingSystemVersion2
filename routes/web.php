@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\WebAuthController;
 use App\Http\Controllers\Auth\MicrosoftController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\AccountSetupController;
 use App\Http\Controllers\SSOController;
 use App\Http\Controllers\Dashboard\SupervisorDashboardController as SupportSupervisorController;
 ;
@@ -185,6 +186,8 @@ Route::middleware(['auth', 'role:Helpdesk', 'throttle:ticket-actions'])
         Route::post('/tickets/{ticket}/update', [HelpdeskTicketController::class, 'update'])->name('tickets.update')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/start-report', [HelpdeskTicketController::class, 'startReport'])->name('tickets.start-report')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/resolve', [HelpdeskTicketController::class, 'resolve'])->name('tickets.resolve')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/pause', [HelpdeskTicketController::class, 'pause'])->name('tickets.pause')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/resume', [HelpdeskTicketController::class, 'resume'])->name('tickets.resume')->middleware('idempotent:8');
         Route::post('/tickets', [EmployeeTicketsController::class, 'store'])->name('tickets.store')->middleware(['throttle:ticket-submit', 'idempotent:10']); // ← reuse employee store
 
         Route::get('/tickets/{ticket}', [HelpdeskTicketController::class, 'show'])->name('tickets.show');
@@ -204,6 +207,8 @@ Route::middleware(['auth', 'role:IT Support Specialist', 'throttle:ticket-action
         Route::post('/tickets/{ticket}/start-report', [TechnicianTicketController::class, 'startReport'])->name('tickets.start-report')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/resolve', [TechnicianTicketController::class, 'resolve'])->name('tickets.resolve')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/escalate', [TechnicianTicketController::class, 'escalate'])->name('tickets.escalate')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/pause', [TechnicianTicketController::class, 'pause'])->name('tickets.pause')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/resume', [TechnicianTicketController::class, 'resume'])->name('tickets.resume')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/request-reclassification', [TechnicianTicketController::class, 'requestReclassification'])->name('tickets.request-reclassification')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/self-triage', [TechnicianTicketController::class, 'selfTriage'])->name('tickets.self-triage')->middleware('idempotent:8');
     });
@@ -224,7 +229,10 @@ Route::middleware(['auth', 'role:IT Admin', 'throttle:ticket-actions'])
         Route::post('/tickets/{ticket}/start-report', [AdminTicketController::class, 'startReport'])->name('tickets.start-report')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/resolve', [AdminTicketController::class, 'resolve'])->name('tickets.resolve')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/escalate', [AdminTicketController::class, 'escalate'])->name('tickets.escalate')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/pause', [AdminTicketController::class, 'pause'])->name('tickets.pause')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/resume', [AdminTicketController::class, 'resume'])->name('tickets.resume')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/request-reclassification', [AdminTicketController::class, 'requestReclassification'])->name('tickets.request-reclassification')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/self-triage', [AdminTicketController::class, 'selfTriage'])->name('tickets.self-triage')->middleware('idempotent:8');
         Route::get('/tickets/{ticket}/history', [AdminTicketController::class, 'history'])->name('tickets.history');
         Route::get('/tickets/{ticket}', [AdminTicketController::class, 'show'])->name('tickets.show');
     });
@@ -253,6 +261,18 @@ Route::middleware(['auth', 'role:Supervisor - IT Admin', 'throttle:ticket-action
 
         Route::post('/tickets/{ticket}/takeover', [SupportSupervisorController::class, 'adminTakeover'])
             ->name('tickets.takeover')->middleware('idempotent:8');
+
+        Route::post('/tickets/{ticket}/pause', [SupportSupervisorController::class, 'adminPause'])
+            ->name('tickets.pause')->middleware('idempotent:8');
+
+        Route::post('/tickets/{ticket}/resume', [SupportSupervisorController::class, 'adminResume'])
+            ->name('tickets.resume')->middleware('idempotent:8');
+
+        Route::post('/tickets/{ticket}/start-report', [SupportSupervisorController::class, 'adminStartReport'])
+            ->name('tickets.start-report')->middleware('idempotent:8');
+
+        Route::post('/tickets/{ticket}/resolve', [SupportSupervisorController::class, 'adminResolve'])
+            ->name('tickets.resolve')->middleware('idempotent:8');
 
         Route::post('/tickets/{ticket}/validate-resolution', [SupportSupervisorController::class, 'adminValidateResolution'])
             ->name('tickets.validate-resolution')->middleware('idempotent:8');
@@ -301,6 +321,12 @@ Route::middleware(['auth', 'role:Supervisor - Support Specialist', 'throttle:tic
         Route::post('/tickets/{ticket}/resolve', [SupportSupervisorController::class, 'supportResolve'])
             ->name('tickets.resolve')->middleware('idempotent:8');
 
+        Route::post('/tickets/{ticket}/pause', [SupportSupervisorController::class, 'supportPause'])
+            ->name('tickets.pause')->middleware('idempotent:8');
+
+        Route::post('/tickets/{ticket}/resume', [SupportSupervisorController::class, 'supportResume'])
+            ->name('tickets.resume')->middleware('idempotent:8');
+
         Route::post('/tickets/{ticket}/validate-resolution', [SupportSupervisorController::class, 'validateResolution'])
             ->name('tickets.validate-resolution')->middleware('idempotent:8');
 
@@ -336,6 +362,8 @@ Route::middleware(['auth', 'role:Manager', 'throttle:ticket-actions'])
         Route::post('/tickets/{ticket}/acknowledge', [ManagerTicketController::class, 'acknowledge'])->name('tickets.acknowledge')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/start-report', [ManagerTicketController::class, 'startReport'])->name('tickets.start-report')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/resolve', [ManagerTicketController::class, 'resolve'])->name('tickets.resolve')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/pause', [ManagerTicketController::class, 'pause'])->name('tickets.pause')->middleware('idempotent:8');
+        Route::post('/tickets/{ticket}/resume', [ManagerTicketController::class, 'resume'])->name('tickets.resume')->middleware('idempotent:8');
         Route::get('/tickets/{ticket}/history', [ManagerTicketController::class, 'history'])->name('tickets.history');
     });
 
@@ -363,6 +391,11 @@ Route::middleware('auth')->group(function () {
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
     Route::put('/profile/org-info', [ProfileController::class, 'updateOrgInfo'])->name('profile.org-info');
 });
+
+// ── Account setup tracker — the gate RequirePasswordChange sends
+// needs_account_setup Employees to (org info + password required before the
+// dashboard). Standalone page, separate from the profile page it links out to.
+Route::middleware('auth')->get('/account/setup', [AccountSetupController::class, 'index'])->name('account.setup');
 
 // ── Ticket attachment downloads/inline view (owner or staff — checked in the controller)
 Route::middleware('auth')

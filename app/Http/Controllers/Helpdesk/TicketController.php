@@ -12,6 +12,7 @@ use App\Models\TicketStatusHistories;
 use App\Models\User;
 use App\Models\WorkloadClass;
 use App\Services\TicketScheduler;
+use App\Support\TicketHold;
 use App\Support\TicketReportProgress;
 use App\Support\TicketStatus;
 use Illuminate\Http\Request;
@@ -29,7 +30,7 @@ class TicketController extends Controller
         $search = $request->get('search', '');
         $sort = $request->get('sort', 'newest');
 
-        $query = Tickets::with(['user.department', 'assignedTo', 'statusHistories.changedBy', 'attachments'])
+        $query = Tickets::with(['user.department', 'assignedTo.role', 'statusHistories.changedBy', 'attachments'])
             ->orderByRaw("CASE
                 WHEN status = 'For Acknowledgment' AND pending_role = 'Helpdesk' THEN 1
                 WHEN status = 'For Acknowledgment' AND pending_role = 'Supervisor - Support Specialist' THEN 2
@@ -55,34 +56,87 @@ class TicketController extends Controller
                 TicketStatus::CLOSED_SERVICE_REQUEST,
             ]);
         } elseif ($status === 'l1-preparing-report') {
-            $query->where('status', TicketStatus::IN_PROGRESS_SERVICE_REPORT)
-                ->whereHas('assignedTo.role', fn($q) => $q->where('role_name', 'Helpdesk'));
+            // Same visibility rule as 'in-progress' above — no role scoping, so
+            // Helpdesk sees every track's report drafting (Technician, IT Admin,
+            // either Supervisor's own take-over, or Helpdesk's own L1
+            // self-resolve), not just its own. Add Update/Resolve stay gated to
+            // assigned_to === Auth::id() in the view, so this is read-only for
+            // anything not actually Helpdesk's own.
+            $query->where('status', TicketStatus::IN_PROGRESS_SERVICE_REPORT);
+        } elseif ($status === 'on-hold') {
+            // Same visibility rule as 'in-progress'/'l1-preparing-report' above —
+            // no role scoping, so Helpdesk sees every track's paused tickets, not
+            // just its own L1 self-resolve. Resume stays gated to
+            // assigned_to === Auth::id() in the view, same as Add Update/Resolve.
+            $query->where('status', TicketStatus::ON_HOLD);
         } elseif ($status !== 'all') {
             switch ($status) {
                 case 'new-request':
-                    $query->where('status', TicketStatus::FOR_ACKNOWLEDGMENT)
-                        ->where('pending_role', TicketStatus::QUEUE_HELPDESK)
-                        ->whereNull('assigned_to');
+                    // Helpdesk's own untouched queue, plus visibility into
+                    // Manager's own "still waiting on someone to pick it up"
+                    // bucket (see Manager\TicketController::index()'s
+                    // 'awaiting-manager') — Support Specialist Supervisor's and
+                    // IT Admin Supervisor's own incoming queues live under
+                    // 'awaiting-supervisor' below instead, so a ticket isn't
+                    // double-counted across both tabs.
+                    // Also includes tickets already assigned to a specific
+                    // Technician/IT Admin who hasn't acknowledged the assignment
+                    // yet (tech_acknowledged_at null) — same "For Acknowledgment"
+                    // gap, just one level down, once a name is already on it
+                    // (see Technician\TicketController's 'awaiting-ack' /
+                    // Admin\TicketController's equivalent).
+                    // Shown read-only here: Acknowledge/Cancel below stay gated to
+                    // status === For Acknowledgment AND pending_role === Helpdesk,
+                    // so this doesn't let Helpdesk act on another level's queue,
+                    // just see it.
+                    $query->where(function ($q) {
+                        $q->where(fn ($q1) => $q1->where('status', TicketStatus::FOR_ACKNOWLEDGMENT)
+                                ->where('pending_role', TicketStatus::QUEUE_HELPDESK)
+                                ->whereNull('assigned_to'))
+                            ->orWhere(fn ($q1) => $q1->where('status', TicketStatus::FOR_ACKNOWLEDGMENT)
+                                ->where('pending_role', TicketStatus::QUEUE_MANAGER))
+                            ->orWhere(fn ($q1) => $q1->where('status', TicketStatus::ASSIGNED)
+                                ->whereNull('tech_acknowledged_at'));
+                    });
                     break;
                 case 'for-classification':
-                    // Acknowledged by Helpdesk, not yet classified — see
-                    // acknowledge() below.
+                    // Helpdesk's own queue only — acknowledged, not yet classified
+                    // (see acknowledge() below). A Supervisor's own classification/
+                    // assignment queue (Support Specialist Supervisor or IT Admin
+                    // Supervisor) is a different team's work-in-progress, not
+                    // Helpdesk's "to do" — see 'awaiting-supervisor' below, which
+                    // owns that visibility instead so a ticket isn't double-counted
+                    // across both tabs.
                     $query->where('status', TicketStatus::FOR_CLASSIFICATION)
                         ->where('pending_role', TicketStatus::QUEUE_HELPDESK);
                     break;
                 case 'awaiting-supervisor':
-                    // Helpdesk's classify() lands these straight on Classified now
-                    // (routing to the Supervisor ready for assignment, not a fresh
-                    // acknowledgment) — see classify() below.
-                    $query->where('status', TicketStatus::CLASSIFIED)
-                        ->where('pending_role', TicketStatus::QUEUE_SUPPORT_SUPERVISOR);
+                    // Everything currently sitting with a Supervisor for
+                    // classification and/or assignment — Support Specialist
+                    // Supervisor's "Classified, ready to assign" queue (Helpdesk's
+                    // classify() lands these straight on Classified — see below),
+                    // plus IT Admin Supervisor's combined classify+assign queue
+                    // (which, unlike Support Specialist Supervisor's, doesn't split
+                    // "not yet classified" from "classified, ready to assign" into
+                    // separate steps — see SupervisorDashboardController's
+                    // 'awaiting-admin-classification').
+                    $query->where(function ($q) {
+                        $q->where(fn ($q1) => $q1->where('status', TicketStatus::CLASSIFIED)
+                                ->where('pending_role', TicketStatus::QUEUE_SUPPORT_SUPERVISOR))
+                            ->orWhere(fn ($q1) => $q1->whereIn('status', [TicketStatus::FOR_ACKNOWLEDGMENT, TicketStatus::CLASSIFIED])
+                                ->where('pending_role', TicketStatus::QUEUE_ADMIN_SUPERVISOR)
+                                ->whereNull('assigned_to'));
+                    });
                     break;
                 case 'escalated':
                     $query->where('status', TicketStatus::ESCALATED);
                     break;
                 case 'pending-supervisor-approval':
-                    $query->where('status', TicketStatus::REPORT_FOR_REVIEW)
-                        ->whereHas('assignedTo.role', fn($q) => $q->where('role_name', 'Helpdesk'));
+                    // Same visibility rule as 'in-progress'/'l1-preparing-report'
+                    // above — no role scoping, so Helpdesk sees every track's
+                    // reports sitting with a Supervisor for approval, not just
+                    // its own L1 self-resolve reports.
+                    $query->where('status', TicketStatus::REPORT_FOR_REVIEW);
                     break;
                 case 'awaiting-requestor':
                     $query->where('status', TicketStatus::REQUESTOR_CONFIRMATION);
@@ -121,28 +175,41 @@ class TicketController extends Controller
 
         // Counts
         $counts = [
-            'new_request' => Tickets::where('status', TicketStatus::FOR_ACKNOWLEDGMENT)
-                ->where('pending_role', TicketStatus::QUEUE_HELPDESK)
-                ->count(),
+            'new_request' => Tickets::where(function ($q) {
+                    $q->where(fn ($q1) => $q1->where('status', TicketStatus::FOR_ACKNOWLEDGMENT)
+                            ->where('pending_role', TicketStatus::QUEUE_HELPDESK))
+                        ->orWhere(fn ($q1) => $q1->where('status', TicketStatus::FOR_ACKNOWLEDGMENT)
+                            ->where('pending_role', TicketStatus::QUEUE_MANAGER))
+                        ->orWhere(fn ($q1) => $q1->where('status', TicketStatus::ASSIGNED)
+                            ->whereNull('tech_acknowledged_at'));
+                })->count(),
             'for_classification' => Tickets::where('status', TicketStatus::FOR_CLASSIFICATION)
                 ->where('pending_role', TicketStatus::QUEUE_HELPDESK)
                 ->count(),
-            'awaiting_supervisor' => Tickets::where('status', TicketStatus::CLASSIFIED)
-                ->where('pending_role', TicketStatus::QUEUE_SUPPORT_SUPERVISOR)
-                ->count(),
+            'awaiting_supervisor' => Tickets::where(function ($q) {
+                    $q->where(fn ($q1) => $q1->where('status', TicketStatus::CLASSIFIED)
+                            ->where('pending_role', TicketStatus::QUEUE_SUPPORT_SUPERVISOR))
+                        ->orWhere(fn ($q1) => $q1->whereIn('status', [TicketStatus::FOR_ACKNOWLEDGMENT, TicketStatus::CLASSIFIED])
+                            ->where('pending_role', TicketStatus::QUEUE_ADMIN_SUPERVISOR)
+                            ->whereNull('assigned_to'));
+                })->count(),
             'in_progress' => Tickets::whereIn('status', [
                     TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
                     TicketStatus::CLOSED_SERVICE_REQUEST,
                 ])->count(),
-            'l1_preparing_report' => Tickets::where('status', TicketStatus::IN_PROGRESS_SERVICE_REPORT)
-                ->whereHas('assignedTo.role', fn($q) => $q->where('role_name', 'Helpdesk'))
-                ->count(),
+            'l1_preparing_report' => Tickets::where('status', TicketStatus::IN_PROGRESS_SERVICE_REPORT)->count(),
+            'on_hold' => Tickets::where('status', TicketStatus::ON_HOLD)->count(),
             'escalated' => Tickets::where('status', TicketStatus::ESCALATED)->count(),
-            'pending_supervisor_approval' => Tickets::where('status', TicketStatus::REPORT_FOR_REVIEW)
-                ->whereHas('assignedTo.role', fn($q) => $q->where('role_name', 'Helpdesk'))
-                ->count(),
+            'pending_supervisor_approval' => Tickets::where('status', TicketStatus::REPORT_FOR_REVIEW)->count(),
             'awaiting_requestor' => Tickets::where('status', TicketStatus::REQUESTOR_CONFIRMATION)->count(),
             'closed' => Tickets::where('status', TicketStatus::CLOSED)->count(),
+            'closed_today' => Tickets::where('status', TicketStatus::CLOSED)
+                ->whereDate('closed_at', today())
+                ->count(),
+            'in_progress_today' => Tickets::whereIn('status', [
+                    TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
+                    TicketStatus::IN_PROGRESS_SERVICE_REPORT,
+                ])->whereDate('updated_at', today())->count(),
             'cancelled' => Tickets::where('status', TicketStatus::CANCELLED)->count(),
         ];
         $counts['active'] = $this->scopeActive(Tickets::query())->count();
@@ -274,39 +341,16 @@ class TicketController extends Controller
         return view('helpdesk.ticket-detail', compact('ticket'));
     }
 
-    // "Active" = everything still open, before it lands on Closed. In Progress
-    // Service Request / In Progress Service Report are shared across every
-    // track now (see App\Support\TicketStatus), so they're scoped here to just
-    // Helpdesk's own world (L1 self-resolve, still-unassigned L1 investigation,
-    // or a Technician's own in-progress work) — otherwise Admin/Manager-track
-    // active tickets would leak into Helpdesk's active count, which the old
-    // per-track status strings never allowed.
+    // "Active" = every ticket still moving through the pipeline, from For
+    // Acknowledgment through Requestor Confirmation (including the On Hold
+    // detour and the void Escalated/Cancelled outcomes along the way) — Closed
+    // and Cancelled are the only terminal states, so they're the only ones
+    // excluded. Deliberately not scoped to Helpdesk's own role/pending_role
+    // (unlike the other counts on this dashboard) — this is meant as a
+    // system-wide "still open" total, not a "still Helpdesk's job" one.
     private function scopeActive($query)
     {
-        return $query->where(function ($q) {
-            $q->where(function ($q1) {
-                $q1->where('status', TicketStatus::FOR_ACKNOWLEDGMENT)
-                    ->whereIn('pending_role', [TicketStatus::QUEUE_HELPDESK, TicketStatus::QUEUE_SUPPORT_SUPERVISOR]);
-            })->orWhere(function ($q1a) {
-                $q1a->where('status', TicketStatus::FOR_CLASSIFICATION)
-                    ->where('pending_role', TicketStatus::QUEUE_HELPDESK);
-            })->orWhere(function ($q1b) {
-                // Helpdesk's classify() lands a ticket straight on Classified when
-                // routing to the Supervisor — still Helpdesk's ticket to keep an eye
-                // on until the Supervisor acts.
-                $q1b->where('status', TicketStatus::CLASSIFIED)
-                    ->where('pending_role', TicketStatus::QUEUE_SUPPORT_SUPERVISOR);
-            })->orWhereIn('status', [
-                TicketStatus::CLOSED_SERVICE_REQUEST,
-                TicketStatus::ESCALATED,
-                TicketStatus::DONE_SERVICE_REPORT,
-                TicketStatus::REPORT_FOR_REVIEW,
-                TicketStatus::REQUESTOR_CONFIRMATION,
-            ])->orWhere(function ($q2) {
-                $q2->whereIn('status', [TicketStatus::IN_PROGRESS_SERVICE_REQUEST, TicketStatus::IN_PROGRESS_SERVICE_REPORT])
-                    ->whereHas('assignedTo.role', fn($r) => $r->whereIn('role_name', ['Helpdesk', 'IT Support Specialist']));
-            });
-        });
+        return $query->whereNotIn('status', [TicketStatus::CLOSED, TicketStatus::CANCELLED]);
     }
 
     // Acknowledge ticket — moves status to For Classification (Helpdesk-only,
@@ -598,6 +642,34 @@ class TicketController extends Controller
             'success',
             "Ticket #{$ticket->ticket_number} escalated to IT Admin."
         );
+    }
+
+    // Pause/Resume — for when finishing a self-resolved (handle_myself) ticket
+    // needs more information from the requestor. See TicketHold.
+    public function pause(Request $request, Tickets $ticket)
+    {
+        if ($ticket->status !== TicketStatus::IN_PROGRESS_SERVICE_REQUEST || $ticket->assigned_to !== Auth::id()) {
+            return back()->with('error', 'Only tickets you classified and kept for yourself can be paused.');
+        }
+
+        $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        TicketHold::pause($ticket, $request->reason);
+
+        return back()->with('success', "Ticket #{$ticket->ticket_number} paused. The requestor has been notified.");
+    }
+
+    public function resume(Tickets $ticket)
+    {
+        if ($ticket->status !== TicketStatus::ON_HOLD || $ticket->assigned_to !== Auth::id()) {
+            return back()->with('error', 'This ticket is not on hold.');
+        }
+
+        TicketHold::resume($ticket);
+
+        return back()->with('success', "Work resumed on ticket #{$ticket->ticket_number}.");
     }
 
     // Add update / progress note (while resolving or drafting the report —

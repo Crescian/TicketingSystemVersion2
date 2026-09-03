@@ -34,6 +34,11 @@ class TicketStatus
 
     public const CANCELLED = 'Cancelled';
 
+    // Paused mid-work while waiting on more information from the requestor —
+    // a detour off the pipeline (see TicketHold), not a step in it, same
+    // treatment as Cancelled: deliberately not in PIPELINE below.
+    public const ON_HOLD = 'On Hold';
+
     public const PIPELINE = [
         self::FOR_ACKNOWLEDGMENT,
         self::CLASSIFIED,

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\TicketAssignedMail;
+use App\Mail\TicketClosedByRequestorMail;
 use App\Mail\TicketSubmittedMail;
 use App\Models\Tickets;
 use App\Models\SlaCategory;
@@ -492,10 +493,12 @@ class TicketsController extends Controller
         }
 
         $oldStatus = $ticket->status;
+        $now = now();
 
         $ticket->update([
             'status'      => TicketStatus::CLOSED,
-            'resolved_at' => $ticket->resolved_at ?? now(),
+            'resolved_at' => $ticket->resolved_at ?? $now,
+            'closed_at'   => $now,
         ]);
 
         TicketStatusHistories::create([
@@ -504,8 +507,23 @@ class TicketsController extends Controller
             'new_status' => TicketStatus::CLOSED,
             'changed_by' => Auth::id(),
             'notes'      => 'Requestor acknowledged resolution — ticket closed.',
-            'changed_at' => now(),
+            'changed_at' => $now,
         ]);
+
+        // FYI to Helpdesk (coordination hub, same convention as
+        // notifyHelpdeskFyi() in SupervisorDashboardController) plus whoever
+        // actually resolved the ticket — they're the internal/ICT side that
+        // cares this closed the loop. Deduped by id in case the resolver is
+        // themselves a Helpdesk agent.
+        $recipients = User::withActiveRole('Helpdesk')->get()
+            ->when($ticket->resolvedBy, fn ($users) => $users->push($ticket->resolvedBy))
+            ->unique('id');
+
+        foreach ($recipients as $recipient) {
+            if ($recipient->email) {
+                Mail::to($recipient->email)->send(new TicketClosedByRequestorMail($ticket));
+            }
+        }
 
         return back()->with('success', "Ticket #{$ticket->ticket_number} has been closed. Thanks for confirming!");
     }
@@ -605,6 +623,16 @@ class TicketsController extends Controller
             'notes'      => 'Request details updated by employee.',
             'changed_at' => now(),
         ]);
+
+        // Same pattern as a fresh submission (see store() above) — Helpdesk
+        // hasn't acknowledged this ticket yet (that's the only time update() is
+        // reachable), so they need to know the details changed before they do.
+        $helpdeskUsers = User::withActiveRole('Helpdesk')->get();
+        foreach ($helpdeskUsers as $helpdeskUser) {
+            Mail::to($helpdeskUser->email)->send(
+                new TicketAssignedMail($ticket, 'The employee updated this request\'s details before it was acknowledged.', 'helpdesk.dashboard')
+            );
+        }
 
         return back()->with('success', "Support request #{$ticket->ticket_number} updated successfully.");
     }

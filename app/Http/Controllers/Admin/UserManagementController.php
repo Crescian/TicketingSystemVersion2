@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\TemporaryPasswordMail;
 use App\Models\BusinessUnits;
 use App\Models\Companies;
 use App\Models\Departments;
@@ -11,6 +12,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class UserManagementController extends Controller
@@ -156,6 +158,8 @@ class UserManagementController extends Controller
             'department_id' => $request->department_id,
             'position' => $request->position,
             'active' => $request->active,
+            'must_change_password' => true,
+            'needs_account_setup' => true,
         ]);
 
         return back()->with('success', "User {$request->name} added successfully.");
@@ -198,9 +202,20 @@ class UserManagementController extends Controller
 
     public function resetPassword(Request $request, User $user)
     {
+        if (!$user->email) {
+            return back()->with('error', "Cannot reset password for {$user->name} — no email address on file.");
+        }
+
         $tempPassword = Str::random(10);
-        $user->update(['password' => Hash::make('password')]);
-        return back()->with('success', "Password reset for {$user->name}. Temp: {$tempPassword}");
+        $user->update([
+            'password' => Hash::make($tempPassword),
+            'must_change_password' => true,
+            'needs_account_setup' => true,
+        ]);
+
+        Mail::to($user->email)->send(new TemporaryPasswordMail($user, $tempPassword));
+
+        return back()->with('success', "Password reset for {$user->name}. A temporary password was emailed to them.");
     }
 
     // Polled every 30s from the user-management page to refresh who's online

@@ -46,6 +46,9 @@ class Tickets extends Model
         'validated_at',
         'validation_notes',
         'closed_at',
+        'hold_reason',
+        'paused_at',
+        'total_hold_minutes',
 
         // ── SLA FIELDS
         'sla_category_id',
@@ -87,6 +90,8 @@ class Tickets extends Model
         'tech_acknowledged_at' => 'datetime',
         'validated_at' => 'datetime',
         'closed_at' => 'datetime',
+        'paused_at' => 'datetime',
+        'total_hold_minutes' => 'integer',
         'sla_due_at' => 'datetime',
         'sla_risk_notified_at' => 'datetime',
         'sla_breached_notified_at' => 'datetime',
@@ -237,14 +242,17 @@ class Tickets extends Model
     }
 
     // Wall-clock time between the SLA resolution clock starting and the ticket being
-    // marked resolved — i.e. how long it actually took the technician, not the SLA target.
+    // marked resolved — i.e. how long it actually took the technician, not the SLA
+    // target. Excludes any time spent On Hold (see TicketHold), since that time was
+    // waiting on the requestor, not active work.
     public function actualResolutionTime(): ?string
     {
         if (!$this->started_at || !$this->resolved_at) {
             return null;
         }
 
-        $totalMinutes = $this->started_at->diffInMinutes($this->resolved_at);
+        $totalMinutes = (int) round($this->started_at->diffInMinutes($this->resolved_at));
+        $totalMinutes = max(0, $totalMinutes - $this->total_hold_minutes);
         $hours = intdiv($totalMinutes, 60);
         $minutes = $totalMinutes % 60;
 

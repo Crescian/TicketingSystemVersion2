@@ -7,6 +7,7 @@ use App\Mail\TicketReadyForRequestorMail;
 use App\Models\Tickets;
 use App\Models\TicketStatusHistories;
 use App\Models\User;
+use App\Support\TicketHold;
 use App\Support\TicketReportProgress;
 use App\Support\TicketResolutionRules;
 use App\Support\TicketStatus;
@@ -43,13 +44,16 @@ class TicketController extends Controller
                 $q->where($awaitingManager)
                     ->orWhere(function ($q2) use ($inProgressStatuses) {
                         $q2->whereIn('status', $inProgressStatuses)->where('assigned_to', Auth::id());
-                    });
+                    })
+                    ->orWhere(fn ($q3) => $q3->where('status', TicketStatus::ON_HOLD)->where('assigned_to', Auth::id()));
             });
         } else {
             if ($status === 'awaiting-manager') {
                 $query->where($awaitingManager);
             } elseif ($status === 'in-progress') {
                 $query->whereIn('status', $inProgressStatuses)->where('assigned_to', Auth::id());
+            } elseif ($status === 'on-hold') {
+                $query->where('status', TicketStatus::ON_HOLD)->where('assigned_to', Auth::id());
             } elseif ($status === 'closed') {
                 $query->where('status', TicketStatus::CLOSED)->where('assigned_to', Auth::id());
             }
@@ -76,9 +80,10 @@ class TicketController extends Controller
         $counts = [
             'awaiting_manager' => Tickets::where($awaitingManager)->count(),
             'in_progress' => Tickets::whereIn('status', $inProgressStatuses)->where('assigned_to', Auth::id())->count(),
+            'on_hold' => Tickets::where('status', TicketStatus::ON_HOLD)->where('assigned_to', Auth::id())->count(),
             'closed' => Tickets::where('status', TicketStatus::CLOSED)->where('assigned_to', Auth::id())->count(),
         ];
-        $counts['active'] = $counts['awaiting_manager'] + $counts['in_progress'];
+        $counts['active'] = $counts['awaiting_manager'] + $counts['in_progress'] + $counts['on_hold'];
 
         return view('dashboard.manager.dashboard', compact('tickets', 'counts', 'status', 'search', 'sort'));
     }
@@ -141,6 +146,34 @@ class TicketController extends Controller
         TicketReportProgress::markStarted($ticket);
 
         return back()->with('success', "Ticket #{$ticket->ticket_number} marked fixed — prepare the service report when ready.");
+    }
+
+    // Pause/Resume — for when finishing the ticket needs more information from
+    // the requestor. See TicketHold.
+    public function pause(Request $request, Tickets $ticket)
+    {
+        if ($ticket->status !== TicketStatus::IN_PROGRESS_SERVICE_REQUEST || $ticket->assigned_to !== Auth::id()) {
+            return back()->with('error', 'Only tickets you are actively working on can be paused.');
+        }
+
+        $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        TicketHold::pause($ticket, $request->reason);
+
+        return back()->with('success', "Ticket #{$ticket->ticket_number} paused. The requestor has been notified.");
+    }
+
+    public function resume(Tickets $ticket)
+    {
+        if ($ticket->status !== TicketStatus::ON_HOLD || $ticket->assigned_to !== Auth::id()) {
+            return back()->with('error', 'This ticket is not on hold.');
+        }
+
+        TicketHold::resume($ticket);
+
+        return back()->with('success', "Work resumed on ticket #{$ticket->ticket_number}.");
     }
 
     // The Manager resolving it themselves already IS the approval step (no one

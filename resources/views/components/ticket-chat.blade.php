@@ -604,7 +604,7 @@
                 </div>
                 ${textHtml}
                 ${attachHtml}
-                <div class="msg-time">${msg.time_ago}</div>
+                <div class="msg-time">${(msg.time || '').split(', ').pop()}</div>
             </div>
         </div>
     `;

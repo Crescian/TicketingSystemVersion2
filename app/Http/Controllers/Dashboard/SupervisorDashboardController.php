@@ -15,6 +15,7 @@ use App\Models\TicketAttachment;
 use App\Models\TicketStatusHistories;
 use App\Services\TicketScheduler;
 use App\Support\BusinessClock;
+use App\Support\TicketHold;
 use App\Support\TicketReportProgress;
 use App\Support\TicketResolutionRules;
 use App\Support\TicketSlaResolution;
@@ -99,6 +100,7 @@ class SupervisorDashboardController extends Controller
                     $q->where(fn ($q2) => $q2->whereIn('status', [TicketStatus::CLASSIFIED, TicketStatus::ESCALATED])->where('pending_role', TicketStatus::QUEUE_SUPPORT_SUPERVISOR))
                         ->orWhere(fn ($q2) => TicketReportProgress::forRoles($q2, TicketStatus::ASSIGNED, $supportResolverRoles))
                         ->orWhere(fn ($q2) => TicketReportProgress::forRoles($q2, TicketStatus::IN_PROGRESS_SERVICE_REQUEST, $supportResolverRoles))
+                        ->orWhere(fn ($q2) => TicketReportProgress::forRoles($q2, TicketStatus::ON_HOLD, $supportResolverRoles))
                         ->orWhere(fn ($q2) => TicketReportProgress::forRoles($q2, TicketStatus::IN_PROGRESS_SERVICE_REPORT, $supportResolverRoles))
                         ->orWhere(fn ($q2) => TicketReportProgress::forRoles($q2, TicketStatus::REPORT_FOR_REVIEW, $supportDoneRoles))
                         ->orWhere(fn ($q2) => $q2->where('status', TicketStatus::REQUESTOR_CONFIRMATION)
@@ -108,20 +110,36 @@ class SupervisorDashboardController extends Controller
             case 'awaiting-classification':
                 // Helpdesk's classify() lands a ticket straight on Classified, ready
                 // for the Supervisor to assign — no separate acknowledge/reclassify
-                // step. Escalated is included here too — a takeover/reclassification
-                // is also "ready for the supervisor to act" — and
-                // approveReclassification() below lands an approved reclassification
-                // back on Classified + this pending_role (assigned_to cleared) so it
-                // re-enters this same queue instead of disappearing from view.
-                $query->whereIn('status', [TicketStatus::CLASSIFIED, TicketStatus::ESCALATED])
+                // step. Escalated tickets have their own dedicated 'escalated' tab
+                // below and don't belong here too — an approved reclassification
+                // (see approveReclassification() below) already lands back on
+                // Classified + this pending_role (assigned_to cleared), which is
+                // enough on its own to re-enter this queue.
+                $query->where('status', TicketStatus::CLASSIFIED)
                     ->where('pending_role', TicketStatus::QUEUE_SUPPORT_SUPERVISOR)
                     ->whereNull('assigned_to');
                 break;
             case 'awaiting-tech-ack':
+                // Assigned, not yet acknowledged by the specialist — mirrors
+                // Technician\TicketController::index()'s 'awaiting-ack' split so
+                // this queue can tell "still needs the specialist's attention" apart
+                // from "already acknowledged, just waiting for them to hit Start".
                 TicketReportProgress::forRoles($query, TicketStatus::ASSIGNED, ['IT Support Specialist']);
+                $query->whereNull('tech_acknowledged_at');
+                break;
+            case 'ready-to-start':
+                // Assigned + acknowledged, not yet started — the "Start Support
+                // Request" bucket. Mirrors Technician\TicketController::index()'s
+                // 'ready-start' tab so a supervisor can see the same distinction
+                // the specialist sees on their own dashboard.
+                TicketReportProgress::forRoles($query, TicketStatus::ASSIGNED, ['IT Support Specialist']);
+                $query->whereNotNull('tech_acknowledged_at');
                 break;
             case 'in-progress':
                 TicketReportProgress::forRoles($query, TicketStatus::IN_PROGRESS_SERVICE_REQUEST, $supportResolverRoles);
+                break;
+            case 'on-hold':
+                TicketReportProgress::forRoles($query, TicketStatus::ON_HOLD, $supportResolverRoles);
                 break;
             case 'in-progress-report':
                 TicketReportProgress::forRoles($query, TicketStatus::IN_PROGRESS_SERVICE_REPORT, $supportResolverRoles);
@@ -220,8 +238,10 @@ class SupervisorDashboardController extends Controller
                 ->where('pending_role', TicketStatus::QUEUE_SUPPORT_SUPERVISOR)
                 ->whereNull('assigned_to')
                 ->count(),
-            'awaiting_tech_ack' => TicketReportProgress::forRoles(Tickets::query(), TicketStatus::ASSIGNED, ['IT Support Specialist'])->count(),
+            'awaiting_tech_ack' => TicketReportProgress::forRoles(Tickets::query(), TicketStatus::ASSIGNED, ['IT Support Specialist'])->whereNull('tech_acknowledged_at')->count(),
+            'ready_to_start' => TicketReportProgress::forRoles(Tickets::query(), TicketStatus::ASSIGNED, ['IT Support Specialist'])->whereNotNull('tech_acknowledged_at')->count(),
             'in_progress' => TicketReportProgress::forRoles(Tickets::query(), TicketStatus::IN_PROGRESS_SERVICE_REQUEST, $supportResolverRoles)->count(),
+            'on_hold' => TicketReportProgress::forRoles(Tickets::query(), TicketStatus::ON_HOLD, $supportResolverRoles)->count(),
             'in_progress_report' => TicketReportProgress::forRoles(Tickets::query(), TicketStatus::IN_PROGRESS_SERVICE_REPORT, $supportResolverRoles)->count(),
             'escalated' => Tickets::where('status', TicketStatus::ESCALATED)->where('pending_role', TicketStatus::QUEUE_SUPPORT_SUPERVISOR)->count(),
             'pending_reclassification' => Tickets::whereHas('reclassificationRequests', fn ($q) => $q->where('status', 'pending'))->count(),
@@ -231,8 +251,8 @@ class SupervisorDashboardController extends Controller
                 ->count(),
             'closed' => Tickets::where('status', TicketStatus::CLOSED)->count(),
         ];
-        $counts['active'] = $counts['awaiting_classification'] + $counts['awaiting_tech_ack']
-            + $counts['in_progress'] + $counts['in_progress_report'] + $counts['escalated'] + $counts['pending_reclassification']
+        $counts['active'] = $counts['awaiting_classification'] + $counts['awaiting_tech_ack'] + $counts['ready_to_start']
+            + $counts['in_progress'] + $counts['on_hold'] + $counts['in_progress_report'] + $counts['escalated'] + $counts['pending_reclassification']
             + $counts['pending_supervisor_approval'] + $counts['awaiting_requestor'];
 
         $technicians = User::whereHas(
@@ -723,6 +743,36 @@ class SupervisorDashboardController extends Controller
         TicketReportProgress::markStarted($ticket);
 
         return back()->with('success', "Ticket #{$ticket->ticket_number} marked fixed — prepare the service report when ready.");
+    }
+
+    // Pause/Resume — for when finishing the ticket needs more information from
+    // the requestor. See TicketHold. No assigned_to check, mirroring
+    // supportStartReport() above: the supervisor can act on a ticket still
+    // assigned to one of their technicians, not just their own take-over.
+    public function supportPause(Request $request, Tickets $ticket)
+    {
+        if ($ticket->status !== TicketStatus::IN_PROGRESS_SERVICE_REQUEST) {
+            return back()->with('error', 'Only in-progress tickets can be paused.');
+        }
+
+        $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        TicketHold::pause($ticket, $request->reason);
+
+        return back()->with('success', "Ticket #{$ticket->ticket_number} paused. The requestor has been notified.");
+    }
+
+    public function supportResume(Tickets $ticket)
+    {
+        if ($ticket->status !== TicketStatus::ON_HOLD) {
+            return back()->with('error', 'This ticket is not on hold.');
+        }
+
+        TicketHold::resume($ticket);
+
+        return back()->with('success', "Work resumed on ticket #{$ticket->ticket_number}.");
     }
 
     // Mark resolved — self-approval track: the supervisor resolving their own
@@ -1356,9 +1406,14 @@ class SupervisorDashboardController extends Controller
             ELSE 9 END");
 
         // In Progress – Service Report / Done – Service Report are shared across every
-        // resolver track (see TicketReportProgress) — scoped to 'IT Admin' here so a
-        // Support-track ticket's drafting/done state doesn't bleed into this queue.
-        $adminRoles = ['IT Admin'];
+        // resolver track (see TicketReportProgress) — scoped to this Admin track's own
+        // resolvers here so a Support-track ticket's drafting/done state doesn't bleed
+        // into this queue. Includes 'Supervisor - IT Admin' itself — the take-over path
+        // in adminClassifyAndAssign()/adminTakeover() assigns the ticket to the
+        // supervisor directly, so without it here a taken-over ticket would vanish from
+        // this supervisor's own In Progress / In Progress Report queues the moment they
+        // took it over (mirrors $supportResolverRoles in supportIndex() above).
+        $adminRoles = ['IT Admin', 'Supervisor - IT Admin'];
 
         // 'active' = everything still in flight across the admin escalation pipeline.
         // For Acknowledgment/Classified/Escalated are shared across every track now —
@@ -1368,6 +1423,7 @@ class SupervisorDashboardController extends Controller
                 $q->where(fn ($q2) => $q2->whereIn('status', [TicketStatus::FOR_ACKNOWLEDGMENT, TicketStatus::CLASSIFIED, TicketStatus::ESCALATED])->where('pending_role', TicketStatus::QUEUE_ADMIN_SUPERVISOR))
                     ->orWhere(fn ($q2) => TicketReportProgress::forRoles($q2, TicketStatus::ASSIGNED, $adminRoles))
                     ->orWhere(fn ($q2) => TicketReportProgress::forRoles($q2, TicketStatus::IN_PROGRESS_SERVICE_REQUEST, $adminRoles))
+                    ->orWhere(fn ($q2) => TicketReportProgress::forRoles($q2, TicketStatus::ON_HOLD, $adminRoles))
                     ->orWhere(fn ($q2) => TicketReportProgress::forRoles($q2, TicketStatus::IN_PROGRESS_SERVICE_REPORT, $adminRoles))
                     ->orWhere(fn ($q2) => TicketReportProgress::forRoles($q2, TicketStatus::REPORT_FOR_REVIEW, $adminRoles))
                     // Requestor Confirmation has no pending_role left to scope by
@@ -1379,6 +1435,8 @@ class SupervisorDashboardController extends Controller
             });
         } elseif ($status === 'admin-in-progress') {
             TicketReportProgress::forRoles($query, TicketStatus::IN_PROGRESS_SERVICE_REQUEST, $adminRoles);
+        } elseif ($status === 'admin-on-hold') {
+            TicketReportProgress::forRoles($query, TicketStatus::ON_HOLD, $adminRoles);
         } elseif ($status === 'admin-in-progress-report') {
             TicketReportProgress::forRoles($query, TicketStatus::IN_PROGRESS_SERVICE_REPORT, $adminRoles);
         } elseif ($status === 'pending-admin-supervisor-approval') {
@@ -1472,6 +1530,7 @@ class SupervisorDashboardController extends Controller
             'awaiting_administrator_ack' => TicketReportProgress::forRoles(Tickets::query(), TicketStatus::ASSIGNED, $adminRoles)->count(),
             'awaiting_administrator_sla_start' => 0, // collapsed into 'Assigned' — kept for view compatibility, see awaiting_administrator_ack
             'admin_in_progress' => TicketReportProgress::forRoles(Tickets::query(), TicketStatus::IN_PROGRESS_SERVICE_REQUEST, $adminRoles)->count(),
+            'admin_on_hold' => TicketReportProgress::forRoles(Tickets::query(), TicketStatus::ON_HOLD, $adminRoles)->count(),
             'admin_in_progress_report' => TicketReportProgress::forRoles(Tickets::query(), TicketStatus::IN_PROGRESS_SERVICE_REPORT, $adminRoles)->count(),
             'pending_admin_supervisor_approval' => TicketReportProgress::forRoles(Tickets::query(), TicketStatus::REPORT_FOR_REVIEW, $adminRoles)->count(),
             'pending_admin_reclassification' => Tickets::whereHas('reclassificationRequests', fn ($q) => $q->where('status', 'pending'))
@@ -1485,7 +1544,7 @@ class SupervisorDashboardController extends Controller
         ];
         $counts['active'] = $counts['awaiting_admin_supervisor'] + $counts['awaiting_admin_classification']
             + $counts['awaiting_administrator_ack'] + $counts['awaiting_administrator_sla_start']
-            + $counts['admin_in_progress'] + $counts['admin_in_progress_report'] + $counts['pending_admin_supervisor_approval']
+            + $counts['admin_in_progress'] + $counts['admin_on_hold'] + $counts['admin_in_progress_report'] + $counts['pending_admin_supervisor_approval']
             + $counts['awaiting_requestor'] + $counts['pending_admin_reclassification'];
 
         $technicians = User::whereHas(
@@ -1608,18 +1667,19 @@ class SupervisorDashboardController extends Controller
 
     public function adminAcknowledge(Tickets $ticket)
     {
-        $alreadyAcknowledged = TicketStatusHistories::where('ticket_id', $ticket->id)
-            ->where('notes', 'like', 'Acknowledged by Admin Supervisor%')
-            ->exists();
-
         // This queue mixes two origins that both land on this supervisor's desk:
         // a fresh admin-only ticket routed directly here (FOR_ACKNOWLEDGMENT),
         // or a ticket actually escalated up to this tier (ESCALATED). Either
         // way, acknowledging it moves/settles it into the normal classification
         // queue — no separate "acknowledged but not yet classified" status.
+        // The double-click/rapid-resubmit race this used to also guard against
+        // (via a lifetime scan for a prior "Acknowledged by Admin Supervisor"
+        // note) is already closed by the idempotent:8 middleware on this route —
+        // that lifetime scan wrongly locked out any ticket escalated to this
+        // queue more than once, since it never expires with the escalation
+        // cycle that made it true.
         if (!in_array($ticket->status, [TicketStatus::FOR_ACKNOWLEDGMENT, TicketStatus::ESCALATED], true)
-            || $ticket->pending_role !== TicketStatus::QUEUE_ADMIN_SUPERVISOR
-            || $alreadyAcknowledged) {
+            || $ticket->pending_role !== TicketStatus::QUEUE_ADMIN_SUPERVISOR) {
             return back()->with('error', 'This ticket is not awaiting admin supervisor acknowledgment.');
         }
 
@@ -1651,7 +1711,11 @@ class SupervisorDashboardController extends Controller
             // was escalated up to this queue (still For Acknowledgment) and
             // genuinely does need a first classification.
             'sla_rule_id' => 'nullable|exists:sla_rules,id',
-            'technician_id' => 'required|uuid|exists:users,id',
+            // Either an IT Admin to assign to, or take_over to keep it — never
+            // both, enforced below the same way as the Support Supervisor's own
+            // classifyAndAssign() (see there).
+            'technician_id' => 'nullable|uuid|exists:users,id',
+            'take_over' => 'nullable|boolean',
             'priority' => 'nullable|in:Critical,High,Medium,Low',
             'workload_class_id' => 'nullable|exists:workload_classes,id',
             'response_time_minutes' => 'nullable|numeric|min:5|max:43200',
@@ -1672,7 +1736,13 @@ class SupervisorDashboardController extends Controller
             return back()->withInput()->with('error', 'This ticket must be classified — select an SLA rule.');
         }
 
-        $technician = User::findOrFail($request->technician_id);
+        $takeOver = $request->boolean('take_over');
+
+        if (!$takeOver && !$request->filled('technician_id')) {
+            return back()->withInput()->with('error', 'Select an IT Admin to assign, or choose to take the ticket over yourself.');
+        }
+
+        $technician = $takeOver ? null : User::findOrFail($request->technician_id);
         $slaRule = $request->filled('sla_rule_id') ? SlaRule::findOrFail($request->sla_rule_id) : null;
         $workloadClass = $request->filled('workload_class_id')
             ? \App\Models\WorkloadClass::find($request->workload_class_id)
@@ -1698,19 +1768,40 @@ class SupervisorDashboardController extends Controller
             $resolutionTime = $ticket->resolution_time_minutes;
         }
 
-        $slot = TicketScheduler::commitAssignment(
-            $ticket,
-            $technician,
-            $priority,
-            $responseTime + $resolutionTime,
-            $request->input('schedule_decision', 'auto')
-        );
+        // ── Taking it over means starting work now, not queueing behind other
+        // not-started tickets — same immediate-anchor-slot mechanism the Support
+        // Supervisor's own classifyAndAssign() and adminTakeover() below use.
+        if ($takeOver) {
+            $supervisor = Auth::user();
+
+            if ($activeTicket = $this->activeTicketFor($supervisor, $ticket->id)) {
+                return back()->with(
+                    'error',
+                    "You're already working on ticket #{$activeTicket->ticket_number} — resolve or escalate it before taking over another."
+                );
+            }
+
+            $slot = TicketScheduler::commitDirectSlot(
+                $ticket,
+                $supervisor,
+                $responseTime + $resolutionTime,
+                $request->input('schedule_decision', 'auto')
+            );
+        } else {
+            $slot = TicketScheduler::commitAssignment(
+                $ticket,
+                $technician,
+                $priority,
+                $responseTime + $resolutionTime,
+                $request->input('schedule_decision', 'auto')
+            );
+        }
 
         if ($slot['needs_decision']) {
             return back()->withInput()->with('scheduleConflict', [
                 'action_url' => route('supervisor.tickets.admin-classify-assign', $ticket),
                 'ticket_number' => $ticket->ticket_number,
-                'technician_name' => $technician->name,
+                'technician_name' => $takeOver ? Auth::user()->name : $technician->name,
                 'proposed_end' => $slot['end']->copy()->timezone('Asia/Manila')->format('g:i A, M d'),
                 'day_end' => $slot['day_end']->copy()->timezone('Asia/Manila')->format('g:i A'),
                 'overtime_minutes' => $slot['end']->gt($slot['day_end']) ? $slot['end']->diffInMinutes($slot['day_end'], true) : 0,
@@ -1743,6 +1834,50 @@ class SupervisorDashboardController extends Controller
                     . " as {$slaRule->subcategory_name} ({$priority})." . $overrideNote,
                 'changed_at' => $now,
             ]);
+        }
+
+        if ($takeOver) {
+            $ticket->update([
+                'assigned_to' => Auth::id(),
+                'assigned_at' => $now,
+                'pending_role' => null,
+                'status' => TicketStatus::ASSIGNED,
+                'scheduled_start' => $slot['scheduled_start'],
+                'scheduled_end' => $slot['scheduled_end'],
+                'is_overtime' => $slot['is_overtime'],
+                'queued_at' => $slot['queued_at'],
+            ]);
+
+            TicketStatusHistories::create([
+                'ticket_id' => $ticket->id,
+                'old_status' => TicketStatus::CLASSIFIED,
+                'new_status' => TicketStatus::ASSIGNED,
+                'changed_by' => Auth::id(),
+                'notes' => 'Taken over directly by ' . Auth::user()->name . '.'
+                    . ($request->notes ? " Note: {$request->notes}" : ''),
+                'changed_at' => $now,
+            ]);
+
+            $ticket->update([
+                'status' => TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
+                'started_at' => $now, // SLA resolution clock starts here
+                'sla_due_at' => $resolutionTime
+                    ? BusinessClock::addBusinessMinutes($now->copy(), $resolutionTime)
+                    : null,
+                'sla_risk_notified_at' => null,
+                'sla_breached_notified_at' => null,
+            ]);
+
+            TicketStatusHistories::create([
+                'ticket_id' => $ticket->id,
+                'old_status' => TicketStatus::ASSIGNED,
+                'new_status' => TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
+                'changed_by' => Auth::id(),
+                'notes' => 'Work started immediately on take-over.',
+                'changed_at' => $now,
+            ]);
+
+            return back()->with('success', "Ticket #{$ticket->ticket_number} classified and taken over.");
         }
 
         $ticket->update([
@@ -2009,10 +2144,20 @@ class SupervisorDashboardController extends Controller
     }
 
     // Assigned -> In Progress Service Request, and starts the SLA clock.
+    // Starting work (and the SLA clock with it) is the assigned IT Admin's own call,
+    // not the supervisor's — this route only exists for the supervisor's own
+    // take-over tickets, which never actually rest at ASSIGNED (adminTakeover()/
+    // adminClassifyAndAssign()'s take_over path jump straight to In Progress). So
+    // in practice this only ever fires for the supervisor's own ticket; guard it
+    // explicitly rather than relying on that never changing.
     public function adminStartSla(Tickets $ticket)
     {
         if ($ticket->status !== TicketStatus::ASSIGNED) {
             return back()->with('error', 'This ticket is not awaiting SLA start.');
+        }
+
+        if ($ticket->assigned_to !== Auth::id()) {
+            return back()->with('error', 'Only the assigned IT Admin can start work on this ticket.');
         }
 
         $oldStatus = $ticket->status;
@@ -2039,6 +2184,142 @@ class SupervisorDashboardController extends Controller
         ]);
 
         return back()->with('success', "SLA clock started for ticket #{$ticket->ticket_number}.");
+    }
+
+    // Pause/Resume — for when finishing the ticket needs more information from
+    // the requestor. Restricted to the Supervisor's own take-over ticket — an IT
+    // Admin's own ticket stays theirs to pause/resume via their own dashboard
+    // (Admin\TicketController::pause()/resume()), same "only the assignee" rule
+    // as adminStartSla() above. See TicketHold.
+    public function adminPause(Request $request, Tickets $ticket)
+    {
+        if ($ticket->status !== TicketStatus::IN_PROGRESS_SERVICE_REQUEST) {
+            return back()->with('error', 'Only in-progress tickets can be paused.');
+        }
+
+        if ($ticket->assigned_to !== Auth::id()) {
+            return back()->with('error', 'Only your own in-progress tickets can be paused here.');
+        }
+
+        $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        TicketHold::pause($ticket, $request->reason);
+
+        return back()->with('success', "Ticket #{$ticket->ticket_number} paused. The requestor has been notified.");
+    }
+
+    public function adminResume(Tickets $ticket)
+    {
+        if ($ticket->status !== TicketStatus::ON_HOLD) {
+            return back()->with('error', 'This ticket is not on hold.');
+        }
+
+        if ($ticket->assigned_to !== Auth::id()) {
+            return back()->with('error', 'Only your own tickets can be resumed here.');
+        }
+
+        TicketHold::resume($ticket);
+
+        return back()->with('success', "Work resumed on ticket #{$ticket->ticket_number}.");
+    }
+
+    // The technical fix is done, separate from writing it up (see
+    // TicketReportProgress) — mirrors supportStartReport() above, restricted to
+    // the Supervisor's own take-over ticket (see adminPause() above for why).
+    public function adminStartReport(Tickets $ticket)
+    {
+        if ($ticket->status !== TicketStatus::IN_PROGRESS_SERVICE_REQUEST || $ticket->assigned_to !== Auth::id()) {
+            return back()->with('error', 'Only your own in-progress tickets can be marked fixed.');
+        }
+
+        TicketReportProgress::markStarted($ticket);
+
+        return back()->with('success', "Ticket #{$ticket->ticket_number} marked fixed — prepare the service report when ready.");
+    }
+
+    // Mark resolved — self-approval track: the Supervisor resolving their own
+    // take-over ticket has no reviewer above them (mirrors supportResolve() /
+    // Manager\TicketController::resolve()), so this cascades the entire
+    // remaining chain (Done Service Report -> Report For Review -> Approved
+    // Service Report -> Requestor Confirmation) in one action. Restricted to
+    // the Supervisor's own ticket — an IT Admin's own ticket stays theirs to
+    // resolve via their own dashboard (Admin\TicketController::resolve()).
+    // Only reachable after adminStartReport() (In Progress Service Report).
+    public function adminResolve(Request $request, Tickets $ticket)
+    {
+        if ($ticket->status !== TicketStatus::IN_PROGRESS_SERVICE_REPORT || $ticket->assigned_to !== Auth::id()) {
+            return back()->with('error', 'Mark the ticket fixed before preparing the service report.');
+        }
+
+        $request->validate(array_merge(TicketResolutionRules::BASE, [
+            'findings' => 'nullable|string',
+            'recommendation' => 'nullable|string',
+            'attachments' => 'nullable|array|max:5',
+            'attachments.*' => 'file|max:10240|mimes:jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,txt',
+        ]));
+
+        $now = now();
+        $oldStatus = $ticket->status;
+        $actor = 'Supervisor - IT Admin - ' . Auth::user()->name;
+
+        $ticket->update([
+            'status' => TicketStatus::DONE_SERVICE_REPORT,
+            'resolved_at' => $now,
+            'resolved_by' => Auth::id(),
+            'resolution_notes' => $request->resolution_notes,
+            'service_type' => $request->service_type,
+            'findings' => $request->findings,
+            'recommendation' => $request->recommendation,
+        ]);
+
+        $timeSpent = $ticket->actualResolutionTime() ?? 'unknown';
+        $resolutionNote = "Resolved by {$actor}. Time spent: {$timeSpent}. " . $request->resolution_notes;
+
+        foreach ($request->file('attachments', []) as $file) {
+            $storedPath = $file->store('ticket-attachments/' . $ticket->id, 'local');
+
+            TicketAttachment::create([
+                'ticket_id'     => $ticket->id,
+                'uploaded_by'   => Auth::id(),
+                'original_name' => $file->getClientOriginalName(),
+                'stored_path'   => $storedPath,
+                'mime_type'     => $file->getClientMimeType(),
+                'size'          => $file->getSize(),
+            ]);
+        }
+
+        TicketStatusHistories::create([
+            'ticket_id' => $ticket->id, 'old_status' => $oldStatus, 'new_status' => TicketStatus::DONE_SERVICE_REPORT,
+            'changed_by' => Auth::id(), 'notes' => $resolutionNote, 'changed_at' => $now,
+        ]);
+
+        $ticket->update(['status' => TicketStatus::REPORT_FOR_REVIEW]);
+        TicketStatusHistories::create([
+            'ticket_id' => $ticket->id, 'old_status' => TicketStatus::DONE_SERVICE_REPORT, 'new_status' => TicketStatus::REPORT_FOR_REVIEW,
+            'changed_by' => Auth::id(), 'notes' => 'Service report submitted.', 'changed_at' => $now,
+        ]);
+
+        $ticket->update([
+            'status' => TicketStatus::APPROVED_SERVICE_REPORT,
+            'validated_at' => $now,
+            'validation_notes' => "Self-approved — resolved directly by the Admin Supervisor ({$actor}).",
+        ]);
+        TicketStatusHistories::create([
+            'ticket_id' => $ticket->id, 'old_status' => TicketStatus::REPORT_FOR_REVIEW, 'new_status' => TicketStatus::APPROVED_SERVICE_REPORT,
+            'changed_by' => Auth::id(), 'notes' => "Self-approved by {$actor} — no reviewer above the Admin Supervisor take-over.", 'changed_at' => $now,
+        ]);
+
+        $ticket->update(['status' => TicketStatus::REQUESTOR_CONFIRMATION, 'closed_at' => $now]);
+        TicketStatusHistories::create([
+            'ticket_id' => $ticket->id, 'old_status' => TicketStatus::APPROVED_SERVICE_REPORT, 'new_status' => TicketStatus::REQUESTOR_CONFIRMATION,
+            'changed_by' => Auth::id(), 'notes' => $resolutionNote, 'changed_at' => $now,
+        ]);
+
+        $this->notifyHelpdeskFyi($ticket, 'Resolved by Supervisor - IT Admin - ' . Auth::user()->name . '.');
+
+        return back()->with('success', "Ticket #{$ticket->ticket_number} resolved. Requestor notified.");
     }
 
     public function escalateToManager(Request $request, Tickets $ticket)

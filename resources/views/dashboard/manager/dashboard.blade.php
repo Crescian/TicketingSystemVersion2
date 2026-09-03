@@ -66,6 +66,7 @@
                     ['key' => 'active',           'icon' => 'bi-grid',            'label' => 'Active',        'count' => $counts['active']],
                     ['key' => 'awaiting-manager', 'icon' => 'bi-inbox',           'label' => 'Awaiting You',  'count' => $counts['awaiting_manager']],
                     ['key' => 'in-progress',      'icon' => 'bi-gear-fill',       'label' => 'In Progress',   'count' => $counts['in_progress']],
+                    ['key' => 'on-hold',          'icon' => 'bi-pause-circle',    'label' => 'On Hold',       'count' => $counts['on_hold']],
                     ['key' => 'closed',           'icon' => 'bi-check-circle',    'label' => 'Closed',        'count' => $counts['closed']],
                 ];
             @endphp
@@ -120,6 +121,7 @@
                     'active'           => 'Active',
                     'awaiting-manager' => 'Awaiting You',
                     'in-progress'      => 'In Progress',
+                    'on-hold'          => 'On Hold',
                     'closed'           => 'Closed',
                 ];
             @endphp
@@ -148,6 +150,7 @@
                 'active'           => ['label' => 'Active',       'count' => $counts['active']],
                 'awaiting-manager' => ['label' => 'Awaiting You', 'count' => $counts['awaiting_manager']],
                 'in-progress'      => ['label' => 'In Progress',  'count' => $counts['in_progress']],
+                'on-hold'          => ['label' => 'On Hold',      'count' => $counts['on_hold']],
                 'closed'           => ['label' => 'Closed',       'count' => $counts['closed']],
             ];
         @endphp
@@ -168,6 +171,7 @@
                     'For Acknowledgment'      => 'unassigned',
                     'In Progress Service Request'   => 'in-progress',
                     'In Progress Service Report' => 'in-progress',
+                    'On Hold'               => 'unassigned',
                     'Closed'                => 'closed',
                     default                 => 'unassigned'
                 };
@@ -175,6 +179,7 @@
                     'For Acknowledgment'      => 'badge-unassigned',
                     'In Progress Service Request'   => 'badge-in-progress',
                     'In Progress Service Report' => 'badge-in-progress',
+                    'On Hold'               => 'badge-unassigned',
                     default                 => ''
                 };
                 // In Progress Service Report is isolated from the underlying "actively
@@ -184,6 +189,7 @@
                     'For Acknowledgment'      => '<i class="bi bi-inbox me-1"></i>Awaiting You',
                     'In Progress Service Request'   => '<i class="bi bi-gear-fill me-1"></i>In Progress',
                     'In Progress Service Report' => '<i class="bi bi-file-earmark-text me-1"></i>Preparing Report',
+                    'On Hold'               => '<i class="bi bi-pause-circle me-1"></i>On Hold',
                     'Closed'                => '<i class="bi bi-check-circle-fill me-1"></i>Closed',
                     default                 => '● ' . $ticket->status
                 };
@@ -286,6 +292,10 @@
                                 <i class="bi bi-check2 me-1"></i>Mark Fixed
                             </button>
                         </form>
+                        <button type="button" class="btn-acknowledge"
+                                onclick="openPauseModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-pause-circle me-1"></i>Pause — Need Info
+                        </button>
                     @endif
                     {{-- Fix already marked done — now prepare & submit the service report. --}}
                     @if($ticket->status === 'In Progress Service Report')
@@ -293,6 +303,22 @@
                                 onclick="openResolveModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-file-earmark-text me-1"></i>Prepare Service Report
                         </button>
+                    @endif
+
+                    {{-- On Hold: waiting on the requestor — Resume Work only --}}
+                    @if($ticket->status === 'On Hold')
+                        @if($ticket->hold_reason)
+                            <div class="w-100 mb-2 p-2 px-3 rounded" style="background:var(--ygl);font-size:12px;color:var(--gd)">
+                                <i class="bi bi-pause-circle me-1"></i>
+                                <strong>Waiting on requestor:</strong> {{ $ticket->hold_reason }}
+                            </div>
+                        @endif
+                        <form method="POST" action="{{ route('executive.tickets.resume', $ticket) }}">
+                            @csrf
+                            <button type="submit" class="btn-resolve">
+                                <i class="bi bi-play-circle me-1"></i>Resume Work
+                            </button>
+                        </form>
                     @endif
 
                     @if($ticket->status === 'Closed')
@@ -358,6 +384,37 @@
         </div>
     </div>
 
+    {{-- Pause modal --}}
+    <div class="modal fade" id="pauseModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Pause <em>Support Request</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="pauseForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="resolve-info p-3 mb-3">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            <strong id="pauseRef"></strong> — the requestor will be emailed this
+                            reason right away. Work resumes once you click Resume Work.
+                        </div>
+                        <label class="form-label">What do you need from the requestor? <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="reason" rows="3" required
+                                  placeholder="e.g. Which laptop unit needs the backup — the old one or the replacement?"></textarea>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm">
+                            <i class="bi bi-pause-circle me-1"></i>Pause &amp; Notify Requestor
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <x-service-report-modal />
 @endsection
 
@@ -365,18 +422,21 @@
 <script>
 $(function () {
 
-    /* ── Search debounce ── */
-    let searchTimer;
-    $('#searchInput').on('input', function () {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => $('#searchForm').submit(), 500);
-    });
+    /* ── Search submits on Enter only (native form submit) — no more
+           reloading the page mid-keystroke while the user is still typing. ── */
 
     /* ── Resolve modal ── */
     window.openResolveModal = function (ticketId, ticketNumber) {
         $('#resolveRef').text('#' + ticketNumber);
         $('#resolveForm').attr('action', '/executive/tickets/' + ticketId + '/resolve');
         new bootstrap.Modal('#resolveModal').show();
+    };
+
+    /* ── Pause modal ── */
+    window.openPauseModal = function (ticketId, ticketNumber) {
+        $('#pauseRef').text('#' + ticketNumber);
+        $('#pauseForm').attr('action', '/executive/tickets/' + ticketId + '/pause');
+        new bootstrap.Modal('#pauseModal').show();
     };
 
 });
