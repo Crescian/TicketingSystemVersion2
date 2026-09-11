@@ -897,7 +897,11 @@
     {{-- Left: logo + badge --}}
     <div class="d-flex align-items-center gap-3">
       <a href="#" class="top-logo">Support Request<span> System</span></a>
-      <span class="exec-badge"><i class="bi bi-briefcase me-1"></i>Management View</span>
+      @if(Auth::user()->hasRole('Manager'))
+        <span class="exec-badge"><i class="bi bi-briefcase me-1"></i>Management View</span>
+      @else
+        <span class="exec-badge"><i class="bi bi-eye me-1"></i>Read-Only Executive View</span>
+      @endif
     </div>
 
     {{-- Right: date range + user + sign out --}}
@@ -912,6 +916,12 @@
       </div>
 
       <span class="top-date"><i class="bi bi-calendar3 me-1"></i>{{ now()->format('F j, Y') }}</span>
+
+      @unless(Auth::user()->hasRole('Manager'))
+        <a href="{{ route(Auth::user()->dashboardRoute()) }}" class="btn-exec-signout">
+          <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+        </a>
+      @endunless
 
       @if(!Auth::user()->hasRole('Employee') && !Route::is('my-requests.tickets.*'))
         <a href="{{ route('my-requests.tickets.index') }}" class="btn-exec-signout">

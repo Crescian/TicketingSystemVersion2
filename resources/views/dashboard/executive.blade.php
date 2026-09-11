@@ -205,10 +205,16 @@
                 <div class="greeting-sub" id="greetingSub">
                     Here's your IT Support overview for {{ $rangeLabel }}.
                 </div>
-                <a href="{{ route('executive.tickets.index') }}"
-                   style="display:inline-flex;align-items:center;gap:6px;margin-top:14px;background:var(--ex-yg);color:#161611;font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;padding:9px 20px;border-radius:50px;text-decoration:none">
-                    <i class="bi bi-inbox-fill"></i> View Support Request Queue
-                </a>
+                @if($user->role->role_name === 'Manager')
+                    <a href="{{ route('executive.tickets.index') }}"
+                       style="display:inline-flex;align-items:center;gap:6px;margin-top:14px;background:var(--ex-yg);color:#161611;font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;padding:9px 20px;border-radius:50px;text-decoration:none">
+                        <i class="bi bi-inbox-fill"></i> View Support Request Queue
+                    </a>
+                @else
+                    <span style="display:inline-flex;align-items:center;gap:6px;margin-top:14px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.6);font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;padding:9px 20px;border-radius:50px">
+                        <i class="bi bi-eye"></i> Read-Only Executive View
+                    </span>
+                @endif
             </div>
             <div class="d-flex gap-3 flex-wrap align-items-center">
                 <div style="text-align:center">
@@ -370,34 +376,29 @@
             <div class="chart-card h-100">
                 <div class="chart-title">Support Requests by Category</div>
                 <div class="chart-sub">Distribution across all request types</div>
-                <div class="chart-wrap d-flex align-items-center gap-4 mt-2">
-                    <canvas id="categoryChart" width="160" height="160" style="flex-shrink:0"></canvas>
-                    <div class="d-flex flex-column gap-2" style="flex:1">
+                {{-- Row 1: donut chart on its own row, full card width so it isn't squeezed
+                     beside the list and hover targets are big enough to actually use. --}}
+                <div class="chart-wrap d-flex justify-content-center mt-2">
+                    <canvas id="categoryChart" width="220" height="220"></canvas>
+                </div>
+
+                {{-- Row 2: full category list below the chart, not squeezed into a narrow
+                     flex column beside it. Every category present in the range, not a fixed
+                     top-N — kept in sync with the donut (same colors, same source) by
+                     updateKPIs() on range switch/poll. --}}
+                <div class="d-flex flex-column gap-2 mt-3" id="categoryLegend">
+                    @php $catColors = ['#f5c842', '#58a6ff', '#c8e63c', '#3fb950', '#f85149', '#d29922', '#a371f7', '#39c5cf', '#e3b341', '#7ee787', '#ff9bce', '#79c0ff']; @endphp
+                    @forelse($byCategory as $i => $cat)
+                        @php $catPct = $totalTickets > 0 ? round(($cat->total / $totalTickets) * 100) : 0; @endphp
                         <div class="d-flex justify-content-between align-items-center">
                             <span style="font-size:12px;font-weight:700;color:var(--ex-txt)"><span
-                                    style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f5c842;margin-right:6px"></span>Hardware</span>
-                            <span style="font-family:'Nunito',sans-serif;font-weight:800;font-size:13px">87 <span
-                                    style="color:var(--ex-muted);font-size:11px">35%</span></span>
+                                    style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ $catColors[$i % count($catColors)] }};margin-right:6px"></span>{{ $cat->request_category }}</span>
+                            <span style="font-family:'Nunito',sans-serif;font-weight:800;font-size:13px">{{ $cat->total }} <span
+                                    style="color:var(--ex-muted);font-size:11px">{{ $catPct }}%</span></span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span style="font-size:12px;font-weight:700;color:var(--ex-txt)"><span
-                                    style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ex-blue);margin-right:6px"></span>Software</span>
-                            <span style="font-family:'Nunito',sans-serif;font-weight:800;font-size:13px">74 <span
-                                    style="color:var(--ex-muted);font-size:11px">30%</span></span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span style="font-size:12px;font-weight:700;color:var(--ex-txt)"><span
-                                    style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ex-yg);margin-right:6px"></span>Network</span>
-                            <span style="font-family:'Nunito',sans-serif;font-weight:800;font-size:13px">49 <span
-                                    style="color:var(--ex-muted);font-size:11px">20%</span></span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span style="font-size:12px;font-weight:700;color:var(--ex-txt)"><span
-                                    style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ex-green);margin-right:6px"></span>Account</span>
-                            <span style="font-family:'Nunito',sans-serif;font-weight:800;font-size:13px">37 <span
-                                    style="color:var(--ex-muted);font-size:11px">15%</span></span>
-                        </div>
-                    </div>
+                    @empty
+                        <div style="font-size:12px;color:var(--ex-muted)">No support requests in this range.</div>
+                    @endforelse
                 </div>
             </div>
         </div>
@@ -752,10 +753,12 @@
                             <div class="chart-title">All Active Support Requests</div>
                             <div class="chart-sub">Every open support request across the organization — click Timeline for the full history</div>
                         </div>
-                        <a href="{{ route('executive.tickets.index') }}"
-                           style="font-size:12px;font-weight:800;color:var(--ex-yg);text-decoration:none">
-                            View Support Request Queue <i class="bi bi-arrow-right"></i>
-                        </a>
+                        @if($user->role->role_name === 'Manager')
+                            <a href="{{ route('executive.tickets.index') }}"
+                               style="font-size:12px;font-weight:800;color:var(--ex-yg);text-decoration:none">
+                                View Support Request Queue <i class="bi bi-arrow-right"></i>
+                            </a>
+                        @endif
                     </div>
                     <div class="d-flex flex-wrap gap-2 mt-3 mb-2">
                         <div class="ex-search-wrap">
@@ -954,17 +957,29 @@
                     if (gMedEl) gMedEl.closest('.gauge-ring').querySelector('.gauge-pct').textContent = (data.slaByPriority?.Medium ?? 100) + '%';
                     if (gLowEl) gLowEl.closest('.gauge-ring').querySelector('.gauge-pct').textContent = (data.slaByPriority?.Low ?? 100) + '%';
 
-                    /* ── Category donut ── */
+                    /* ── Category donut (+ legend, same source/colors — see #categoryLegend) ── */
                     if (categoryChartInstance) categoryChartInstance.destroy();
-                    const catColors = ['#f5c842', '#58a6ff', '#c8e63c', '#3fb950', '#f85149', '#d29922'];
+                    const catColors = ['#f5c842', '#58a6ff', '#c8e63c', '#3fb950', '#f85149', '#d29922', '#a371f7', '#39c5cf', '#e3b341', '#7ee787', '#ff9bce', '#79c0ff'];
                     categoryChartInstance = new Chart(document.getElementById('categoryChart'), {
                         type: 'doughnut',
                         data: {
                             labels: data.byCategory.map(c => c.request_category),
-                            datasets: [{ data: data.byCategory.map(c => c.total), backgroundColor: catColors.slice(0, data.byCategory.length), borderWidth: 0, borderRadius: 4, spacing: 2 }]
+                            datasets: [{ data: data.byCategory.map(c => c.total), backgroundColor: data.byCategory.map((c, i) => catColors[i % catColors.length]), borderWidth: 0, borderRadius: 4, spacing: 2 }]
                         },
                         options: { cutout: '65%', responsive: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + c.label + ': ' + c.raw + ' support requests' } } } }
                     });
+
+                    const catLegendEl = document.getElementById('categoryLegend');
+                    if (catLegendEl) {
+                        catLegendEl.innerHTML = data.byCategory.length ? data.byCategory.map((c, i) => {
+                            const pct = data.totalTickets > 0 ? Math.round((c.total / data.totalTickets) * 100) : 0;
+                            return `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span style="font-size:12px;font-weight:700;color:var(--ex-txt)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${catColors[i % catColors.length]};margin-right:6px"></span>${escHtml(c.request_category)}</span>
+                        <span style="font-family:'Nunito',sans-serif;font-weight:800;font-size:13px">${c.total} <span style="color:var(--ex-muted);font-size:11px">${pct}%</span></span>
+                    </div>`;
+                        }).join('') : '<div style="font-size:12px;color:var(--ex-muted)">No support requests in this range.</div>';
+                    }
 
                     /* ── Resolution time bar ── */
                     if (resTimeChartInstance) resTimeChartInstance.destroy();

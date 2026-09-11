@@ -144,7 +144,11 @@ class ExecutiveDashboardController extends Controller
 
         $totalTickets = DB::table('tickets')->whereBetween('created_at', [$start, $end])->count();
         $resolved = DB::table('tickets')->whereBetween('created_at', [$start, $end])->where('status', 'Closed')->count();
-        $escalations = DB::table('tickets')->whereBetween('created_at', [$start, $end])->where('status', 'Escalated')->count();
+        // Escalation events, not current ticket status: a ticket escalated during the window and
+        // since resolved no longer has status 'Escalated', so counting live status undercounted this
+        // KPI against the "SLA Breaches" figure above (and slaByPriority below), which both read the
+        // escalations log instead. Match that so the two numbers on the page can't disagree.
+        $escalations = DB::table('escalations')->whereBetween('escalated_at', [$start, $end])->count();
         $avgResolutionTime = DB::table('tickets')
             ->whereBetween('created_at', [$start, $end])
             ->where('status', 'Closed')
@@ -154,7 +158,7 @@ class ExecutiveDashboardController extends Controller
 
         $lastTotalTickets = DB::table('tickets')->whereBetween('created_at', [$lastStart, $lastEnd])->count();
         $lastResolved = DB::table('tickets')->whereBetween('created_at', [$lastStart, $lastEnd])->where('status', 'Closed')->count();
-        $lastEscalations = DB::table('tickets')->whereBetween('created_at', [$lastStart, $lastEnd])->where('status', 'Escalated')->count();
+        $lastEscalations = DB::table('escalations')->whereBetween('escalated_at', [$lastStart, $lastEnd])->count();
         $lastAvgTime = DB::table('tickets')
             ->whereBetween('created_at', [$lastStart, $lastEnd])
             ->where('status', 'Closed')
@@ -163,7 +167,7 @@ class ExecutiveDashboardController extends Controller
             ->value('avg_hours');
 
         $slaTotal = max(1, DB::table('tickets')->whereBetween('created_at', [$start, $end])->count());
-        $slaBreach = DB::table('escalations')->whereBetween('escalated_at', [$start, $end])->count();
+        $slaBreach = $escalations; // same underlying event log/window — kept as one source of truth
         $slaPercent = round((($slaTotal - $slaBreach) / $slaTotal) * 100);
         $avgRating = DB::table('ticket_feed_backs')->whereBetween('created_at', [$start, $end])->avg('rating') ?? 0;
 
@@ -200,19 +204,25 @@ class ExecutiveDashboardController extends Controller
             ->orderByDesc('total')
             ->get();
 
-        // By category
+        // By category — the free-text tickets.request_category column is legacy and left blank
+        // on virtually every ticket now that classification runs through sla_categories (see
+        // Tickets::slaCategory()), so grouping by it collapsed everything into 1-2 buckets and
+        // the "by category" total silently stopped matching Total Support Requests. Group by the
+        // real category instead; aliased back to request_category so the view/JS need no changes.
         $byCategory = DB::table('tickets')
-            ->whereBetween('created_at', [$start, $end])
-            ->selectRaw('request_category, COUNT(*) as total')
-            ->groupBy('request_category')->orderByDesc('total')->get();
+            ->leftJoin('sla_categories', 'sla_categories.id', '=', 'tickets.sla_category_id')
+            ->whereBetween('tickets.created_at', [$start, $end])
+            ->selectRaw("COALESCE(sla_categories.name, 'Uncategorized') as request_category, COUNT(*) as total")
+            ->groupBy('sla_categories.name')->orderByDesc('total')->get();
 
-        // Resolution time by category
+        // Resolution time by category — same real-category source as above.
         $resTimeByCategory = DB::table('tickets')
-            ->whereBetween('created_at', [$start, $end])
-            ->where('status', 'Closed')
-            ->whereNotNull('resolved_at')->whereNotNull('started_at')
-            ->selectRaw("request_category, ROUND(AVG(EXTRACT(EPOCH FROM (resolved_at - started_at)) / 3600)::numeric, 1) as avg_hours")
-            ->groupBy('request_category')->get();
+            ->leftJoin('sla_categories', 'sla_categories.id', '=', 'tickets.sla_category_id')
+            ->whereBetween('tickets.created_at', [$start, $end])
+            ->where('tickets.status', 'Closed')
+            ->whereNotNull('tickets.resolved_at')->whereNotNull('tickets.started_at')
+            ->selectRaw("COALESCE(sla_categories.name, 'Uncategorized') as request_category, ROUND(AVG(EXTRACT(EPOCH FROM (tickets.resolved_at - tickets.started_at)) / 3600)::numeric, 1) as avg_hours")
+            ->groupBy('sla_categories.name')->get();
 
         // Weekly data — most recent weekly buckets within the selected range (capped at 13)
         $weekBuckets = $bucketUnit === 'week' ? $volumeBuckets : $this->generateBuckets($start, $end, 'week', 13);
@@ -241,7 +251,12 @@ class ExecutiveDashboardController extends Controller
             ")
             ->groupBy('users.id', 'users.name', 'users.position')
             ->orderByDesc('resolved_count')
-            ->limit(5)
+            // Capped at 5 before, which silently cut every Supervisor - IT Admin out of the
+            // leaderboard (only 1 person in that role, always outranked by volume) even though
+            // the query itself never filtered by role. Raised to comfortably fit the full
+            // resolver roster (currently 8 active across Helpdesk/Specialist/Supervisor/Admin/
+            // Supervisor Admin) so every role stays visible, not just the highest-volume ones.
+            ->limit(10)
             ->get();
 
         // Open escalations — always current, regardless of the selected date range
@@ -409,7 +424,16 @@ class ExecutiveDashboardController extends Controller
             $query->where('ticket_type', $priority);
         }
 
-        $tickets = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
+        // Clamp to the real last page instead of handing Laravel's paginator a stale/out-of-range
+        // page number as-is. Without this, a client sitting on (say) page 5 whose tickets later
+        // drop out of the active set on a later auto-refresh (see fetchActiveTickets()'s 30s poll)
+        // keeps requesting page 5 forever: paginate() answers with 0 rows but still reports
+        // current_page=5, so the table goes empty and never recovers on its own.
+        $perPage = 15;
+        $lastPage = max(1, (int) ceil((clone $query)->count() / $perPage));
+        $page = max(1, min((int) $request->get('page', 1), $lastPage));
+
+        $tickets = $query->orderByDesc('created_at')->paginate($perPage, ['*'], 'page', $page)->withQueryString();
 
         $statuses = Tickets::whereNotIn('status', self::ACTIVE_TICKET_EXCLUDED_STATUSES)
             ->whereNotNull('status')

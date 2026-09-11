@@ -349,22 +349,33 @@ Route::middleware(['auth', 'role:Supervisor - Support Specialist', 'throttle:tic
             ->name('tickets.show');
     });
 
-// ── Executive routes
-Route::middleware(['auth', 'role:Manager', 'throttle:ticket-actions'])
+// ── Executive dashboard (view-only) — also reachable, read-only, by Supervisor
+// - Support Specialist and Helpdesk via the "Executive View" button on their
+// own dashboards. Ticket-management actions below stay Manager-only.
+Route::middleware(['auth', 'role:Manager,Supervisor - Support Specialist,Helpdesk', 'throttle:ticket-actions'])
     ->prefix('executive')
     ->name('executive.')
     ->group(function () {
         Route::get('/dashboard', [ExecutiveDashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard/data', [ExecutiveDashboardController::class, 'data'])->name('dashboard.data'); // ← add this
         Route::get('/dashboard/active-tickets', [ExecutiveDashboardController::class, 'activeTickets'])->name('dashboard.active-tickets');
+        // Read-only, and the "All Active Support Requests" panel's Timeline button (visible to
+        // all three roles above) calls this — belongs with the view-only routes, not the
+        // Manager-only ticket-management group below.
+        Route::get('/tickets/{ticket}/history', [ManagerTicketController::class, 'history'])->name('tickets.history');
+    });
 
+// ── Executive ticket management (Manager only)
+Route::middleware(['auth', 'role:Manager', 'throttle:ticket-actions'])
+    ->prefix('executive')
+    ->name('executive.')
+    ->group(function () {
         Route::get('/tickets', [ManagerTicketController::class, 'index'])->name('tickets.index');
         Route::post('/tickets/{ticket}/acknowledge', [ManagerTicketController::class, 'acknowledge'])->name('tickets.acknowledge')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/start-report', [ManagerTicketController::class, 'startReport'])->name('tickets.start-report')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/resolve', [ManagerTicketController::class, 'resolve'])->name('tickets.resolve')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/pause', [ManagerTicketController::class, 'pause'])->name('tickets.pause')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/resume', [ManagerTicketController::class, 'resume'])->name('tickets.resume')->middleware('idempotent:8');
-        Route::get('/tickets/{ticket}/history', [ManagerTicketController::class, 'history'])->name('tickets.history');
     });
 
 // ── Notifications (all authenticated users)
