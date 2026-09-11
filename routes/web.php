@@ -359,6 +359,7 @@ Route::middleware(['auth', 'role:Manager,Supervisor - Support Specialist,Helpdes
         Route::get('/dashboard', [ExecutiveDashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard/data', [ExecutiveDashboardController::class, 'data'])->name('dashboard.data'); // ← add this
         Route::get('/dashboard/active-tickets', [ExecutiveDashboardController::class, 'activeTickets'])->name('dashboard.active-tickets');
+        Route::get('/dashboard/aging-tickets', [ExecutiveDashboardController::class, 'agingTickets'])->name('dashboard.aging-tickets');
         // Read-only, and the "All Active Support Requests" panel's Timeline button (visible to
         // all three roles above) calls this — belongs with the view-only routes, not the
         // Manager-only ticket-management group below.

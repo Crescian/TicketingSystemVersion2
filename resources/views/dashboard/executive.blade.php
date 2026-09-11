@@ -34,8 +34,66 @@
         border: 1px solid rgba(125, 133, 144, .2);
     }
 
+    /* ── Aging report table: category rows bold/tinted, status rows indented under them ── */
+    .aging-cat-row td {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--ex-txt);
+        background: rgba(200, 230, 60, .03);
+    }
+
+    .aging-status-row td {
+        font-size: 12px;
+    }
+
+    .aging-status-label {
+        padding-left: 28px !important;
+        color: var(--ex-muted);
+    }
+
+    .aging-status-label::before {
+        content: '↳';
+        margin-right: 6px;
+        color: var(--ex-bd);
+    }
+
+    .aging-total-row td {
+        font-weight: 900;
+        font-size: 13px;
+        color: var(--ex-yg);
+        border-top: 2px solid var(--ex-bd);
+        background: rgba(200, 230, 60, .05);
+    }
+
+    /* ── Clickable aging counts — drill into the matching support request list ── */
+    .aging-cell-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0;
+        font: inherit;
+        font-weight: 800;
+        cursor: pointer;
+        color: inherit;
+    }
+
+    .aging-cell-btn:hover {
+        text-decoration: underline;
+        opacity: .85;
+    }
+
+    .aging-total-badge {
+        cursor: pointer;
+        font: inherit;
+    }
+
+    .aging-total-badge:hover {
+        opacity: .85;
+    }
+
     /* ── Dark-themed modal (Bootstrap defaults are light) ── */
-    #timelineModal .modal-content {
+    #timelineModal .modal-content,
+    #agingListModal .modal-content {
         background: var(--ex-card);
         border: 1px solid var(--ex-bd);
         border-radius: 16px;
@@ -43,12 +101,28 @@
     }
 
     #timelineModal .modal-header,
-    #timelineModal .modal-footer {
+    #timelineModal .modal-footer,
+    #agingListModal .modal-header,
+    #agingListModal .modal-footer {
         border-color: var(--ex-bd);
     }
 
-    #timelineModal .btn-close {
+    #timelineModal .btn-close,
+    #agingListModal .btn-close {
         filter: invert(1) grayscale(100%) brightness(200%);
+    }
+
+    /* ── Aging list modal: header row + zebra-free table match the rest of the dark UI ── */
+    #agingListModal .modal-header {
+        align-items: flex-start;
+    }
+
+    #agingListModal .lb-table thead th {
+        background: var(--ex-card2);
+    }
+
+    #agingListModal .lb-table tbody tr:hover {
+        background: rgba(200, 230, 60, .04);
     }
 
     .tl-item {
@@ -442,6 +516,119 @@
             </div>
         </div>
 
+    </div>
+
+    {{-- ── Row 3.5: Support Request Aging by Category & Status ── --}}
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="chart-card">
+                <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
+                    <div>
+                        <div class="chart-title">Support Request Aging by Category & Status</div>
+                        <div class="chart-sub">Open support requests, grouped by category and status, bucketed by
+                            days since creation — always current</div>
+                    </div>
+                    <button type="button" id="agingTotalBadge" class="aging-total-badge"
+                        onclick="openAgingList('', '', '')"
+                        style="background:rgba(200,230,60,.12);color:var(--ex-yg);font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;border:1px solid rgba(200,230,60,.25)">
+                        {{ $aging['grandTotal'] }} open
+                    </button>
+                </div>
+                <div class="chart-sub mb-1">Click any count to see the matching support requests and who's assigned or pending.</div>
+                <div class="table-responsive">
+                    <table class="lb-table aging-table mt-2">
+                        <thead>
+                            <tr>
+                                <th>Category / Status</th>
+                                @foreach($aging['buckets'] as $bucket)
+                                    <th style="text-align:center">{{ $bucket }}d</th>
+                                @endforeach
+                                <th style="text-align:right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agingBody">
+                            @php
+                                $agingColors = [
+                                    '0-7' => '#3fb950',
+                                    '8-14' => '#c8e63c',
+                                    '15-30' => '#d29922',
+                                    '31-60' => '#f0883e',
+                                    '61-90' => '#f85149',
+                                    '90+' => '#ff2d2d',
+                                ];
+                            @endphp
+                            @forelse($aging['categories'] as $cat)
+                                <tr class="aging-cat-row">
+                                    <td>{{ $cat['category'] }}</td>
+                                    @foreach($aging['buckets'] as $bucket)
+                                        @php $count = $cat['buckets'][$bucket]; @endphp
+                                        <td style="text-align:center">
+                                            @if($count > 0)
+                                                <button type="button" class="aging-cell-btn" style="color:{{ $agingColors[$bucket] }}"
+                                                    data-category="{{ $cat['category'] }}" data-status="" data-bucket="{{ $bucket }}">{{ $count }}</button>
+                                            @else
+                                                <span style="color:var(--ex-muted)">—</span>
+                                            @endif
+                                        </td>
+                                    @endforeach
+                                    <td style="text-align:right">
+                                        <button type="button" class="aging-cell-btn"
+                                            data-category="{{ $cat['category'] }}" data-status="" data-bucket="">{{ $cat['total'] }}</button>
+                                    </td>
+                                </tr>
+                                @foreach($cat['statuses'] as $st)
+                                    <tr class="aging-status-row">
+                                        <td class="aging-status-label">{{ $st['status'] }}</td>
+                                        @foreach($aging['buckets'] as $bucket)
+                                            @php $count = $st['buckets'][$bucket]; @endphp
+                                            <td style="text-align:center">
+                                                @if($count > 0)
+                                                    <button type="button" class="aging-cell-btn" style="color:{{ $agingColors[$bucket] }}"
+                                                        data-category="{{ $cat['category'] }}" data-status="{{ $st['status'] }}" data-bucket="{{ $bucket }}">{{ $count }}</button>
+                                                @else
+                                                    <span style="color:var(--ex-muted)">—</span>
+                                                @endif
+                                            </td>
+                                        @endforeach
+                                        <td style="text-align:right">
+                                            <button type="button" class="aging-cell-btn" style="color:var(--ex-muted)"
+                                                data-category="{{ $cat['category'] }}" data-status="{{ $st['status'] }}" data-bucket="">{{ $st['total'] }}</button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            @empty
+                                <tr>
+                                    <td colspan="{{ count($aging['buckets']) + 2 }}"
+                                        style="text-align:center;color:var(--ex-muted);padding:20px">
+                                        No open support requests right now.
+                                    </td>
+                                </tr>
+                            @endforelse
+                            @if(count($aging['categories']))
+                                <tr class="aging-total-row">
+                                    <td>All Categories</td>
+                                    @foreach($aging['buckets'] as $bucket)
+                                        @php $count = $aging['grandTotals'][$bucket]; @endphp
+                                        <td style="text-align:center">
+                                            @if($count > 0)
+                                                <button type="button" class="aging-cell-btn"
+                                                    data-category="" data-status="" data-bucket="{{ $bucket }}">{{ $count }}</button>
+                                            @else
+                                                <span>—</span>
+                                            @endif
+                                        </td>
+                                    @endforeach
+                                    <td style="text-align:right">
+                                        <button type="button" class="aging-cell-btn"
+                                            data-category="" data-status="" data-bucket="">{{ $aging['grandTotal'] }}</button>
+                                    </td>
+                                </tr>
+                            @endif
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
     {{-- ── Row 4: Leaderboard + Escalations + Period compare ── --}}
@@ -893,6 +1080,40 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="agingListModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="mb-0">Support Requests — <em id="agingListTitle" style="color:var(--ex-yg)"></em></h5>
+                        <div id="agingListCount" style="font-size:12px;color:var(--ex-muted);margin-top:2px"></div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body px-4 py-3" style="max-height:65vh;overflow-y:auto">
+                    <div class="table-responsive">
+                        <table class="lb-table">
+                            <thead>
+                                <tr>
+                                    <th>Support Request</th>
+                                    <th>Requester</th>
+                                    <th>Status</th>
+                                    <th>Assigned / Pending</th>
+                                    <th>Age</th>
+                                    <th style="text-align:right">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="agingListBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="rt-btn" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
     {{-- ══ CHART SCRIPTS ══ --}}
@@ -1221,6 +1442,9 @@
                         }).join('') || '<div style="color:var(--ex-muted);font-size:12px;grid-column:1/-1">No data for this period.</div>';
                     }
 
+                    // ── Support Request Aging by Category & Status
+                    renderAging(data);
+
                     // ── IT Team Status
                     const itTeamBody = document.getElementById('itTeamBody');
                     if (itTeamBody && data.itTeamStatus) {
@@ -1259,6 +1483,48 @@
                             }).join('');
                         }
                     }
+                }
+
+                // ── Support Request Aging by Category & Status — rebuilds the aging table
+                // (category rows + indented status sub-rows + grand-total row) from JSON.
+                const AGING_COLORS = { '0-7': '#3fb950', '8-14': '#c8e63c', '15-30': '#d29922', '31-60': '#f0883e', '61-90': '#f85149', '90+': '#ff2d2d' };
+
+                function renderAging(data) {
+                    const body = document.getElementById('agingBody');
+                    const badge = document.getElementById('agingTotalBadge');
+                    if (!body || !data.aging) return;
+
+                    const buckets = data.aging.buckets;
+
+                    if (badge) badge.textContent = `${data.aging.grandTotal} open`;
+
+                    if (!data.aging.categories.length) {
+                        body.innerHTML = `<tr><td colspan="${buckets.length + 2}" style="text-align:center;color:var(--ex-muted);padding:20px">No open support requests right now.</td></tr>`;
+                        return;
+                    }
+
+                    const cell = (count, bucket, category, status) => {
+                        if (count > 0) {
+                            return `<td style="text-align:center"><button type="button" class="aging-cell-btn" style="color:${AGING_COLORS[bucket]}" data-category="${escHtml(category)}" data-status="${escHtml(status)}" data-bucket="${bucket}">${count}</button></td>`;
+                        }
+                        return `<td style="text-align:center"><span style="color:var(--ex-muted)">—</span></td>`;
+                    };
+                    const totalBtn = (total, category, status) =>
+                        `<button type="button" class="aging-cell-btn" data-category="${escHtml(category)}" data-status="${escHtml(status)}" data-bucket="">${total}</button>`;
+
+                    const rows = data.aging.categories.map(cat => {
+                        const catCells = buckets.map(b => cell(cat.buckets[b], b, cat.category, '')).join('');
+                        const statusRows = cat.statuses.map(st => {
+                            const stCells = buckets.map(b => cell(st.buckets[b], b, cat.category, st.status)).join('');
+                            return `<tr class="aging-status-row"><td class="aging-status-label">${escHtml(st.status)}</td>${stCells}<td style="text-align:right;color:var(--ex-muted)">${totalBtn(st.total, cat.category, st.status)}</td></tr>`;
+                        }).join('');
+                        return `<tr class="aging-cat-row"><td>${escHtml(cat.category)}</td>${catCells}<td style="text-align:right">${totalBtn(cat.total, cat.category, '')}</td></tr>${statusRows}`;
+                    }).join('');
+
+                    const totalCells = buckets.map(b => cell(data.aging.grandTotals[b], b, '', '')).join('');
+                    const totalRow = `<tr class="aging-total-row"><td>All Categories</td>${totalCells}<td style="text-align:right">${totalBtn(data.aging.grandTotal, '', '')}</td></tr>`;
+
+                    body.innerHTML = rows + totalRow;
                 }
 
                 // ── Helper: time ago
@@ -1457,6 +1723,81 @@
                         .catch(() => {
                             $('#timelineBody').html('<div style="color:var(--ex-red)">Failed to load timeline.</div>');
                         });
+                };
+
+                /* ══ Aging drill-down: click any count in the aging table to list its tickets ══ */
+
+                // Delegated so it keeps working after renderAging() rebuilds #agingBody on refresh.
+                $(document).on('click', '.aging-cell-btn', function () {
+                    const el = $(this);
+                    openAgingList(el.data('category') ?? '', el.data('status') ?? '', el.data('bucket') ?? '');
+                });
+
+                window.openAgingList = function (category, status, bucket) {
+                    const titleParts = [category || 'All Categories'];
+                    if (status) titleParts.push(status);
+                    titleParts.push(bucket ? `${bucket} days` : 'all ages');
+                    $('#agingListTitle').text(titleParts.join(' · '));
+                    $('#agingListCount').text('');
+                    $('#agingListBody').html(`
+                        <tr><td colspan="6" style="text-align:center;color:var(--ex-muted);padding:20px">
+                            <div class="spinner-border spinner-border-sm me-2"></div>Loading…
+                        </td></tr>
+                    `);
+                    new bootstrap.Modal('#agingListModal').show();
+
+                    const params = new URLSearchParams({ category: category || '', status: status || '', bucket: bucket || '' });
+                    fetch('{{ route('executive.dashboard.aging-tickets') }}?' + params.toString(), {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                    })
+                        .then(r => r.json())
+                        .then(renderAgingList)
+                        .catch(() => {
+                            $('#agingListBody').html('<tr><td colspan="6" style="text-align:center;color:var(--ex-red);padding:20px">Failed to load support requests.</td></tr>');
+                        });
+                };
+
+                function renderAgingList(data) {
+                    const body = document.getElementById('agingListBody');
+                    if (!body) return;
+
+                    const countEl = document.getElementById('agingListCount');
+                    if (countEl) countEl.textContent = `${data.total} support request${data.total === 1 ? '' : 's'}`;
+
+                    if (!data.tickets.length) {
+                        body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--ex-muted);padding:20px">No support requests match this slice.</td></tr>`;
+                        return;
+                    }
+
+                    body.innerHTML = data.tickets.map(t => {
+                        const who = t.assigned_to_name
+                            ? escHtml(t.assigned_to_name)
+                            : `<span style="color:var(--ex-amber)">Pending: ${escHtml(t.pending_role || 'Unassigned')}</span>`;
+                        return `
+                            <tr>
+                                <td>
+                                    <div style="font-weight:800;font-size:13px;color:var(--ex-txt)">#${escHtml(t.ticket_number)}</div>
+                                    <div style="font-size:12px;color:var(--ex-muted)">${escHtml((t.subject || '').slice(0, 40))}</div>
+                                </td>
+                                <td style="font-size:12px;color:var(--ex-muted)">${escHtml(t.requester_name)}</td>
+                                <td><span class="esc-badge ${activeTicketsBadgeClass(t.status)}">${escHtml(t.status)}</span></td>
+                                <td style="font-size:12px">${who}</td>
+                                <td style="font-size:12px;color:var(--ex-muted)">${t.age_days}d</td>
+                                <td style="text-align:right">
+                                    <button type="button" class="rt-btn" onclick="openDetailsFromAgingList('${t.id}', '${escHtml(t.ticket_number)}')">
+                                        <i class="bi bi-clock-history me-1"></i>Details
+                                    </button>
+                                </td>
+                            </tr>`;
+                    }).join('');
+                }
+
+                // Swaps the aging list modal for the existing ticket-timeline modal — Bootstrap
+                // doesn't stack modals cleanly, so hide this one before opening that one.
+                window.openDetailsFromAgingList = function (ticketId, ticketNumber) {
+                    const modalEl = document.getElementById('agingListModal');
+                    bootstrap.Modal.getInstance(modalEl)?.hide();
+                    openTimelineModal(ticketId, ticketNumber);
                 };
 
             });

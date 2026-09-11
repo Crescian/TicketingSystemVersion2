@@ -26,6 +26,17 @@ class ExecutiveDashboardController extends Controller
 
     private const ACTIVE_TICKET_EXCLUDED_STATUSES = [TicketStatus::CLOSED, TicketStatus::CANCELLED];
 
+    // ── Aging report buckets, in days since tickets.created_at. Upper bound is inclusive;
+    // the last bucket (90+) has no upper bound.
+    private const AGING_BUCKETS = [
+        '0-7' => [0, 7],
+        '8-14' => [8, 14],
+        '15-30' => [15, 30],
+        '31-60' => [31, 60],
+        '61-90' => [61, 90],
+        '90+' => [91, PHP_INT_MAX],
+    ];
+
     public function index(Request $request)
     {
         $user = Auth::user()->load('role');
@@ -259,6 +270,9 @@ class ExecutiveDashboardController extends Controller
             ->limit(10)
             ->get();
 
+        // Aging report — always current (backlog health), regardless of the selected date range
+        $aging = $this->agingReport();
+
         // Open escalations — always current, regardless of the selected date range
         $openEscalations = DB::table('escalations')
             ->join('tickets', 'tickets.id', '=', 'escalations.ticket_id')
@@ -330,6 +344,7 @@ class ExecutiveDashboardController extends Controller
             'byCategory',
             'resTimeByCategory',
             'leaderboard',
+            'aging',
             'openEscalations',
             'weeklyData',
             'totalFeedback',
@@ -390,6 +405,164 @@ class ExecutiveDashboardController extends Controller
                 };
                 return $member;
             });
+    }
+
+    // tickets.created_at is a plain `timestamp` column with no zone attached, and
+    // Eloquent (and now()) write/read it as config('app.timezone') = Asia/Manila
+    // wall-clock digits. Postgres's NOW() is UTC — so a raw "NOW() - created_at" in
+    // SQL implicitly compares UTC-now against Manila-labelled digits and is off by
+    // the zone offset (verified: it under-counts age by ~8h, enough to misbucket
+    // tickets near a day boundary). PHP-side Carbon::parse(...)/now() both resolve
+    // through the same app timezone, so diffing there gives the real elapsed time.
+    // Every age_days computation in this controller must go through this helper —
+    // never "NOW() - created_at" in raw SQL — so the aging report and its
+    // agingTickets() drill-down can't disagree.
+    private function parseCreatedAt(string $createdAt): \Illuminate\Support\Carbon
+    {
+        return \Illuminate\Support\Carbon::parse($createdAt, config('app.timezone'));
+    }
+
+    // Carbon 3 changed diffInDays() to return a signed value by default (negative
+    // when $createdAt is in the past relative to now), so an un-abs'd diff silently
+    // floors to 0 for every ticket — always landing in the "0-7" bucket. Force the
+    // absolute (unsigned) diff here.
+    private function ticketAgeDays(\Illuminate\Support\Carbon $createdAt): int
+    {
+        return (int) now()->diffInDays($createdAt, true);
+    }
+
+    private function agingBucketFor(int $days): string
+    {
+        foreach (self::AGING_BUCKETS as $label => [$min, $max]) {
+            if ($days >= $min && $days <= $max) {
+                return $label;
+            }
+        }
+        return '90+';
+    }
+
+    // ── "Support Request Aging" panel: every open ticket (excludes Closed/Cancelled,
+    // same set as the "All Active Tickets" panel), grouped by category, then by status
+    // within that category, then bucketed by age (days since created_at) — surfaces
+    // backlog that's quietly getting old inside a category/status combo a plain
+    // "by category" total would hide. Always current, not date-range scoped, since it
+    // describes the state of the backlog right now rather than activity in a window.
+    private function agingReport(): array
+    {
+        $bucketLabels = array_keys(self::AGING_BUCKETS);
+
+        $rows = DB::table('tickets')
+            ->leftJoin('sla_categories', 'sla_categories.id', '=', 'tickets.sla_category_id')
+            ->whereNotIn('tickets.status', self::ACTIVE_TICKET_EXCLUDED_STATUSES)
+            ->selectRaw("
+                COALESCE(sla_categories.name, 'Uncategorized') as category,
+                tickets.status as status,
+                tickets.created_at
+            ")
+            ->get();
+
+        $categories = [];
+        foreach ($rows as $row) {
+            $category = $row->category;
+            $status = $row->status ?? 'Unknown';
+            // Bucketed with the same PHP-side helper agingTickets() uses (rather than
+            // computing age_days in SQL with NOW()) so the report and its drill-down
+            // list can never disagree — see ticketAgeDays()'s docblock for why a raw
+            // SQL "NOW() - created_at" is wrong on this schema.
+            $bucket = $this->agingBucketFor($this->ticketAgeDays($this->parseCreatedAt($row->created_at)));
+
+            if (!isset($categories[$category])) {
+                $categories[$category] = [
+                    'category' => $category,
+                    'buckets' => array_fill_keys($bucketLabels, 0),
+                    'total' => 0,
+                    'statuses' => [],
+                ];
+            }
+            if (!isset($categories[$category]['statuses'][$status])) {
+                $categories[$category]['statuses'][$status] = [
+                    'status' => $status,
+                    'buckets' => array_fill_keys($bucketLabels, 0),
+                    'total' => 0,
+                ];
+            }
+
+            $categories[$category]['buckets'][$bucket]++;
+            $categories[$category]['total']++;
+            $categories[$category]['statuses'][$status]['buckets'][$bucket]++;
+            $categories[$category]['statuses'][$status]['total']++;
+        }
+
+        $categoryRows = collect($categories)
+            ->sortByDesc('total')
+            ->map(function ($cat) {
+                $cat['statuses'] = collect($cat['statuses'])->sortByDesc('total')->values()->all();
+                return $cat;
+            })
+            ->values();
+
+        $grandTotals = array_fill_keys($bucketLabels, 0);
+        foreach ($categoryRows as $cat) {
+            foreach ($cat['buckets'] as $bucket => $count) {
+                $grandTotals[$bucket] += $count;
+            }
+        }
+
+        return [
+            'buckets' => $bucketLabels,
+            'categories' => $categoryRows->all(),
+            'grandTotals' => $grandTotals,
+            'grandTotal' => array_sum($grandTotals),
+        ];
+    }
+
+    // ── AJAX endpoint backing the aging table's clickable cells — lists the open
+    // tickets behind one category/status/age-bucket slice. Any of the three filters
+    // may be blank to widen the slice (e.g. the "All Categories" total row omits
+    // category; a category's own Total cell omits status and bucket). Reuses
+    // agingBucketFor() so a ticket's bucket here always matches the count it was
+    // clicked from.
+    public function agingTickets(Request $request)
+    {
+        $category = trim((string) $request->get('category', ''));
+        $status = trim((string) $request->get('status', ''));
+        $bucket = trim((string) $request->get('bucket', ''));
+
+        $query = Tickets::with(['user', 'assignedTo', 'slaCategory'])
+            ->whereNotIn('status', self::ACTIVE_TICKET_EXCLUDED_STATUSES);
+
+        if ($status !== '') {
+            $query->where('status', $status);
+        }
+
+        $tickets = $query->orderByDesc('created_at')->get()
+            ->filter(function ($t) use ($category, $bucket) {
+                if ($category !== '' && ($t->slaCategory->name ?? 'Uncategorized') !== $category) {
+                    return false;
+                }
+                if ($bucket !== '' && $this->agingBucketFor($this->ticketAgeDays($t->created_at)) !== $bucket) {
+                    return false;
+                }
+                return true;
+            })
+            ->values();
+
+        return response()->json([
+            'tickets' => $tickets->take(200)->map(fn ($t) => [
+                'id' => $t->id,
+                'ticket_number' => $t->ticket_number,
+                'subject' => $t->subject,
+                'requester_name' => $t->user->name ?? 'Unknown',
+                'status' => $t->status,
+                'pending_role' => $t->pending_role,
+                'assigned_to_name' => $t->assignedTo->name ?? null,
+                'priority' => $t->ticket_type,
+                'category' => $t->slaCategory->name ?? 'Uncategorized',
+                'created_at' => optional($t->created_at)->toISOString(),
+                'age_days' => $this->ticketAgeDays($t->created_at),
+            ])->values(),
+            'total' => $tickets->count(),
+        ]);
     }
 
     // ── Shared query for the "All Active Tickets" panel — org-wide, excludes
