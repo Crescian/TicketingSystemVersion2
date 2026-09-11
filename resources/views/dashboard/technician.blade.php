@@ -1039,12 +1039,12 @@
                         </button>
                     @endif
 
-                    {{-- Closed: View Details (full history, since the timeline strip only shows for In Progress) --}}
+                    {{-- View Details (full timeline) — available for every status, not just Closed --}}
+                    <button type="button" class="btn-view-detail"
+                            data-bs-toggle="modal" data-bs-target="#detailModal-{{ $ticket->id }}">
+                        <i class="bi bi-eye me-1"></i>View Details
+                    </button>
                     @if($ticket->status === 'Closed')
-                        <button type="button" class="btn-view-detail"
-                                data-bs-toggle="modal" data-bs-target="#detailModal-{{ $ticket->id }}">
-                            <i class="bi bi-eye me-1"></i>View Details
-                        </button>
                         <button type="button" class="btn-service-report"
                                 onclick="openServiceReportPreview('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-file-earmark-pdf me-1"></i>Service Report
@@ -1053,8 +1053,7 @@
                 </div>
             </div>
 
-            {{-- Ticket detail modal (Closed tickets — full history, no longer shown in the timeline strip) --}}
-            @if($ticket->status === 'Closed')
+            {{-- Ticket detail modal — full status history timeline, available regardless of status --}}
                 <div class="modal fade" id="detailModal-{{ $ticket->id }}" tabindex="-1">
                     <div class="modal-dialog modal-dialog-centered modal-lg">
                         <div class="modal-content">
@@ -1064,9 +1063,47 @@
                             </div>
                             <div class="modal-body px-4 py-4">
                                 <div class="d-flex flex-wrap gap-3 mb-3">
-                                    <span class="badge-status badge-resolved">
-                                        <i class="bi bi-check-circle me-1"></i>Closed
-                                    </span>
+                                    @if($isNew)
+                                        <span class="badge-status badge-new">
+                                            <i class="bi bi-bell me-1"></i>For Acknowledgment
+                                        </span>
+                                    @elseif($isAcknowledged)
+                                        <span class="badge-status badge-acknowledged" style="background:var(--ygl);color:var(--gd)">
+                                            <i class="bi bi-eye me-1"></i>Ready to Start
+                                        </span>
+                                    @elseif($ticket->status === 'In Progress Service Report')
+                                        <span class="badge-status badge-in-progress">
+                                            <i class="bi bi-file-earmark-text me-1"></i>In Progress Service Report
+                                        </span>
+                                    @elseif($isInProgress)
+                                        <span class="badge-status badge-in-progress">
+                                            <i class="bi bi-arrow-repeat me-1"></i>In Progress Service Request
+                                        </span>
+                                    @elseif($isOnHold)
+                                        <span class="badge-status" style="background:#fff4cc;color:#8a6d00">
+                                            <i class="bi bi-pause-circle me-1"></i>On Hold
+                                        </span>
+                                    @elseif($isEscalated)
+                                        <span class="badge-status badge-escalated">
+                                            <i class="bi bi-exclamation-triangle me-1"></i>Escalated
+                                        </span>
+                                    @elseif($ticket->status === 'Report For Review')
+                                        <span class="badge-status" style="background:#fff4cc;color:#8a6d00">
+                                            <i class="bi bi-hourglass-split me-1"></i>Report For Review
+                                        </span>
+                                    @elseif($ticket->status === 'Approved Service Report')
+                                        <span class="badge-status" style="background:#fff4cc;color:#8a6d00">
+                                            <i class="bi bi-hourglass-split me-1"></i>Approved Service Report
+                                        </span>
+                                    @elseif($ticket->status === 'Requestor Confirmation')
+                                        <span class="badge-status" style="background:#e6f0ff;color:#1a4d8f">
+                                            <i class="bi bi-person-check me-1"></i>Requestor Confirmation
+                                        </span>
+                                    @elseif($isClosed)
+                                        <span class="badge-status badge-resolved">
+                                            <i class="bi bi-check-circle me-1"></i>Closed
+                                        </span>
+                                    @endif
                                     <span class="badge-type">{{ $ticket->request_category }}</span>
                                     <span class="meta-item">
                                         <span class="priority-dot {{ $priorityClass }}"></span>
@@ -1138,7 +1175,6 @@
                         </div>
                     </div>
                 </div>
-            @endif
           @empty
             <div class="ticket-card p-5 text-center">
                 <div style="font-size:48px;opacity:.3">🛠️</div>
