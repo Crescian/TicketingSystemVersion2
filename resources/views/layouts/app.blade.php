@@ -1029,9 +1029,9 @@
                         <i class="bi bi-ticket-perforated me-1"></i>My Requests
                     </a>
                 @endif
-                {{-- Read-only access to the Executive dashboard, authorized for these two
+                {{-- Read-only access to the Executive dashboard, authorized for these
                      support-tier roles alongside Manager (see routes/web.php executive group). --}}
-                @if((Auth::user()->hasRole('Helpdesk') || Auth::user()->hasRole('Supervisor - Support Specialist')) && !Route::is('executive.*'))
+                @if((Auth::user()->hasRole('Helpdesk') || Auth::user()->hasRole('Supervisor - Support Specialist') || Auth::user()->hasRole('Supervisor - IT Admin')) && !Route::is('executive.*'))
                     <a href="{{ route('executive.dashboard') }}" class="btn-back-dashboard">
                         <i class="bi bi-graph-up-arrow me-1"></i>Executive View
                     </a>

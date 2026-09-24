@@ -733,11 +733,12 @@ class TicketController extends Controller
         );
     }
 
-    // Full-page support request details for the assigned admin
+    // Full-page ticket details. Any IT Admin can view a ticket to triage/monitor it
+    // even when it's assigned to a teammate (see SupervisorDashboardController::show());
+    // the role:IT Admin route middleware is the visibility boundary here. Actions that
+    // change the ticket (acknowledge/start/resolve/etc.) still go through authorizeAdmin().
     public function show(Tickets $ticket)
     {
-        $this->authorizeAdmin($ticket);
-
         $ticket->load(['user.department', 'assignedTo.role', 'statusHistories.changedBy', 'feedback', 'attachments.uploader', 'slaCategory']);
 
         return view('admin.ticket-detail', compact('ticket'));

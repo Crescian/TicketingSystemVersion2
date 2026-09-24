@@ -840,7 +840,7 @@
                         <i class="bi bi-eye me-1"></i>View Details
                     </a>
 
-                    @if($ticket->status === 'Closed')
+                    @if(in_array($ticket->status, ['Requestor Confirmation', 'Closed'], true))
                         <button type="button" class="btn-service-report"
                                 onclick="openServiceReportPreview('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
                             <i class="bi bi-file-earmark-pdf me-1"></i>Service Report

@@ -26,6 +26,41 @@ class ExecutiveDashboardController extends Controller
 
     private const ACTIVE_TICKET_EXCLUDED_STATUSES = [TicketStatus::CLOSED, TicketStatus::CANCELLED];
 
+    // ── Lifecycle order for the "Status Aging" panel — TicketStatus::PIPELINE plus
+    // the statuses it deliberately leaves out (FOR_CLASSIFICATION, a Helpdesk-only
+    // sub-step of FOR_ACKNOWLEDGMENT; ON_HOLD and CANCELLED, both off-pipeline
+    // detours — see TicketStatus's docblock) placed where they actually occur/end
+    // up in a ticket's life, so the table reads start-to-end instead of by count.
+    private const STATUS_ORDER = [
+        TicketStatus::FOR_ACKNOWLEDGMENT,
+        TicketStatus::FOR_CLASSIFICATION,
+        TicketStatus::CLASSIFIED,
+        TicketStatus::ASSIGNED,
+        TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
+        TicketStatus::CLOSED_SERVICE_REQUEST,
+        TicketStatus::IN_PROGRESS_SERVICE_REPORT,
+        TicketStatus::DONE_SERVICE_REPORT,
+        TicketStatus::REPORT_FOR_REVIEW,
+        TicketStatus::APPROVED_SERVICE_REPORT,
+        TicketStatus::ESCALATED,
+        TicketStatus::REQUESTOR_CONFIRMATION,
+        TicketStatus::CLOSED,
+        TicketStatus::ON_HOLD,
+        TicketStatus::CANCELLED,
+    ];
+
+    // ── Statuses where the next action is the assigned IT member's own — the only ones
+    // "IT Team Aging" counts against a member. Everything else is waiting on someone else:
+    // a role queue (pending_role set), the supervisor (Report For Review / Approved), the
+    // requester (Requestor Confirmation / On Hold), or nobody (Closed / Cancelled).
+    private const MEMBER_ACTION_STATUSES = [
+        TicketStatus::ASSIGNED,
+        TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
+        TicketStatus::CLOSED_SERVICE_REQUEST,
+        TicketStatus::IN_PROGRESS_SERVICE_REPORT,
+        TicketStatus::DONE_SERVICE_REPORT,
+    ];
+
     // ── Aging report buckets, in days since tickets.created_at. Upper bound is inclusive;
     // the last bucket (90+) has no upper bound.
     private const AGING_BUCKETS = [
@@ -41,24 +76,19 @@ class ExecutiveDashboardController extends Controller
     {
         $user = Auth::user()->load('role');
         $greeting = $this->getGreeting();
-        $range = $request->get('range', '30D');
+        $range = $request->get('range', 'YTD');
 
         // ── Get all data from shared method
         $data = $this->buildDashboardData($range);
 
         $itTeamStatus = $this->itTeamStatus();
 
-        $activeTicketsPage = $this->activeTicketsData($request);
-
         return view('dashboard.executive', array_merge($data, compact(
             'user',
             'greeting',
             'range',
             'itTeamStatus',
-        ), [
-            'activeTickets' => $activeTicketsPage['tickets'],
-            'activeTicketStatuses' => $activeTicketsPage['statuses'],
-        ]));
+        )));
     }
 
     // ── Date window for the selected range button — drives every date-bounded stat
@@ -140,7 +170,7 @@ class ExecutiveDashboardController extends Controller
     }
 
     // ── Shared data logic extracted to avoid duplication
-    private function buildDashboardData(string $range = '30D'): array
+    private function buildDashboardData(string $range = 'YTD'): array
     {
         $window = $this->rangeWindows($range);
         $start = $window['start'];
@@ -205,13 +235,18 @@ class ExecutiveDashboardController extends Controller
             $slaByPriority[$priority] = round((($total - $breached) / $total) * 100);
         }
 
-        // By department
+        // By department — grouped per department row (not by name) and labelled with its
+        // company, since the same department name exists under several companies. Left joins
+        // so requesters with no department still count (as "No department") and the bars add
+        // up to Total Support Requests.
         $byDepartment = DB::table('tickets')
             ->join('users', 'users.id', '=', 'tickets.users_id')
-            ->join('departments', 'departments.id', '=', 'users.department_id')
+            ->leftJoin('departments', 'departments.id', '=', 'users.department_id')
+            ->leftJoin('companies', 'companies.id', '=', 'departments.companies_id')
             ->whereBetween('tickets.created_at', [$start, $end])
-            ->selectRaw('departments.department_name, COUNT(*) as total')
-            ->groupBy('departments.department_name')
+            ->selectRaw("COALESCE(departments.department_name, 'No department') as department_name,
+                COALESCE(companies.company_name, '—') as company_name, COUNT(*) as total")
+            ->groupBy('departments.id', 'departments.department_name', 'companies.company_name')
             ->orderByDesc('total')
             ->get();
 
@@ -273,23 +308,50 @@ class ExecutiveDashboardController extends Controller
         // Aging report — always current (backlog health), regardless of the selected date range
         $aging = $this->agingReport();
 
-        // Open escalations — always current, regardless of the selected date range
+        // Status aging — every ticket regardless of status, bucketed by age. Always
+        // current, same as $aging above.
+        $statusAging = $this->statusAging();
+
+        // IT team aging — per assignee, per status, bucketed by age. Always current.
+        $itTeamAging = $this->itTeamAging();
+
+        // Open escalations — always current, regardless of the selected date range.
+        // escalations.resolved_at is rarely stamped when the ticket is later closed, so filter
+        // on the ticket's own status too — otherwise long-closed tickets keep showing up here.
         $openEscalations = DB::table('escalations')
             ->join('tickets', 'tickets.id', '=', 'escalations.ticket_id')
             ->join('users as reporter', 'reporter.id', '=', 'tickets.users_id')
             ->join('departments', 'departments.id', '=', 'reporter.department_id')
             ->leftJoin('users as tech', 'tech.id', '=', 'escalations.previous_tech_id')
             ->leftJoin('users as admin', 'admin.id', '=', 'escalations.reassigned_to')
+            ->leftJoin('users as escalator', 'escalator.id', '=', 'escalations.escalated_by')
             ->whereNull('escalations.resolved_at')
+            ->whereNotIn('tickets.status', ['Closed', 'Cancelled'])
             ->selectRaw("
-                tickets.subject, tickets.concern, tickets.status,
+                tickets.ticket_number, tickets.subject, tickets.concern, tickets.status,
+                tickets.ticket_type, tickets.sla_due_at,
                 departments.department_name, escalations.reason,
-                escalations.escalated_at,
+                escalations.escalation_level, escalations.escalated_at,
+                escalator.name as escalated_by_name,
                 tech.name as prev_tech,
                 admin.name as reassigned_to_name
             ")
             ->orderBy('escalations.escalated_at', 'asc')
-            ->get();
+            ->get()
+            ->map(function ($esc) {
+                // Plain-language "where is it stuck" label, computed once here so the Blade
+                // first render and the JS poll render can't drift apart.
+                [$esc->status_label, $esc->status_class] = match ($esc->status) {
+                    'Escalated'              => ['Waiting for reassignment', 'breach'],
+                    'Requestor Confirmation' => ['Waiting for requester to confirm fix', 'admin'],
+                    'On Hold'                => ['On hold', 'open'],
+                    'Assigned'               => ['Reassigned — being worked on', 'admin'],
+                    default                  => [$esc->status, 'open'],
+                };
+                $esc->needs_action = $esc->status === 'Escalated';
+                $esc->sla_breached = $esc->sla_due_at && now()->greaterThan($esc->sla_due_at);
+                return $esc;
+            });
 
         // CSAT
         $totalFeedback = DB::table('ticket_feed_backs')->whereBetween('created_at', [$start, $end])->count();
@@ -345,6 +407,8 @@ class ExecutiveDashboardController extends Controller
             'resTimeByCategory',
             'leaderboard',
             'aging',
+            'statusAging',
+            'itTeamAging',
             'openEscalations',
             'weeklyData',
             'totalFeedback',
@@ -363,7 +427,7 @@ class ExecutiveDashboardController extends Controller
     // ── JSON endpoint for real-time updates (30s poll + range-button switch)
     public function data(Request $request)
     {
-        $range = $request->get('range', '30D');
+        $range = $request->get('range', 'YTD');
         $data = $this->buildDashboardData($range);
         $data['itTeamStatus'] = $this->itTeamStatus();
 
@@ -516,6 +580,150 @@ class ExecutiveDashboardController extends Controller
         ];
     }
 
+    // ── "Status Aging" panel: every ticket regardless of status (unlike agingReport()
+    // above, which excludes Closed/Cancelled since it's a backlog-health view) —
+    // grouped by status only, bucketed by age since created_at. Surfaces how old
+    // tickets sat in each status, including terminal ones. Always current, not
+    // date-range scoped, same reasoning as agingReport().
+    private function statusAging(): array
+    {
+        $bucketLabels = array_keys(self::AGING_BUCKETS);
+
+        $rows = DB::table('tickets')->selectRaw('status, created_at')->get();
+
+        // Seed every lifecycle status up front (zero-filled) so one with no tickets
+        // right now still gets a row instead of silently dropping off the table.
+        $statuses = [];
+        foreach (self::STATUS_ORDER as $status) {
+            $statuses[$status] = [
+                'status' => $status,
+                'buckets' => array_fill_keys($bucketLabels, 0),
+                'total' => 0,
+            ];
+        }
+
+        foreach ($rows as $row) {
+            $status = $row->status ?? 'Unknown';
+            $bucket = $this->agingBucketFor($this->ticketAgeDays($this->parseCreatedAt($row->created_at)));
+
+            if (!isset($statuses[$status])) {
+                $statuses[$status] = [
+                    'status' => $status,
+                    'buckets' => array_fill_keys($bucketLabels, 0),
+                    'total' => 0,
+                ];
+            }
+
+            $statuses[$status]['buckets'][$bucket]++;
+            $statuses[$status]['total']++;
+        }
+
+        // Sequential (start-to-end lifecycle) order, not by count — see STATUS_ORDER.
+        // Any status not in that list (shouldn't happen, but data can drift) sorts last.
+        $order = array_flip(self::STATUS_ORDER);
+        $statusRows = collect($statuses)
+            ->sortBy(fn ($st) => $order[$st['status']] ?? PHP_INT_MAX)
+            ->values();
+
+        $grandTotals = array_fill_keys($bucketLabels, 0);
+        foreach ($statusRows as $st) {
+            foreach ($st['buckets'] as $bucket => $count) {
+                $grandTotals[$bucket] += $count;
+            }
+        }
+
+        return [
+            'buckets' => $bucketLabels,
+            'statuses' => $statusRows->all(),
+            'grandTotals' => $grandTotals,
+            'grandTotal' => array_sum($grandTotals),
+        ];
+    }
+
+    // ── "IT Team Aging" panel: tickets currently waiting on an active IT-team member —
+    // assigned to them, no role queue pending (pending_role null), and in a status where
+    // the next action is theirs (MEMBER_ACTION_STATUSES). Bucketed by age since created_at,
+    // per member per status; the status filter (All + each status) is applied client-side,
+    // so every status's counts ship in one payload: counts[status][bucket]. Always current.
+    private function itTeamAging(): array
+    {
+        $bucketLabels = array_keys(self::AGING_BUCKETS);
+
+        $members = User::with('role')
+            ->whereHas('role', fn($q) => $q->whereIn('role_name', self::IT_TEAM_ROLES))
+            ->where('active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'role_id'])
+            ->keyBy('id');
+
+        $rows = DB::table('tickets')
+            ->whereIn('assigned_to', $members->keys())
+            ->whereNull('pending_role')
+            ->whereIn('status', self::MEMBER_ACTION_STATUSES)
+            ->selectRaw('assigned_to, status, created_at')
+            ->get();
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $status = $row->status ?? 'Unknown';
+            $bucket = $this->agingBucketFor($this->ticketAgeDays($this->parseCreatedAt($row->created_at)));
+            $counts[$row->assigned_to][$status] ??= array_fill_keys($bucketLabels, 0);
+            $counts[$row->assigned_to][$status][$bucket]++;
+        }
+
+        // The filter offers exactly the statuses this panel can count, in lifecycle order.
+        $statuses = self::MEMBER_ACTION_STATUSES;
+
+        return [
+            'buckets' => $bucketLabels,
+            'statuses' => $statuses,
+            'members' => $members->values()->map(fn($m) => [
+                'id' => $m->id,
+                'name' => $m->name,
+                'role' => $m->role?->role_name,
+                'counts' => (object) ($counts[$m->id] ?? []),
+            ])->all(),
+        ];
+    }
+
+    // ── AJAX endpoint behind the "Avg Resolution Time" chart — clicking a category lists
+    // the 5 closed tickets in it that took longest to resolve. Same filters, date window and
+    // hours formula (resolved_at - started_at) as $resTimeByCategory, so the list explains
+    // the bar it was clicked from.
+    public function resolutionTimeTop(Request $request)
+    {
+        $category = trim((string) $request->get('category', ''));
+        $window = $this->rangeWindows((string) $request->get('range', 'YTD'));
+
+        $tickets = DB::table('tickets')
+            ->leftJoin('sla_categories', 'sla_categories.id', '=', 'tickets.sla_category_id')
+            ->join('users as requester', 'requester.id', '=', 'tickets.users_id')
+            ->leftJoin('users as assignee', 'assignee.id', '=', 'tickets.assigned_to')
+            ->whereBetween('tickets.created_at', [$window['start'], $window['end']])
+            ->where('tickets.status', 'Closed')
+            ->whereNotNull('tickets.resolved_at')->whereNotNull('tickets.started_at')
+            ->when(
+                $category === 'Uncategorized',
+                fn($q) => $q->whereNull('sla_categories.name'),
+                fn($q) => $q->where('sla_categories.name', $category)
+            )
+            ->selectRaw("
+                tickets.id, tickets.ticket_number, tickets.subject, tickets.ticket_type as priority,
+                tickets.started_at, tickets.resolved_at,
+                requester.name as requester_name, assignee.name as assigned_to_name,
+                ROUND((EXTRACT(EPOCH FROM (tickets.resolved_at - tickets.started_at)) / 3600)::numeric, 1) as hours
+            ")
+            ->orderByDesc('hours')
+            ->limit(5)
+            ->get();
+
+        return response()->json([
+            'category' => $category,
+            'rangeLabel' => $window['label'],
+            'tickets' => $tickets,
+        ]);
+    }
+
     // ── AJAX endpoint backing the aging table's clickable cells — lists the open
     // tickets behind one category/status/age-bucket slice. Any of the three filters
     // may be blank to widen the slice (e.g. the "All Categories" total row omits
@@ -527,12 +735,36 @@ class ExecutiveDashboardController extends Controller
         $category = trim((string) $request->get('category', ''));
         $status = trim((string) $request->get('status', ''));
         $bucket = trim((string) $request->get('bucket', ''));
+        // Set by the Status Aging panel's own "All Statuses" total (which, unlike the
+        // category panel's grand total, includes Closed/Cancelled) so that cell's count
+        // and its drill-down list agree.
+        $includeAll = $request->boolean('all');
+        // Set by the IT Team Aging panel — narrows the slice to one assignee.
+        $assignee = trim((string) $request->get('assignee', ''));
 
-        $query = Tickets::with(['user', 'assignedTo', 'slaCategory'])
-            ->whereNotIn('status', self::ACTIVE_TICKET_EXCLUDED_STATUSES);
+        $query = Tickets::with(['user', 'assignedTo', 'slaCategory']);
 
+        // '__team__' = the panel's "All IT Team" row: anyone in the IT team, same member
+        // set itTeamAging() counts, so that row's totals and its list agree.
+        if ($assignee === '__team__') {
+            $query->whereHas('assignedTo', fn($q) => $q->where('active', true)
+                ->whereHas('role', fn($r) => $r->whereIn('role_name', self::IT_TEAM_ROLES)));
+        } elseif ($assignee !== '') {
+            $query->where('assigned_to', $assignee);
+        }
+        // Same "waiting on the member" rule itTeamAging() counts with.
+        if ($assignee !== '') {
+            $query->whereNull('pending_role')->whereIn('status', self::MEMBER_ACTION_STATUSES);
+        }
+
+        // A specific status already disambiguates the slice — including Closed/
+        // Cancelled ones, which the Status Aging panel (unlike the category one)
+        // deliberately shows. Only apply the open-backlog exclusion when no status
+        // was given and the caller didn't opt into the full set via $includeAll.
         if ($status !== '') {
             $query->where('status', $status);
+        } elseif (!$includeAll) {
+            $query->whereNotIn('status', self::ACTIVE_TICKET_EXCLUDED_STATUSES);
         }
 
         $tickets = $query->orderByDesc('created_at')->get()
@@ -562,83 +794,6 @@ class ExecutiveDashboardController extends Controller
                 'age_days' => $this->ticketAgeDays($t->created_at),
             ])->values(),
             'total' => $tickets->count(),
-        ]);
-    }
-
-    // ── Shared query for the "All Active Tickets" panel — org-wide, excludes
-    // Closed/Cancelled, filterable by free-text search (ticket #, subject, requester
-    // name) plus exact status/priority. Used by both the initial SSR page load and
-    // the AJAX endpoint below so the two never drift.
-    private function activeTicketsData(Request $request): array
-    {
-        // Strip a leading "#" — ticket numbers are always displayed with one (e.g. "#LGICT-26-0014")
-        // but the stored ticket_number column never includes it, so searching the displayed value
-        // verbatim would otherwise match nothing.
-        $search = ltrim(trim((string) $request->get('search', '')), '#');
-        $status = $request->get('status', '');
-        $priority = $request->get('priority', '');
-
-        $query = Tickets::with('user')
-            ->whereNotIn('status', self::ACTIVE_TICKET_EXCLUDED_STATUSES);
-
-        if ($search !== '') {
-            $query->where(function ($q) use ($search) {
-                $q->where('ticket_number', 'ilike', "%{$search}%")
-                    ->orWhere('subject', 'ilike', "%{$search}%")
-                    ->orWhereHas('user', fn($u) => $u->where('name', 'ilike', "%{$search}%"));
-            });
-        }
-
-        if ($status !== '') {
-            $query->where('status', $status);
-        }
-
-        if ($priority !== '') {
-            $query->where('ticket_type', $priority);
-        }
-
-        // Clamp to the real last page instead of handing Laravel's paginator a stale/out-of-range
-        // page number as-is. Without this, a client sitting on (say) page 5 whose tickets later
-        // drop out of the active set on a later auto-refresh (see fetchActiveTickets()'s 30s poll)
-        // keeps requesting page 5 forever: paginate() answers with 0 rows but still reports
-        // current_page=5, so the table goes empty and never recovers on its own.
-        $perPage = 15;
-        $lastPage = max(1, (int) ceil((clone $query)->count() / $perPage));
-        $page = max(1, min((int) $request->get('page', 1), $lastPage));
-
-        $tickets = $query->orderByDesc('created_at')->paginate($perPage, ['*'], 'page', $page)->withQueryString();
-
-        $statuses = Tickets::whereNotIn('status', self::ACTIVE_TICKET_EXCLUDED_STATUSES)
-            ->whereNotNull('status')
-            ->distinct()
-            ->orderBy('status')
-            ->pluck('status');
-
-        return ['tickets' => $tickets, 'statuses' => $statuses];
-    }
-
-    // ── AJAX endpoint backing the "All Active Tickets" search/filter table
-    public function activeTickets(Request $request)
-    {
-        $data = $this->activeTicketsData($request);
-        $tickets = $data['tickets'];
-
-        return response()->json([
-            'tickets' => $tickets->getCollection()->map(fn($t) => [
-                'id' => $t->id,
-                'ticket_number' => $t->ticket_number,
-                'subject' => $t->subject,
-                'requester_name' => $t->user->name ?? 'Unknown',
-                'status' => $t->status,
-                'priority' => $t->ticket_type,
-                'created_at' => optional($t->created_at)->toISOString(),
-            ])->values(),
-            'pagination' => [
-                'current_page' => $tickets->currentPage(),
-                'last_page' => $tickets->lastPage(),
-                'total' => $tickets->total(),
-            ],
-            'statuses' => $data['statuses'],
         ]);
     }
 

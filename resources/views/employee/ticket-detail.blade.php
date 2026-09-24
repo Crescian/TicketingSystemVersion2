@@ -181,7 +181,7 @@
         </div>
     </div>
 
-    @if($ticket->status === 'Closed')
+    @if(in_array($ticket->status, ['Requestor Confirmation', 'Closed'], true))
         <button type="button" class="btn-service-report w-100 justify-content-center mb-3"
                 onclick="openServiceReportPreview('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
             <i class="bi bi-file-earmark-pdf"></i> View Service Report

@@ -15,9 +15,10 @@ class AuthController extends Controller
         $request->validate([
             'email' => 'required|email',
             'password' => 'required|string',
+            'client' => 'nullable|string|max:100',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::with('department', 'role')->where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
@@ -31,16 +32,30 @@ class AuthController extends Controller
             ], 403);
         }
 
-        // Revoke old tokens
-        $user->tokens()->delete();
+        // Token is named after the consuming system ("client"), e.g. "helpdesk-mobile"
+        // or "intranet-portal". Only that system's own prior token is revoked, so one
+        // system logging a user in doesn't silently log them out of another — each
+        // consuming system keeps its own independent session for the same user.
+        $client = $request->input('client', 'default');
+        $user->tokens()->where('name', $client)->delete();
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $user->createToken($client)->plainTextToken;
 
         return response()->json([
             'message' => 'Login successful.',
             'access_token' => $token,
             'token_type' => 'Bearer',
-            'user' => $user,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'position' => $user->position,
+                'active' => $user->active,
+                'role_id' => $user->role_id,
+                'role' => $user->role?->role_name,
+                'department_id' => $user->department_id,
+                'department' => $user->department?->department_name,
+            ],
         ]);
     }
 

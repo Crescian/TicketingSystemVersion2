@@ -350,18 +350,18 @@ Route::middleware(['auth', 'role:Supervisor - Support Specialist', 'throttle:tic
     });
 
 // ── Executive dashboard (view-only) — also reachable, read-only, by Supervisor
-// - Support Specialist and Helpdesk via the "Executive View" button on their
+// - Support Specialist, Supervisor - IT Admin and Helpdesk via the "Executive View" button on their
 // own dashboards. Ticket-management actions below stay Manager-only.
-Route::middleware(['auth', 'role:Manager,Supervisor - Support Specialist,Helpdesk', 'throttle:ticket-actions'])
+Route::middleware(['auth', 'role:Manager,Supervisor - Support Specialist,Supervisor - IT Admin,Helpdesk', 'throttle:ticket-actions'])
     ->prefix('executive')
     ->name('executive.')
     ->group(function () {
         Route::get('/dashboard', [ExecutiveDashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard/data', [ExecutiveDashboardController::class, 'data'])->name('dashboard.data'); // ← add this
-        Route::get('/dashboard/active-tickets', [ExecutiveDashboardController::class, 'activeTickets'])->name('dashboard.active-tickets');
         Route::get('/dashboard/aging-tickets', [ExecutiveDashboardController::class, 'agingTickets'])->name('dashboard.aging-tickets');
-        // Read-only, and the "All Active Support Requests" panel's Timeline button (visible to
-        // all three roles above) calls this — belongs with the view-only routes, not the
+        Route::get('/dashboard/resolution-top', [ExecutiveDashboardController::class, 'resolutionTimeTop'])->name('dashboard.resolution-top');
+        // Read-only, and the aging drill-down list's Timeline/Details button (visible to
+        // all roles above) calls this — belongs with the view-only routes, not the
         // Manager-only ticket-management group below.
         Route::get('/tickets/{ticket}/history', [ManagerTicketController::class, 'history'])->name('tickets.history');
     });
@@ -418,7 +418,7 @@ Route::middleware('auth')
     ->name('attachments.view');
 
 // ── Ticket Service Report PDF (owner or staff — checked in the controller; ticket
-// must be Closed)
+// must be awaiting requestor confirmation or Closed for the owner)
 Route::middleware('auth')
     ->get('/tickets/{ticket}/service-report', [\App\Http\Controllers\TicketServiceReportController::class, 'download'])
     ->name('tickets.service-report');

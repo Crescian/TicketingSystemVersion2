@@ -908,7 +908,7 @@
     <div class="d-flex align-items-center gap-3">
       {{-- Date range toggle — functional in @yield('scripts') --}}
       <div class="date-range" id="dateRange">
-        @php $activeRange = $range ?? '30D'; @endphp
+        @php $activeRange = $range ?? 'YTD'; @endphp
         <button class="dr-btn {{ $activeRange === '7D' ? 'active' : '' }}" data-range="7D">7D</button>
         <button class="dr-btn {{ $activeRange === '30D' ? 'active' : '' }}" data-range="30D">30D</button>
         <button class="dr-btn {{ $activeRange === '90D' ? 'active' : '' }}" data-range="90D">90D</button>

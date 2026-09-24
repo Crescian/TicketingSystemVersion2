@@ -65,6 +65,24 @@
         background: rgba(200, 230, 60, .05);
     }
 
+    /* ── Per-category collapse toggle in the Category & Status aging table ── */
+    .aging-toggle-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0 4px 0 0;
+        cursor: pointer;
+        color: var(--ex-muted);
+        line-height: 1;
+        vertical-align: -1px;
+    }
+
+    .aging-toggle-btn:hover { color: var(--ex-yg); }
+
+    .aging-toggle-btn i { transition: transform .15s ease; }
+
+    .aging-cat-row.aging-collapsed .aging-toggle-btn i { transform: rotate(-90deg); }
+
     /* ── Clickable aging counts — drill into the matching support request list ── */
     .aging-cell-btn {
         background: none;
@@ -93,7 +111,8 @@
 
     /* ── Dark-themed modal (Bootstrap defaults are light) ── */
     #timelineModal .modal-content,
-    #agingListModal .modal-content {
+    #agingListModal .modal-content,
+    #resTopModal .modal-content {
         background: var(--ex-card);
         border: 1px solid var(--ex-bd);
         border-radius: 16px;
@@ -103,12 +122,15 @@
     #timelineModal .modal-header,
     #timelineModal .modal-footer,
     #agingListModal .modal-header,
-    #agingListModal .modal-footer {
+    #agingListModal .modal-footer,
+    #resTopModal .modal-header,
+    #resTopModal .modal-footer {
         border-color: var(--ex-bd);
     }
 
     #timelineModal .btn-close,
-    #agingListModal .btn-close {
+    #agingListModal .btn-close,
+    #resTopModal .btn-close {
         filter: invert(1) grayscale(100%) brightness(200%);
     }
 
@@ -117,11 +139,13 @@
         align-items: flex-start;
     }
 
-    #agingListModal .lb-table thead th {
+    #agingListModal .lb-table thead th,
+    #resTopModal .lb-table thead th {
         background: var(--ex-card2);
     }
 
-    #agingListModal .lb-table tbody tr:hover {
+    #agingListModal .lb-table tbody tr:hover,
+    #resTopModal .lb-table tbody tr:hover {
         background: rgba(200, 230, 60, .04);
     }
 
@@ -197,70 +221,94 @@
     .presence-label.online { color: var(--ex-green); }
     .presence-label.offline { color: var(--ex-muted); }
 
-    /* ── Search + filter controls (All Active Tickets) ── */
-    .ex-search-wrap {
+    .esc-badges {
         display: flex;
-        align-items: center;
-        gap: 8px;
-        background: var(--ex-card2);
-        border: 1px solid var(--ex-bd);
-        border-radius: 20px;
-        padding: 7px 14px;
-        flex: 1;
-        min-width: 200px;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+        flex-shrink: 0;
     }
 
-    .ex-search-wrap input {
-        background: transparent;
-        border: none;
-        outline: none;
-        color: var(--ex-txt);
-        font-size: 12px;
-        width: 100%;
-    }
+    .esc-meta strong { color: var(--ex-txt); font-weight: 700; }
 
-    .ex-search-wrap input::placeholder { color: var(--ex-muted); }
-    .ex-search-wrap i { color: var(--ex-muted); font-size: 12px; }
-
-    .ex-filter-select {
+    .itteam-aging-select {
         background: var(--ex-card2);
-        border: 1px solid var(--ex-bd);
-        border-radius: 20px;
-        padding: 7px 14px;
         color: var(--ex-txt);
+        border: 1px solid var(--ex-bd);
+        border-radius: 8px;
+        padding: 4px 8px;
         font-size: 12px;
         font-weight: 700;
-        outline: none;
     }
 
-    .ex-pagination {
+    .itteam-aging-select:focus { outline: none; border-color: var(--ex-yg); }
+
+    /* ── Floating IT Team Status ── */
+    .itteam-fab {
+        position: fixed;
+        right: 24px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 1040;
+        width: 56px;
+        height: 56px;
         display: flex;
         align-items: center;
-        justify-content: flex-end;
-        gap: 12px;
-        margin-top: 12px;
-    }
-
-    .ex-pg-btn {
-        background: var(--ex-card2);
-        color: var(--ex-txt);
+        justify-content: center;
+        padding: 0;
         border: 1px solid var(--ex-bd);
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 800;
-        padding: 5px 14px;
+        border-radius: 50%;
+        background: var(--ex-card2);
+        color: var(--ex-yg);
+        font-size: 22px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
         cursor: pointer;
+        transition: border-color .15s, box-shadow .15s;
     }
 
-    .ex-pg-btn:hover:not(:disabled) { border-color: var(--ex-yg); }
-    .ex-pg-btn:disabled { opacity: .4; cursor: not-allowed; }
-
-    .ex-pg-status {
-        font-size: 11px;
-        color: var(--ex-muted);
-        font-weight: 700;
-        white-space: nowrap;
+    .itteam-fab:hover,
+    .itteam-fab[aria-expanded="true"] {
+        border-color: var(--ex-yg);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .45), 0 0 0 3px rgba(200, 230, 60, .15);
     }
+
+    .itteam-fab-count {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 5px;
+        border: 2px solid var(--ex-bg);
+        border-radius: 999px;
+        background: var(--ex-green);
+        color: var(--ex-bg);
+        font-size: 10px;
+        font-weight: 800;
+        line-height: 16px;
+        text-align: center;
+    }
+
+    .itteam-float {
+        position: fixed;
+        right: 92px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 1040;
+        width: min(760px, calc(100vw - 124px));
+        max-height: calc(100vh - 48px);
+        overflow-y: auto;
+        border-radius: 12px;
+        box-shadow: 0 16px 48px rgba(0, 0, 0, .55);
+    }
+
+    .itteam-float .chart-card { margin: 0; }
+
+    @media (max-width: 640px) {
+        .itteam-fab { right: 16px; }
+        .itteam-float { right: 16px; left: 16px; width: auto; top: 24px; transform: none; max-height: calc(100vh - 48px); }
+    }
+
 @endsection
 
 {{-- ══ MAIN CONTENT ══ --}}
@@ -344,7 +392,7 @@
         <div class="kpi-card green">
             <div class="kpi-icon green"><i class="bi bi-check-circle"></i></div>
             <div class="kpi-value" data-kpi="resolved">{{ $resolved }}</div>
-            <div class="kpi-label">Resolved</div>
+            <div class="kpi-label">Closed</div>
             <span class="kpi-trend {{ $resolvedChange >= 0 ? 'up' : 'down' }}" data-kpi="resolvedTrend">
                 <i class="bi bi-arrow-{{ $resolvedChange >= 0 ? 'up' : 'down' }}-short"></i>
                 {{ $resolvedChange >= 0 ? '+' : '' }}{{ $resolvedChange }}%
@@ -377,6 +425,253 @@
             </span>
             <div class="kpi-compare" data-kpi="escCompare">
                 {{ $totalTickets > 0 ? number_format(($escalations / $totalTickets) * 100, 1) : 0 }}% escalation rate
+            </div>
+        </div>
+    </div>
+
+    {{-- ── Tactical Dashboard ── --}}
+    {{-- Age-bucket colors shared by every aging table below (JS mirror: AGING_COLORS). --}}
+    @php
+        $agingColors = [
+            '0-7' => '#3fb950',
+            '8-14' => '#c8e63c',
+            '15-30' => '#d29922',
+            '31-60' => '#f0883e',
+            '61-90' => '#f85149',
+            '90+' => '#ff2d2d',
+        ];
+    @endphp
+    <div class="section-label">Tactical Dashboard</div>
+
+    {{-- ── Row 3.6: Status Aging ── --}}
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="chart-card">
+                <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
+                    <div>
+                        <div class="chart-title">Status Aging</div>
+                        <div class="chart-sub">Every support request, grouped by status, bucketed by days since
+                            creation — always current</div>
+                    </div>
+                    <button type="button" id="statusAgingTotalBadge" class="aging-total-badge"
+                        onclick="openAgingList('', '', '', true)"
+                        style="background:rgba(200,230,60,.12);color:var(--ex-yg);font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;border:1px solid rgba(200,230,60,.25)">
+                        {{ $statusAging['grandTotal'] }} total
+                    </button>
+                </div>
+                <div class="chart-sub mb-1">Click any count to see the matching support requests and who's assigned or pending.</div>
+                <div class="table-responsive">
+                    <table class="lb-table aging-table mt-2">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                @foreach($statusAging['buckets'] as $bucket)
+                                    <th style="text-align:center">{{ $bucket }}d</th>
+                                @endforeach
+                                <th style="text-align:right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="statusAgingBody">
+                            @forelse($statusAging['statuses'] as $st)
+                                <tr class="aging-cat-row">
+                                    <td>{{ $st['status'] }}</td>
+                                    @foreach($statusAging['buckets'] as $bucket)
+                                        @php $count = $st['buckets'][$bucket]; @endphp
+                                        <td style="text-align:center">
+                                            @if($count > 0)
+                                                <button type="button" class="aging-cell-btn" style="color:{{ $agingColors[$bucket] }}"
+                                                    data-category="" data-status="{{ $st['status'] }}" data-bucket="{{ $bucket }}">{{ $count }}</button>
+                                            @else
+                                                <span style="color:var(--ex-muted)">—</span>
+                                            @endif
+                                        </td>
+                                    @endforeach
+                                    <td style="text-align:right">
+                                        <button type="button" class="aging-cell-btn"
+                                            data-category="" data-status="{{ $st['status'] }}" data-bucket="">{{ $st['total'] }}</button>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="{{ count($statusAging['buckets']) + 2 }}"
+                                        style="text-align:center;color:var(--ex-muted);padding:20px">
+                                        No support requests found.
+                                    </td>
+                                </tr>
+                            @endforelse
+                            @if(count($statusAging['statuses']))
+                                <tr class="aging-total-row">
+                                    <td>All Statuses</td>
+                                    @foreach($statusAging['buckets'] as $bucket)
+                                        @php $count = $statusAging['grandTotals'][$bucket]; @endphp
+                                        <td style="text-align:center">
+                                            @if($count > 0)
+                                                <button type="button" class="aging-cell-btn"
+                                                    data-category="" data-status="" data-bucket="{{ $bucket }}" data-scope="all">{{ $count }}</button>
+                                            @else
+                                                <span>—</span>
+                                            @endif
+                                        </td>
+                                    @endforeach
+                                    <td style="text-align:right">
+                                        <button type="button" class="aging-cell-btn"
+                                            data-category="" data-status="" data-bucket="" data-scope="all">{{ $statusAging['grandTotal'] }}</button>
+                                    </td>
+                                </tr>
+                            @endif
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- ── IT Team Aging (rows rendered by renderItTeamAging() — filtered client-side by status) ── --}}
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="chart-card">
+                <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
+                    <div>
+                        <div class="chart-title">IT Team Aging</div>
+                        <div class="chart-sub">Support requests waiting on each IT team member — assigned to them, not
+                            pending on a role queue, supervisor or requester — bucketed by days since creation. Always current.</div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="itTeamAgingStatus" class="chart-sub mb-0">Status</label>
+                        <select id="itTeamAgingStatus" class="itteam-aging-select">
+                            <option value="">All statuses</option>
+                            @foreach($itTeamAging['statuses'] as $st)
+                                <option value="{{ $st }}">{{ $st }}</option>
+                            @endforeach
+                        </select>
+                        <span id="itTeamAgingTotalBadge"
+                            style="background:rgba(200,230,60,.12);color:var(--ex-yg);font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;border:1px solid rgba(200,230,60,.25);white-space:nowrap"></span>
+                    </div>
+                </div>
+                <div class="chart-sub mb-1">Click any count to see the matching support requests.</div>
+                <div class="table-responsive">
+                    <table class="lb-table aging-table mt-2">
+                        <thead>
+                            <tr>
+                                <th>IT Team Member</th>
+                                @foreach($itTeamAging['buckets'] as $bucket)
+                                    <th style="text-align:center">{{ $bucket }}d</th>
+                                @endforeach
+                                <th style="text-align:right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itTeamAgingBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- ── Row 3.5: Support Request Aging by Category & Status ── --}}
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="chart-card">
+                <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
+                    <div>
+                        <div class="chart-title">Support Request Aging by Category & Status</div>
+                        <div class="chart-sub">Open support requests (excludes Closed and Cancelled), grouped by category and status, bucketed by
+                            days since creation — always current</div>
+                    </div>
+                    <button type="button" id="agingTotalBadge" class="aging-total-badge"
+                        onclick="openAgingList('', '', '')"
+                        style="background:rgba(200,230,60,.12);color:var(--ex-yg);font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;border:1px solid rgba(200,230,60,.25)">
+                        {{ $aging['grandTotal'] }} total
+                    </button>
+                </div>
+                <div class="chart-sub mb-1">Click any count to see the matching support requests and who's assigned or pending.</div>
+                <div class="table-responsive">
+                    <table class="lb-table aging-table mt-2">
+                        <thead>
+                            <tr>
+                                <th>Category / Status</th>
+                                @foreach($aging['buckets'] as $bucket)
+                                    <th style="text-align:center">{{ $bucket }}d</th>
+                                @endforeach
+                                <th style="text-align:right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agingBody">
+                            @forelse($aging['categories'] as $cat)
+                                {{-- Collapsed by default on first load — see collapsedAgingCategories/applyAgingCollapse() in scripts, which seed themselves from these classes. --}}
+                                <tr class="aging-cat-row aging-collapsed" data-cat="{{ $cat['category'] }}">
+                                    <td>
+                                        <button type="button" class="aging-toggle-btn" aria-label="Toggle category">
+                                            <i class="bi bi-chevron-down"></i>
+                                        </button>
+                                        {{ $cat['category'] }}
+                                    </td>
+                                    @foreach($aging['buckets'] as $bucket)
+                                        @php $count = $cat['buckets'][$bucket]; @endphp
+                                        <td style="text-align:center">
+                                            @if($count > 0)
+                                                <button type="button" class="aging-cell-btn" style="color:{{ $agingColors[$bucket] }}"
+                                                    data-category="{{ $cat['category'] }}" data-status="" data-bucket="{{ $bucket }}">{{ $count }}</button>
+                                            @else
+                                                <span style="color:var(--ex-muted)">—</span>
+                                            @endif
+                                        </td>
+                                    @endforeach
+                                    <td style="text-align:right">
+                                        <button type="button" class="aging-cell-btn"
+                                            data-category="{{ $cat['category'] }}" data-status="" data-bucket="">{{ $cat['total'] }}</button>
+                                    </td>
+                                </tr>
+                                @foreach($cat['statuses'] as $st)
+                                    <tr class="aging-status-row" data-cat="{{ $cat['category'] }}" style="display:none">
+                                        <td class="aging-status-label">{{ $st['status'] }}</td>
+                                        @foreach($aging['buckets'] as $bucket)
+                                            @php $count = $st['buckets'][$bucket]; @endphp
+                                            <td style="text-align:center">
+                                                @if($count > 0)
+                                                    <button type="button" class="aging-cell-btn" style="color:{{ $agingColors[$bucket] }}"
+                                                        data-category="{{ $cat['category'] }}" data-status="{{ $st['status'] }}" data-bucket="{{ $bucket }}">{{ $count }}</button>
+                                                @else
+                                                    <span style="color:var(--ex-muted)">—</span>
+                                                @endif
+                                            </td>
+                                        @endforeach
+                                        <td style="text-align:right">
+                                            <button type="button" class="aging-cell-btn" style="color:var(--ex-muted)"
+                                                data-category="{{ $cat['category'] }}" data-status="{{ $st['status'] }}" data-bucket="">{{ $st['total'] }}</button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            @empty
+                                <tr>
+                                    <td colspan="{{ count($aging['buckets']) + 2 }}"
+                                        style="text-align:center;color:var(--ex-muted);padding:20px">
+                                        No open support requests right now.
+                                    </td>
+                                </tr>
+                            @endforelse
+                            @if(count($aging['categories']))
+                                <tr class="aging-total-row">
+                                    <td>All Categories</td>
+                                    @foreach($aging['buckets'] as $bucket)
+                                        @php $count = $aging['grandTotals'][$bucket]; @endphp
+                                        <td style="text-align:center">
+                                            @if($count > 0)
+                                                <button type="button" class="aging-cell-btn"
+                                                    data-category="" data-status="" data-bucket="{{ $bucket }}">{{ $count }}</button>
+                                            @else
+                                                <span>—</span>
+                                            @endif
+                                        </td>
+                                    @endforeach
+                                    <td style="text-align:right">
+                                        <button type="button" class="aging-cell-btn"
+                                            data-category="" data-status="" data-bucket="">{{ $aging['grandTotal'] }}</button>
+                                    </td>
+                                </tr>
+                            @endif
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -443,10 +738,10 @@
 
     </div>
 
-    {{-- ── Row 3: Category donut + Department heatmap + Resolution time ── --}}
+    {{-- ── Row 3: Category donut + IT Team performance ── --}}
     <div class="row g-3 mb-4">
 
-        <div class="col-lg-4">
+        <div class="col-lg-5">
             <div class="chart-card h-100">
                 <div class="chart-title">Support Requests by Category</div>
                 <div class="chart-sub">Distribution across all request types</div>
@@ -477,173 +772,16 @@
             </div>
         </div>
 
-        <div class="col-lg-4">
+        <div class="col-lg-7">
             <div class="chart-card h-100">
-                <div class="chart-title">Support Requests by Department</div>
-                <div class="chart-sub" id="deptChartSub">Volume — {{ $rangeLabel }} — color = severity</div>
-                {{-- ── Tickets by Department ── --}}
-                <div class="dept-grid mt-3" id="deptGrid">
-                    @foreach($byDepartment as $dept)
-                        @php
-                            $heat = $dept->total >= 35 ? 'hot' : ($dept->total >= 20 ? 'warm' : 'cool');
-                        @endphp
-                        <div class="dept-cell {{ $heat }}">
-                            <div class="dept-name">{{ $dept->department_name }}</div>
-                            <div class="dept-count {{ $heat }}">{{ $dept->total }}</div>
-                            <div class="dept-label">support requests</div>
-                        </div>
-                    @endforeach
-                </div>
-                <div class="d-flex gap-3 mt-3" style="font-size:11px;color:var(--ex-muted);font-weight:600">
-                    <span><span
-                            style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--ex-red);margin-right:4px;opacity:.6"></span>High
-                        (>35)</span>
-                    <span><span
-                            style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--ex-amber);margin-right:4px;opacity:.6"></span>Med
-                        (20–35)</span>
-                    <span><span
-                            style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--ex-green);margin-right:4px;opacity:.6"></span>Low
-                        (<20)< /span>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-4">
-            <div class="chart-card h-100">
-                <div class="chart-title">Avg Resolution Time</div>
-                <div class="chart-sub">By category — hours to resolve</div>
-                <div class="chart-wrap mt-2"><canvas id="resTimeChart" height="180"></canvas></div>
-            </div>
-        </div>
-
-    </div>
-
-    {{-- ── Row 3.5: Support Request Aging by Category & Status ── --}}
-    <div class="row g-3 mb-4">
-        <div class="col-12">
-            <div class="chart-card">
-                <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
-                    <div>
-                        <div class="chart-title">Support Request Aging by Category & Status</div>
-                        <div class="chart-sub">Open support requests, grouped by category and status, bucketed by
-                            days since creation — always current</div>
-                    </div>
-                    <button type="button" id="agingTotalBadge" class="aging-total-badge"
-                        onclick="openAgingList('', '', '')"
-                        style="background:rgba(200,230,60,.12);color:var(--ex-yg);font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;border:1px solid rgba(200,230,60,.25)">
-                        {{ $aging['grandTotal'] }} open
-                    </button>
-                </div>
-                <div class="chart-sub mb-1">Click any count to see the matching support requests and who's assigned or pending.</div>
-                <div class="table-responsive">
-                    <table class="lb-table aging-table mt-2">
-                        <thead>
-                            <tr>
-                                <th>Category / Status</th>
-                                @foreach($aging['buckets'] as $bucket)
-                                    <th style="text-align:center">{{ $bucket }}d</th>
-                                @endforeach
-                                <th style="text-align:right">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody id="agingBody">
-                            @php
-                                $agingColors = [
-                                    '0-7' => '#3fb950',
-                                    '8-14' => '#c8e63c',
-                                    '15-30' => '#d29922',
-                                    '31-60' => '#f0883e',
-                                    '61-90' => '#f85149',
-                                    '90+' => '#ff2d2d',
-                                ];
-                            @endphp
-                            @forelse($aging['categories'] as $cat)
-                                <tr class="aging-cat-row">
-                                    <td>{{ $cat['category'] }}</td>
-                                    @foreach($aging['buckets'] as $bucket)
-                                        @php $count = $cat['buckets'][$bucket]; @endphp
-                                        <td style="text-align:center">
-                                            @if($count > 0)
-                                                <button type="button" class="aging-cell-btn" style="color:{{ $agingColors[$bucket] }}"
-                                                    data-category="{{ $cat['category'] }}" data-status="" data-bucket="{{ $bucket }}">{{ $count }}</button>
-                                            @else
-                                                <span style="color:var(--ex-muted)">—</span>
-                                            @endif
-                                        </td>
-                                    @endforeach
-                                    <td style="text-align:right">
-                                        <button type="button" class="aging-cell-btn"
-                                            data-category="{{ $cat['category'] }}" data-status="" data-bucket="">{{ $cat['total'] }}</button>
-                                    </td>
-                                </tr>
-                                @foreach($cat['statuses'] as $st)
-                                    <tr class="aging-status-row">
-                                        <td class="aging-status-label">{{ $st['status'] }}</td>
-                                        @foreach($aging['buckets'] as $bucket)
-                                            @php $count = $st['buckets'][$bucket]; @endphp
-                                            <td style="text-align:center">
-                                                @if($count > 0)
-                                                    <button type="button" class="aging-cell-btn" style="color:{{ $agingColors[$bucket] }}"
-                                                        data-category="{{ $cat['category'] }}" data-status="{{ $st['status'] }}" data-bucket="{{ $bucket }}">{{ $count }}</button>
-                                                @else
-                                                    <span style="color:var(--ex-muted)">—</span>
-                                                @endif
-                                            </td>
-                                        @endforeach
-                                        <td style="text-align:right">
-                                            <button type="button" class="aging-cell-btn" style="color:var(--ex-muted)"
-                                                data-category="{{ $cat['category'] }}" data-status="{{ $st['status'] }}" data-bucket="">{{ $st['total'] }}</button>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            @empty
-                                <tr>
-                                    <td colspan="{{ count($aging['buckets']) + 2 }}"
-                                        style="text-align:center;color:var(--ex-muted);padding:20px">
-                                        No open support requests right now.
-                                    </td>
-                                </tr>
-                            @endforelse
-                            @if(count($aging['categories']))
-                                <tr class="aging-total-row">
-                                    <td>All Categories</td>
-                                    @foreach($aging['buckets'] as $bucket)
-                                        @php $count = $aging['grandTotals'][$bucket]; @endphp
-                                        <td style="text-align:center">
-                                            @if($count > 0)
-                                                <button type="button" class="aging-cell-btn"
-                                                    data-category="" data-status="" data-bucket="{{ $bucket }}">{{ $count }}</button>
-                                            @else
-                                                <span>—</span>
-                                            @endif
-                                        </td>
-                                    @endforeach
-                                    <td style="text-align:right">
-                                        <button type="button" class="aging-cell-btn"
-                                            data-category="" data-status="" data-bucket="">{{ $aging['grandTotal'] }}</button>
-                                    </td>
-                                </tr>
-                            @endif
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- ── Row 4: Leaderboard + Escalations + Period compare ── --}}
-    <div class="row g-3 mb-4">
-
-        <div class="col-lg-5">
-            <div class="chart-card h-100">
-                <div class="chart-title">Technician Performance</div>
-                <div class="chart-sub" id="leaderboardSub">Ranked by support requests resolved — {{ $rangeLabel }}</div>
+                <div class="chart-title">IT Team Performance</div>
+                <div class="chart-sub" id="leaderboardSub">Ranked by support requests closed — {{ $rangeLabel }}</div>
                 <table class="lb-table mt-3">
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>Technician</th>
-                            <th>Resolved</th>
+                            <th>IT Team Member</th>
+                            <th>Closed</th>
                             <th>Avg Time</th>
                             <th style="text-align:right">Rating</th>
                         </tr>
@@ -694,7 +832,35 @@
             </div>
         </div>
 
-        <div class="col-lg-7">
+    </div>
+
+    {{-- ── Row 3.1: Department volume + Resolution time ── --}}
+    <div class="row g-3 mb-4">
+
+        <div class="col-lg-6">
+            <div class="chart-card h-100">
+                <div class="chart-title">Support Requests by Department</div>
+                <div class="chart-sub" id="deptChartSub">Volume — {{ $rangeLabel }} — number of requests</div>
+                <div class="chart-wrap mt-2">
+                    <div id="deptChartBox" style="position:relative"><canvas id="deptChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="chart-card h-100">
+                <div class="chart-title">Avg Resolution Time</div>
+                <div class="chart-sub">By category — hours to resolve. Click a category to see its 5 slowest support requests.</div>
+                <div class="chart-wrap mt-2"><canvas id="resTimeChart" height="180"></canvas></div>
+            </div>
+        </div>
+
+    </div>
+
+    {{-- ── Row 4: Period compare + Escalations ── --}}
+    <div class="row g-3 mb-4">
+
+        <div class="col-12">
             <div class="row g-3 h-100">
 
                 {{-- Month-over-month comparison --}}
@@ -755,44 +921,61 @@
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    {{-- Escalations requiring attention --}}
+                {{-- Escalations requiring attention --}}
                     <div class="col-12">
                         <div class="chart-card" id="escalationsSection">
-                            @php $criticalCount = $openEscalations->where('status', 'Escalated')->count(); @endphp
-                            <div class="d-flex justify-content-between align-items-center mb-1">
+                            @php $criticalCount = $openEscalations->where('needs_action', true)->count(); @endphp
+                            <div class="d-flex justify-content-between align-items-start mb-1 gap-2">
                                 <div>
                                     <div class="chart-title">Escalations Requiring Attention</div>
-                                    <div class="chart-sub">Critical or SLA-breached support requests this month</div>
+                                    <div class="chart-sub">Escalated support requests that are not yet closed — oldest first. Always current; not affected by the date range.</div>
                                 </div>
-                                <span id="criticalBadge"
-                                    style="background:rgba(248,81,73,.12);color:var(--ex-red);font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;border:1px solid rgba(248,81,73,.2)">
-                                    {{ $criticalCount }} critical
-                                </span>
+                                <div class="d-flex gap-2 flex-shrink-0">
+                                    <span id="escOpenBadge" class="esc-badge admin" style="font-size:11px;padding:4px 10px">
+                                        {{ $openEscalations->count() }} open
+                                    </span>
+                                    <span id="criticalBadge" class="esc-badge breach" style="font-size:11px;padding:4px 10px"
+                                        title="Escalated and not yet reassigned to anyone">
+                                        {{ $criticalCount }} need reassignment
+                                    </span>
+                                </div>
                             </div>
                             <div class="mt-2" id="escalationsList">
                                 @forelse($openEscalations as $esc)
                                     @php
-                                        $isBreach = str_contains(strtolower($esc->reason ?? ''), 'sla') ||
-                                            str_contains(strtolower($esc->status ?? ''), 'breach');
+                                        $urgent = $esc->needs_action || $esc->sla_breached;
                                         $hoursAgo = \Carbon\Carbon::parse($esc->escalated_at)->diffForHumans();
                                     @endphp
                                     <div class="esc-item">
-                                        <div class="esc-icon {{ $isBreach ? 'crit' : 'warn' }}">
-                                            <i
-                                                class="bi bi-{{ $isBreach ? 'exclamation-triangle-fill' : 'exclamation-circle' }}"></i>
+                                        <div class="esc-icon {{ $urgent ? 'crit' : 'info' }}">
+                                            <i class="bi bi-{{ $urgent ? 'exclamation-triangle-fill' : 'hourglass-split' }}"></i>
                                         </div>
                                         <div class="flex-grow-1">
-                                            <div class="esc-title">{{ $esc->subject }}</div>
+                                            <div class="esc-title">
+                                                <span style="color:var(--ex-yg)">#{{ $esc->ticket_number }}</span> · {{ $esc->subject }}
+                                            </div>
                                             <div class="esc-meta">
-                                                {{ $esc->department_name }} dept · Escalated {{ $hoursAgo }}
-                                                @if($esc->prev_tech) · {{ $esc->prev_tech }} →
-                                                {{ $esc->reassigned_to_name ?? 'Unassigned' }} @endif
+                                                {{ $esc->ticket_type }} priority · Escalation level {{ $esc->escalation_level }} · {{ $esc->department_name }} dept
+                                            </div>
+                                            <div class="esc-meta"><strong>Reason:</strong> {{ $esc->reason }}</div>
+                                            <div class="esc-meta">
+                                                Escalated {{ $hoursAgo }}@if($esc->escalated_by_name) by {{ $esc->escalated_by_name }}@endif
+                                                · <strong>Technician:</strong> {{ $esc->prev_tech ?? '—' }}
+                                                @if($esc->reassigned_to_name)
+                                                    <strong>→ Reassigned to:</strong> {{ $esc->reassigned_to_name }}
+                                                @elseif($esc->needs_action)
+                                                    <strong>→ Reassigned to:</strong> <span style="color:var(--ex-red)">nobody yet</span>
+                                                @endif
                                             </div>
                                         </div>
-                                        <span class="esc-badge {{ $isBreach ? 'breach' : 'open' }}">
-                                            {{ $isBreach ? 'SLA Breach' : 'Open' }}
-                                        </span>
+                                        <div class="esc-badges">
+                                            <span class="esc-badge {{ $esc->status_class }}">{{ $esc->status_label }}</span>
+                                            @if($esc->sla_breached)
+                                                <span class="esc-badge breach">SLA breached</span>
+                                            @endif
+                                        </div>
                                     </div>
                                 @empty
                                     <div style="text-align:center;color:var(--ex-muted);padding:20px">
@@ -857,15 +1040,20 @@
 
         </div>
 
-        {{-- ── Row 6: IT Team Status ── --}}
-        <div class="row g-3 mb-2">
-            <div class="col-12">
+        {{-- ── Floating IT Team Status ── --}}
+        <button type="button" class="itteam-fab" id="itTeamFab" title="IT Team Status" aria-label="IT Team Status" aria-controls="itTeamPanel" aria-expanded="false">
+            <i class="bi bi-people-fill"></i>
+            <span class="itteam-fab-count" title="Online" id="itTeamFabCount">{{ $itTeamStatus->where('online', true)->count() }}</span>
+        </button>
+        <div class="itteam-float" id="itTeamPanel" hidden>
+            <div>
                 <div class="chart-card">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
+                    <div class="d-flex justify-content-between align-items-center mb-1 gap-2">
                         <div>
                             <div class="chart-title">IT Team Status</div>
                             <div class="chart-sub">Presence and workload for every active support-tier member</div>
                         </div>
+                        <button type="button" class="btn-close btn-close-white ms-auto order-last" id="itTeamClose" aria-label="Close"></button>
                         <span id="itTeamOnlineBadge"
                             style="background:rgba(63,185,80,.12);color:var(--ex-green);font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;border:1px solid rgba(63,185,80,.2)">
                             {{ $itTeamStatus->where('online', true)->count() }} online
@@ -931,130 +1119,6 @@
             </div>
         </div>
 
-        {{-- ── Row 7: All Active Tickets ── --}}
-        <div class="row g-3 mb-2">
-            <div class="col-12">
-                <div class="chart-card">
-                    <div class="d-flex justify-content-between align-items-start mb-1 flex-wrap gap-2">
-                        <div>
-                            <div class="chart-title">All Active Support Requests</div>
-                            <div class="chart-sub">Every open support request across the organization — click Timeline for the full history</div>
-                        </div>
-                        @if($user->role->role_name === 'Manager')
-                            <a href="{{ route('executive.tickets.index') }}"
-                               style="font-size:12px;font-weight:800;color:var(--ex-yg);text-decoration:none">
-                                View Support Request Queue <i class="bi bi-arrow-right"></i>
-                            </a>
-                        @endif
-                    </div>
-                    <div class="d-flex flex-wrap gap-2 mt-3 mb-2">
-                        <div class="ex-search-wrap">
-                            <i class="bi bi-search"></i>
-                            <input type="text" id="activeTicketsSearch"
-                                   placeholder="Search support request #, subject, or requester…" autocomplete="off">
-                        </div>
-                        <select class="ex-filter-select" id="activeTicketsStatus">
-                            <option value="">All Statuses</option>
-                            @foreach($activeTicketStatuses as $st)
-                                <option value="{{ $st }}">{{ $st }}</option>
-                            @endforeach
-                        </select>
-                        <select class="ex-filter-select" id="activeTicketsPriority">
-                            <option value="">All Priorities</option>
-                            <option value="Critical">Critical</option>
-                            <option value="High">High</option>
-                            <option value="Medium">Medium</option>
-                            <option value="Low">Low</option>
-                        </select>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="lb-table mt-1">
-                            <thead>
-                                <tr>
-                                    <th>Support Request</th>
-                                    <th>Requester</th>
-                                    <th>Status</th>
-                                    <th>Priority</th>
-                                    <th>Opened</th>
-                                    <th style="text-align:right">Timeline</th>
-                                </tr>
-                            </thead>
-                            <tbody id="activeTicketsBody">
-                                @forelse($activeTickets as $ticket)
-                                    @php
-                                        $statusLower = strtolower($ticket->status ?? '');
-                                        $badgeClass = match (true) {
-                                            str_contains($statusLower, 'escalated') => 'breach',
-                                            str_contains($statusLower, 'awaiting') || str_contains($statusLower, 'pending') => 'open',
-                                            str_contains($statusLower, 'progress') => 'admin',
-                                            default => 'muted',
-                                        };
-                                        $priorityColor = match ($ticket->ticket_type) {
-                                            'Critical' => 'var(--ex-critical)',
-                                            'High' => 'var(--ex-red)',
-                                            'Medium' => 'var(--ex-amber)',
-                                            'Low' => 'var(--ex-green)',
-                                            default => 'var(--ex-muted)',
-                                        };
-                                    @endphp
-                                    <tr>
-                                        <td>
-                                            <div style="font-weight:800;font-size:13px;color:var(--ex-txt)">
-                                                #{{ $ticket->ticket_number }}
-                                            </div>
-                                            <div style="font-size:12px;color:var(--ex-muted)">
-                                                {{ Str::limit($ticket->subject, 40) }}
-                                            </div>
-                                        </td>
-                                        <td style="font-size:12px;color:var(--ex-muted)">
-                                            {{ $ticket->user->name ?? 'Unknown' }}
-                                        </td>
-                                        <td>
-                                            <span class="esc-badge {{ $badgeClass }}">{{ $ticket->status }}</span>
-                                        </td>
-                                        <td>
-                                            <span style="font-size:12px;font-weight:700;color:{{ $priorityColor }}">
-                                                {{ $ticket->ticket_type ?? 'N/A' }}
-                                            </span>
-                                        </td>
-                                        <td style="font-size:12px;color:var(--ex-muted)">
-                                            {{ $ticket->created_at?->diffForHumans() }}
-                                        </td>
-                                        <td style="text-align:right">
-                                            <button type="button" class="rt-btn"
-                                                    onclick="openTimelineModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
-                                                <i class="bi bi-clock-history me-1"></i>Timeline
-                                            </button>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="6" style="text-align:center;color:var(--ex-muted);padding:20px">
-                                            No active tickets.
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="ex-pagination" id="activeTicketsPagination">
-                        <span class="ex-pg-status" id="activeTicketsStatusText">
-                            Page {{ $activeTickets->currentPage() }} of {{ $activeTickets->lastPage() }}
-                            ({{ $activeTickets->total() }} total)
-                        </span>
-                        <button type="button" class="ex-pg-btn" id="activeTicketsPrev"
-                                {{ $activeTickets->onFirstPage() ? 'disabled' : '' }}>
-                            <i class="bi bi-chevron-left"></i> Prev
-                        </button>
-                        <button type="button" class="ex-pg-btn" id="activeTicketsNext"
-                                {{ $activeTickets->hasMorePages() ? '' : 'disabled' }}>
-                            Next <i class="bi bi-chevron-right"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
 @endsection
 
 {{-- ══ MODALS ══ --}}
@@ -1114,6 +1178,41 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" id="resTopModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="mb-0">Top 5 Longest Resolution Time — <em id="resTopTitle" style="color:var(--ex-yg)"></em></h5>
+                        <div id="resTopSub" style="font-size:12px;color:var(--ex-muted);margin-top:2px"></div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body px-4 py-3" style="max-height:65vh;overflow-y:auto">
+                    <div class="table-responsive">
+                        <table class="lb-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Support Request</th>
+                                    <th>Requester</th>
+                                    <th>Assigned To</th>
+                                    <th>Priority</th>
+                                    <th>Started → Resolved</th>
+                                    <th style="text-align:right">Resolution Time</th>
+                                    <th style="text-align:right">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resTopBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="rt-btn" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
     {{-- ══ CHART SCRIPTS ══ --}}
@@ -1125,6 +1224,7 @@
                 let volumeChartInstance = null;
                 let categoryChartInstance = null;
                 let resTimeChartInstance = null;
+                let deptChartInstance = null;
                 let weeklyChartInstance = null;
                 let gaugeHighInstance = null;
                 let gaugeMedInstance = null;
@@ -1212,13 +1312,68 @@
                         },
                         options: {
                             indexAxis: 'y', responsive: true,
-                            plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.raw}h avg` } } },
+                            // Click a bar — or its category label — to list that category's 5 slowest requests.
+                            onClick: (evt, els, chart) => {
+                                let idx = els.length ? els[0].index : null;
+                                if (idx === null && evt.x < chart.chartArea.left) {
+                                    idx = Math.round(chart.scales.y.getValueForPixel(evt.y));
+                                }
+                                const label = chart.data.labels[idx];
+                                if (label !== undefined) openResTop(label);
+                            },
+                            onHover: (evt, els, chart) => {
+                                const onLabel = evt.x < chart.chartArea.left && evt.y >= chart.chartArea.top && evt.y <= chart.chartArea.bottom;
+                                chart.canvas.style.cursor = (els.length || onLabel) ? 'pointer' : 'default';
+                            },
+                            plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.raw}h avg`, footer: () => 'Click to see the 5 slowest' } } },
                             scales: {
                                 x: { beginAtZero: true, grid: { color: 'rgba(48,54,61,.6)' }, ticks: { callback: v => v + 'h' } },
                                 y: { grid: { display: false } }
                             }
                         }
                     });
+
+                    /* ── Support requests by department bar ── */
+                    if (data.byDepartment) {
+                        if (deptChartInstance) deptChartInstance.destroy();
+                        const deptColor = t => t >= 35 ? '#f85149' : (t >= 20 ? '#d29922' : '#3fb950');
+                        // Compact two-line labels (department / company), ~22px per bar, no scrolling;
+                        // long names are shortened here and shown in full in the tooltip.
+                        const shorten = (t, n) => t && t.length > n ? t.slice(0, n - 1) + '…' : t;
+                        document.getElementById('deptChartBox').style.height = Math.max(140, data.byDepartment.length * 22 + 30) + 'px';
+                        deptChartInstance = new Chart(document.getElementById('deptChart'), {
+                            type: 'bar',
+                            data: {
+                                labels: data.byDepartment.map(d => [shorten(d.department_name, 26), shorten(d.company_name, 28)]),
+                                datasets: [{ data: data.byDepartment.map(d => d.total), backgroundColor: data.byDepartment.map(d => deptColor(d.total)), borderRadius: 3, borderSkipped: false, barPercentage: .85, categoryPercentage: .9 }]
+                            },
+                            options: {
+                                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                                layout: { padding: { right: 28 } },
+                                plugins: { legend: { display: false }, tooltip: { callbacks: {
+                                    title: items => { const d = data.byDepartment[items[0].dataIndex]; return `${d.department_name} — ${d.company_name}`; },
+                                    label: c => ` ${c.raw} support request${c.raw == 1 ? '' : 's'}` } } },
+                                scales: {
+                                    x: { beginAtZero: true, grid: { color: 'rgba(48,54,61,.6)' }, ticks: { precision: 0, font: { size: 10 } } },
+                                    y: { grid: { display: false }, ticks: { autoSkip: false, font: { size: 9, lineHeight: 1.05 } } }
+                                }
+                            },
+                            plugins: [{
+                                id: 'deptCountLabels',
+                                afterDatasetsDraw(chart) {
+                                    const { ctx } = chart;
+                                    ctx.save();
+                                    ctx.font = '600 10px sans-serif';
+                                    ctx.fillStyle = Chart.defaults.color;
+                                    ctx.textBaseline = 'middle';
+                                    chart.getDatasetMeta(0).data.forEach((bar, i) => {
+                                        ctx.fillText(chart.data.datasets[0].data[i], bar.x + 6, bar.y);
+                                    });
+                                    ctx.restore();
+                                }
+                            }]
+                        });
+                    }
 
                     /* ── Weekly stacked bar ── */
                     if (weeklyChartInstance) weeklyChartInstance.destroy();
@@ -1312,37 +1467,48 @@
                         escDiffEl.className = `cmp-diff ${diff > 0 ? 'worse' : 'better'}`;
                     }
 
-                    // ── Escalations list
+                    // ── Escalations list (labels/flags computed server-side — see controller)
                     const escList = document.getElementById('escalationsList');
                     const critBadge = document.getElementById('criticalBadge');
+                    const openBadge = document.getElementById('escOpenBadge');
                     if (escList && data.openEscalations) {
-                        const critCount = data.openEscalations.length;
-                        if (critBadge) critBadge.textContent = `${critCount} critical`;
+                        const openCount = data.openEscalations.length;
+                        const critCount = data.openEscalations.filter(e => e.needs_action).length;
+                        if (openBadge) openBadge.textContent = `${openCount} open`;
+                        if (critBadge) critBadge.textContent = `${critCount} need reassignment`;
 
-                        if (!critCount) {
+                        if (!openCount) {
                             escList.innerHTML = `
                     <div style="text-align:center;color:var(--ex-muted);padding:20px">
                         ✅ No open escalations right now.
                     </div>`;
                         } else {
                             escList.innerHTML = data.openEscalations.map(esc => {
-                                const isBreach = (esc.reason || '').toLowerCase().includes('sla');
-                                const hoursAgo = timeAgo(esc.escalated_at);
+                                const urgent = esc.needs_action || esc.sla_breached;
                                 return `
                         <div class="esc-item">
-                            <div class="esc-icon ${isBreach ? 'crit' : 'warn'}">
-                                <i class="bi bi-${isBreach ? 'exclamation-triangle-fill' : 'exclamation-circle'}"></i>
+                            <div class="esc-icon ${urgent ? 'crit' : 'info'}">
+                                <i class="bi bi-${urgent ? 'exclamation-triangle-fill' : 'hourglass-split'}"></i>
                             </div>
                             <div class="flex-grow-1">
-                                <div class="esc-title">${escHtml(esc.subject)}</div>
+                                <div class="esc-title">
+                                    <span style="color:var(--ex-yg)">#${escHtml(esc.ticket_number)}</span> · ${escHtml(esc.subject)}
+                                </div>
                                 <div class="esc-meta">
-                                    ${escHtml(esc.department_name)} dept · Escalated ${hoursAgo}
-                                    ${esc.prev_tech ? `· ${escHtml(esc.prev_tech)} → ${escHtml(esc.reassigned_to_name || 'Unassigned')}` : ''}
+                                    ${escHtml(esc.ticket_type)} priority · Escalation level ${escHtml(esc.escalation_level)} · ${escHtml(esc.department_name)} dept
+                                </div>
+                                <div class="esc-meta"><strong>Reason:</strong> ${escHtml(esc.reason)}</div>
+                                <div class="esc-meta">
+                                    Escalated ${timeAgo(esc.escalated_at)}${esc.escalated_by_name ? ` by ${escHtml(esc.escalated_by_name)}` : ''}
+                                    · <strong>Technician:</strong> ${escHtml(esc.prev_tech || '—')}
+                                    ${esc.reassigned_to_name ? `<strong>→ Reassigned to:</strong> ${escHtml(esc.reassigned_to_name)}`
+                                        : (esc.needs_action ? '<strong>→ Reassigned to:</strong> <span style="color:var(--ex-red)">nobody yet</span>' : '')}
                                 </div>
                             </div>
-                            <span class="esc-badge ${isBreach ? 'breach' : 'open'}">
-                                ${isBreach ? 'SLA Breach' : 'Open'}
-                            </span>
+                            <div class="esc-badges">
+                                <span class="esc-badge ${escHtml(esc.status_class)}">${escHtml(esc.status_label)}</span>
+                                ${esc.sla_breached ? '<span class="esc-badge breach">SLA breached</span>' : ''}
+                            </div>
                         </div>`;
                             }).join('');
                         }
@@ -1413,8 +1579,8 @@
                             greetingSub: `Here's your IT Support overview for ${data.rangeLabel}.`,
                             volumeChartSub: `Support requests opened vs. resolved — ${data.rangeLabel}`,
                             slaChartSub: `By priority level — ${data.rangeLabel}`,
-                            deptChartSub: `Volume — ${data.rangeLabel} — color = severity`,
-                            leaderboardSub: `Ranked by support requests resolved — ${data.rangeLabel}`,
+                            deptChartSub: `Volume — ${data.rangeLabel} — number of requests`,
+                            leaderboardSub: `Ranked by support requests closed — ${data.rangeLabel}`,
                             weeklyChartSub: `Support requests by status per week — ${data.rangeLabel}`,
                             csatChartSub: `Rating breakdown — ${data.rangeLabel}`,
                         };
@@ -1428,22 +1594,14 @@
                         if (cmpSub) cmpSub.textContent = `${data.prevPeriodLabel} vs. ${data.curPeriodLabel}`;
                     }
 
-                    // ── Tickets by Department heatmap
-                    const deptGrid = document.getElementById('deptGrid');
-                    if (deptGrid && data.byDepartment) {
-                        deptGrid.innerHTML = data.byDepartment.map(dept => {
-                            const heat = dept.total >= 35 ? 'hot' : (dept.total >= 20 ? 'warm' : 'cool');
-                            return `
-                                <div class="dept-cell ${heat}">
-                                    <div class="dept-name">${escHtml(dept.department_name)}</div>
-                                    <div class="dept-count ${heat}">${dept.total}</div>
-                                    <div class="dept-label">support requests</div>
-                                </div>`;
-                        }).join('') || '<div style="color:var(--ex-muted);font-size:12px;grid-column:1/-1">No data for this period.</div>';
-                    }
-
                     // ── Support Request Aging by Category & Status
                     renderAging(data);
+
+                    // ── Status Aging
+                    renderStatusAging(data);
+
+                    // ── IT Team Aging
+                    renderItTeamAging(data);
 
                     // ── IT Team Status
                     const itTeamBody = document.getElementById('itTeamBody');
@@ -1451,6 +1609,8 @@
                         const onlineBadge = document.getElementById('itTeamOnlineBadge');
                         const onlineCount = data.itTeamStatus.filter(m => m.online).length;
                         if (onlineBadge) onlineBadge.textContent = `${onlineCount} online`;
+                        const fabCount = document.getElementById('itTeamFabCount');
+                        if (fabCount) fabCount.textContent = onlineCount;
 
                         if (!data.itTeamStatus.length) {
                             itTeamBody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--ex-muted);padding:20px">No IT team members found.</td></tr>`;
@@ -1496,7 +1656,7 @@
 
                     const buckets = data.aging.buckets;
 
-                    if (badge) badge.textContent = `${data.aging.grandTotal} open`;
+                    if (badge) badge.textContent = `${data.aging.grandTotal} total`;
 
                     if (!data.aging.categories.length) {
                         body.innerHTML = `<tr><td colspan="${buckets.length + 2}" style="text-align:center;color:var(--ex-muted);padding:20px">No open support requests right now.</td></tr>`;
@@ -1516,16 +1676,116 @@
                         const catCells = buckets.map(b => cell(cat.buckets[b], b, cat.category, '')).join('');
                         const statusRows = cat.statuses.map(st => {
                             const stCells = buckets.map(b => cell(st.buckets[b], b, cat.category, st.status)).join('');
-                            return `<tr class="aging-status-row"><td class="aging-status-label">${escHtml(st.status)}</td>${stCells}<td style="text-align:right;color:var(--ex-muted)">${totalBtn(st.total, cat.category, st.status)}</td></tr>`;
+                            return `<tr class="aging-status-row" data-cat="${escHtml(cat.category)}"><td class="aging-status-label">${escHtml(st.status)}</td>${stCells}<td style="text-align:right;color:var(--ex-muted)">${totalBtn(st.total, cat.category, st.status)}</td></tr>`;
                         }).join('');
-                        return `<tr class="aging-cat-row"><td>${escHtml(cat.category)}</td>${catCells}<td style="text-align:right">${totalBtn(cat.total, cat.category, '')}</td></tr>${statusRows}`;
+                        const toggle = `<button type="button" class="aging-toggle-btn" aria-label="Toggle category"><i class="bi bi-chevron-down"></i></button>`;
+                        return `<tr class="aging-cat-row" data-cat="${escHtml(cat.category)}"><td>${toggle}${escHtml(cat.category)}</td>${catCells}<td style="text-align:right">${totalBtn(cat.total, cat.category, '')}</td></tr>${statusRows}`;
                     }).join('');
 
                     const totalCells = buckets.map(b => cell(data.aging.grandTotals[b], b, '', '')).join('');
                     const totalRow = `<tr class="aging-total-row"><td>All Categories</td>${totalCells}<td style="text-align:right">${totalBtn(data.aging.grandTotal, '', '')}</td></tr>`;
 
                     body.innerHTML = rows + totalRow;
+                    applyAgingCollapse();
                 }
+
+                // ── Status Aging — rebuilds the flat status table (no category grouping,
+                // includes every status) from JSON. Mirrors renderAging() above.
+                function renderStatusAging(data) {
+                    const body = document.getElementById('statusAgingBody');
+                    const badge = document.getElementById('statusAgingTotalBadge');
+                    if (!body || !data.statusAging) return;
+
+                    const buckets = data.statusAging.buckets;
+
+                    if (badge) badge.textContent = `${data.statusAging.grandTotal} total`;
+
+                    if (!data.statusAging.statuses.length) {
+                        body.innerHTML = `<tr><td colspan="${buckets.length + 2}" style="text-align:center;color:var(--ex-muted);padding:20px">No support requests found.</td></tr>`;
+                        return;
+                    }
+
+                    const cell = (count, bucket, status) => {
+                        if (count > 0) {
+                            return `<td style="text-align:center"><button type="button" class="aging-cell-btn" style="color:${AGING_COLORS[bucket]}" data-category="" data-status="${escHtml(status)}" data-bucket="${bucket}">${count}</button></td>`;
+                        }
+                        return `<td style="text-align:center"><span style="color:var(--ex-muted)">—</span></td>`;
+                    };
+                    const totalBtn = (total, status, scopeAll) =>
+                        `<button type="button" class="aging-cell-btn" data-category="" data-status="${escHtml(status)}" data-bucket=""${scopeAll ? ' data-scope="all"' : ''}>${total}</button>`;
+
+                    const rows = data.statusAging.statuses.map(st => {
+                        const stCells = buckets.map(b => cell(st.buckets[b], b, st.status)).join('');
+                        return `<tr class="aging-cat-row"><td>${escHtml(st.status)}</td>${stCells}<td style="text-align:right">${totalBtn(st.total, st.status, false)}</td></tr>`;
+                    }).join('');
+
+                    const totalCells = buckets.map(b => `<td style="text-align:center">${data.statusAging.grandTotals[b] > 0 ? `<button type="button" class="aging-cell-btn" data-category="" data-status="" data-bucket="${b}" data-scope="all">${data.statusAging.grandTotals[b]}</button>` : '<span>—</span>'}</td>`).join('');
+                    const totalRow = `<tr class="aging-total-row"><td>All Statuses</td>${totalCells}<td style="text-align:right">${totalBtn(data.statusAging.grandTotal, '', true)}</td></tr>`;
+
+                    body.innerHTML = rows + totalRow;
+                }
+
+                // ── IT Team Aging — per-member rows for the status picked in #itTeamAgingStatus
+                // ('' = all statuses, summed). Re-run on every refresh and on filter change.
+                let lastItTeamAging = null;
+
+                function renderItTeamAging(data) {
+                    if (data && data.itTeamAging) lastItTeamAging = data.itTeamAging;
+                    const agingData = lastItTeamAging;
+                    const body = document.getElementById('itTeamAgingBody');
+                    const select = document.getElementById('itTeamAgingStatus');
+                    if (!body || !agingData) return;
+
+                    const buckets = agingData.buckets;
+                    const status = select ? select.value : '';
+                    const statusesOf = m => status ? [status] : Object.keys(m.counts || {});
+                    const countFor = (m, st, b) => ((m.counts || {})[st] || {})[b] || 0;
+
+                    // Option labels carry each status's team-wide count so empty ones are obvious.
+                    if (select) {
+                        const totalFor = st => agingData.members.reduce((sum, m) => sum + buckets.reduce((t, b) => t + countFor(m, st, b), 0), 0);
+                        let allTotal = 0;
+                        Array.from(select.options).forEach(opt => {
+                            if (!opt.value) return;
+                            const n = totalFor(opt.value);
+                            allTotal += n;
+                            opt.textContent = `${opt.value} (${n})`;
+                        });
+                        select.options[0].textContent = `All statuses (${allTotal})`;
+                    }
+
+                    const rows = agingData.members.map(m => {
+                        const perBucket = buckets.map(b => statusesOf(m).reduce((sum, st) => sum + countFor(m, st, b), 0));
+                        return { m, perBucket, total: perBucket.reduce((a, c) => a + c, 0) };
+                    }).sort((a, b) => b.total - a.total || a.m.name.localeCompare(b.m.name));
+
+                    const grand = buckets.map((_, i) => rows.reduce((sum, r) => sum + r.perBucket[i], 0));
+                    const grandTotal = grand.reduce((a, c) => a + c, 0);
+
+                    const badge = document.getElementById('itTeamAgingTotalBadge');
+                    if (badge) badge.textContent = `${grandTotal} total`;
+
+                    const btn = (count, bucket, member, color) => count > 0
+                        ? `<button type="button" class="aging-cell-btn"${color ? ` style="color:${color}"` : ''} data-category="" data-status="${escHtml(status)}" data-bucket="${bucket}" data-scope="all" data-assignee="${escHtml(member ? member.id : '__team__')}" data-assignee-name="${escHtml(member ? member.name : 'All IT Team')}">${count}</button>`
+                        : '<span style="color:var(--ex-muted)">—</span>';
+
+                    body.innerHTML = rows.map(({ m, perBucket, total }) => `
+                        <tr class="aging-cat-row">
+                            <td>
+                                <div class="lb-name">${escHtml(m.name)}</div>
+                                <div class="lb-role">${escHtml(m.role || '')}</div>
+                            </td>
+                            ${perBucket.map((c, i) => `<td style="text-align:center">${btn(c, buckets[i], m, AGING_COLORS[buckets[i]])}</td>`).join('')}
+                            <td style="text-align:right">${btn(total, '', m)}</td>
+                        </tr>`).join('') + `
+                        <tr class="aging-total-row">
+                            <td>All IT Team</td>
+                            ${grand.map((c, i) => `<td style="text-align:center">${btn(c, buckets[i], null)}</td>`).join('')}
+                            <td style="text-align:right">${btn(grandTotal, '', null)}</td>
+                        </tr>`;
+                }
+
+                $('#itTeamAgingStatus').on('change', () => renderItTeamAging());
 
                 // ── Helper: time ago
                 function timeAgo(dateStr) {
@@ -1543,10 +1803,9 @@
                         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                 }
 
-                /* ══ ALL ACTIVE TICKETS — search/filter/paginate (AJAX, no page reload) ══ */
-                let activeTicketsPage = 1;
-                let activeTicketsTimer = null;
-
+                // Status badge coloring for support-request rows — still used by the
+                // aging drill-down list (renderAgingList) after the old "All Active
+                // Support Requests" table (which introduced this helper) was removed.
                 function activeTicketsBadgeClass(status) {
                     const s = (status || '').toLowerCase();
                     if (s.includes('escalated')) return 'breach';
@@ -1554,76 +1813,6 @@
                     if (s.includes('progress')) return 'admin';
                     return 'muted';
                 }
-
-                function priorityColor(priority) {
-                    return priority === 'Critical' ? 'var(--ex-critical)'
-                        : priority === 'High' ? 'var(--ex-red)'
-                            : priority === 'Medium' ? 'var(--ex-amber)'
-                                : priority === 'Low' ? 'var(--ex-green)'
-                                    : 'var(--ex-muted)';
-                }
-
-                function renderActiveTickets(data) {
-                    const body = document.getElementById('activeTicketsBody');
-                    if (!body) return;
-
-                    if (!data.tickets.length) {
-                        body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--ex-muted);padding:20px">No active support requests match your filters.</td></tr>`;
-                    } else {
-                        body.innerHTML = data.tickets.map(t => `
-                            <tr>
-                                <td>
-                                    <div style="font-weight:800;font-size:13px;color:var(--ex-txt)">#${escHtml(t.ticket_number)}</div>
-                                    <div style="font-size:12px;color:var(--ex-muted)">${escHtml((t.subject || '').slice(0, 40))}</div>
-                                </td>
-                                <td style="font-size:12px;color:var(--ex-muted)">${escHtml(t.requester_name)}</td>
-                                <td><span class="esc-badge ${activeTicketsBadgeClass(t.status)}">${escHtml(t.status)}</span></td>
-                                <td><span style="font-size:12px;font-weight:700;color:${priorityColor(t.priority)}">${escHtml(t.priority || 'N/A')}</span></td>
-                                <td style="font-size:12px;color:var(--ex-muted)">${timeAgo(t.created_at)}</td>
-                                <td style="text-align:right">
-                                    <button type="button" class="rt-btn" onclick="openTimelineModal('${t.id}', '${escHtml(t.ticket_number)}')">
-                                        <i class="bi bi-clock-history me-1"></i>Timeline
-                                    </button>
-                                </td>
-                            </tr>`).join('');
-                    }
-
-                    const statusText = document.getElementById('activeTicketsStatusText');
-                    if (statusText) {
-                        statusText.textContent = `Page ${data.pagination.current_page} of ${data.pagination.last_page} (${data.pagination.total} total)`;
-                    }
-                    const prevBtn = document.getElementById('activeTicketsPrev');
-                    const nextBtn = document.getElementById('activeTicketsNext');
-                    if (prevBtn) prevBtn.disabled = data.pagination.current_page <= 1;
-                    if (nextBtn) nextBtn.disabled = data.pagination.current_page >= data.pagination.last_page;
-
-                    activeTicketsPage = data.pagination.current_page;
-                }
-
-                function fetchActiveTickets(page) {
-                    const params = new URLSearchParams({
-                        page: page || activeTicketsPage,
-                        search: document.getElementById('activeTicketsSearch')?.value || '',
-                        status: document.getElementById('activeTicketsStatus')?.value || '',
-                        priority: document.getElementById('activeTicketsPriority')?.value || '',
-                    });
-
-                    fetch('{{ route('executive.dashboard.active-tickets') }}?' + params.toString(), {
-                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
-                    })
-                        .then(r => r.json())
-                        .then(renderActiveTickets)
-                        .catch(() => { });
-                }
-
-                document.getElementById('activeTicketsSearch')?.addEventListener('input', function () {
-                    clearTimeout(activeTicketsTimer);
-                    activeTicketsTimer = setTimeout(() => fetchActiveTickets(1), 400);
-                });
-                document.getElementById('activeTicketsStatus')?.addEventListener('change', () => fetchActiveTickets(1));
-                document.getElementById('activeTicketsPriority')?.addEventListener('change', () => fetchActiveTickets(1));
-                document.getElementById('activeTicketsPrev')?.addEventListener('click', () => fetchActiveTickets(activeTicketsPage - 1));
-                document.getElementById('activeTicketsNext')?.addEventListener('click', () => fetchActiveTickets(activeTicketsPage + 1));
 
                 /* ══ FETCH FRESH DATA FROM API — driven by the selected date range ══ */
                 let currentRange = '{{ $range }}';
@@ -1644,7 +1833,6 @@
                         .then(data => {
                             updateKPIs(data);
                             initCharts(data);
-                            fetchActiveTickets(activeTicketsPage);
                         })
                         .catch(() => { }); // Silent fail
                 }
@@ -1655,6 +1843,16 @@
                     fetchExecutiveData();
                 });
 
+                /* ══ Floating IT Team Status panel ══ */
+                function toggleItTeam(open) {
+                    const panel = document.getElementById('itTeamPanel');
+                    panel.hidden = !open;
+                    document.getElementById('itTeamFab').setAttribute('aria-expanded', open);
+                }
+                $('#itTeamFab').on('click', () => toggleItTeam(document.getElementById('itTeamPanel').hidden));
+                $('#itTeamClose').on('click', () => toggleItTeam(false));
+                $(document).on('keydown', e => { if (e.key === 'Escape') toggleItTeam(false); });
+
                 /* ══ INIT ON PAGE LOAD with existing PHP data ══ */
                 initCharts({
                     volumeDays: {!! json_encode($volumeDays) !!},
@@ -1663,8 +1861,11 @@
                     slaByPriority: {!! json_encode($slaByPriority ?? []) !!},
                     byCategory: {!! json_encode($byCategory) !!},
                     resTimeByCategory: {!! json_encode($resTimeByCategory) !!},
+                    byDepartment: {!! json_encode($byDepartment) !!},
                     weeklyData: {!! json_encode($weeklyData) !!},
                 });
+
+                renderItTeamAging({ itTeamAging: {!! json_encode($itTeamAging) !!} });
 
                 /* ══ AUTO-REFRESH every 30 seconds ══ */
                 let refreshTimer = setInterval(fetchExecutiveData, 30000);
@@ -1725,16 +1926,110 @@
                         });
                 };
 
+                /* ══ Avg Resolution Time drill-down: top 5 slowest closed requests in a category ══ */
+                const fmtHours = h => {
+                    const n = Number(h);
+                    if (n >= 24) return `${n}h <span style="color:var(--ex-muted);font-weight:600">(${(n / 24).toFixed(1)}d)</span>`;
+                    return `${n}h`;
+                };
+                const fmtDate = d => d ? new Date(d.replace(' ', 'T')).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+
+                window.openResTop = function (category) {
+                    $('#resTopTitle').text(category);
+                    $('#resTopSub').text('');
+                    $('#resTopBody').html(`
+                        <tr><td colspan="8" style="text-align:center;color:var(--ex-muted);padding:20px">
+                            <div class="spinner-border spinner-border-sm me-2"></div>Loading…
+                        </td></tr>`);
+                    bootstrap.Modal.getOrCreateInstance('#resTopModal').show();
+
+                    const params = new URLSearchParams({ category, range: currentRange });
+                    fetch('{{ route('executive.dashboard.resolution-top') }}?' + params.toString(), {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                    })
+                        .then(r => r.json())
+                        .then(data => {
+                            $('#resTopSub').text(`Closed support requests, ${data.rangeLabel} — longest time from start to resolution`);
+                            if (!data.tickets.length) {
+                                $('#resTopBody').html('<tr><td colspan="8" style="text-align:center;color:var(--ex-muted);padding:20px">No closed support requests in this category.</td></tr>');
+                                return;
+                            }
+                            $('#resTopBody').html(data.tickets.map((t, i) => `
+                                <tr>
+                                    <td class="lb-rank ${['gold', 'silver', 'bronze'][i] || ''}">${i + 1}</td>
+                                    <td>
+                                        <div style="font-weight:800;font-size:13px;color:var(--ex-txt)">#${escHtml(t.ticket_number)}</div>
+                                        <div style="font-size:12px;color:var(--ex-muted)">${escHtml((t.subject || '').slice(0, 50))}</div>
+                                    </td>
+                                    <td style="font-size:12px;color:var(--ex-muted)">${escHtml(t.requester_name)}</td>
+                                    <td style="font-size:12px">${escHtml(t.assigned_to_name || '—')}</td>
+                                    <td style="font-size:12px">${escHtml(t.priority || '—')}</td>
+                                    <td style="font-size:11px;color:var(--ex-muted);white-space:nowrap">${fmtDate(t.started_at)} → ${fmtDate(t.resolved_at)}</td>
+                                    <td style="text-align:right;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;color:var(--ex-red);white-space:nowrap">${fmtHours(t.hours)}</td>
+                                    <td style="text-align:right">
+                                        <button type="button" class="rt-btn" onclick="openDetailsFromResTop('${t.id}', '${escHtml(t.ticket_number)}')">
+                                            <i class="bi bi-clock-history me-1"></i>Details
+                                        </button>
+                                    </td>
+                                </tr>`).join(''));
+                        })
+                        .catch(() => {
+                            $('#resTopBody').html('<tr><td colspan="8" style="text-align:center;color:var(--ex-red);padding:20px">Failed to load support requests.</td></tr>');
+                        });
+                };
+
+                // Same modal swap as openDetailsFromAgingList() — Bootstrap doesn't stack modals.
+                window.openDetailsFromResTop = function (ticketId, ticketNumber) {
+                    bootstrap.Modal.getInstance(document.getElementById('resTopModal'))?.hide();
+                    openTimelineModal(ticketId, ticketNumber);
+                };
+
                 /* ══ Aging drill-down: click any count in the aging table to list its tickets ══ */
 
                 // Delegated so it keeps working after renderAging() rebuilds #agingBody on refresh.
                 $(document).on('click', '.aging-cell-btn', function () {
                     const el = $(this);
-                    openAgingList(el.data('category') ?? '', el.data('status') ?? '', el.data('bucket') ?? '');
+                    openAgingList(el.data('category') ?? '', el.data('status') ?? '', el.data('bucket') ?? '', el.data('scope') === 'all',
+                        el.attr('data-assignee') || '', el.attr('data-assignee-name') || '');
                 });
 
-                window.openAgingList = function (category, status, bucket) {
-                    const titleParts = [category || 'All Categories'];
+                /* ══ Per-category collapse in "Support Request Aging by Category & Status" ══ */
+                // Category names collapsed by the user, in-memory only (resets on page reload).
+                // Re-applied after every renderAging() rebuild (30s refresh) so state survives it.
+                // Seeded from the server-rendered rows (all marked .aging-collapsed — see the
+                // Blade template) so every category starts collapsed on first load.
+                const collapsedAgingCategories = new Set(
+                    $('#agingBody .aging-cat-row').map(function () { return $(this).data('cat'); }).get()
+                );
+
+                function applyAgingCollapse() {
+                    $('#agingBody .aging-cat-row').each(function () {
+                        const $row = $(this);
+                        $row.toggleClass('aging-collapsed', collapsedAgingCategories.has($row.data('cat')));
+                    });
+                    $('#agingBody .aging-status-row').each(function () {
+                        const $row = $(this);
+                        $row.toggle(!collapsedAgingCategories.has($row.data('cat')));
+                    });
+                }
+
+                // Delegated so it keeps working after renderAging() rebuilds #agingBody on refresh.
+                $(document).on('click', '.aging-toggle-btn', function (e) {
+                    e.stopPropagation();
+                    const cat = $(this).closest('.aging-cat-row').data('cat');
+                    if (collapsedAgingCategories.has(cat)) {
+                        collapsedAgingCategories.delete(cat);
+                    } else {
+                        collapsedAgingCategories.add(cat);
+                    }
+                    applyAgingCollapse();
+                });
+
+                window.openAgingList = function (category, status, bucket, includeAll, assignee, assigneeName) {
+                    const titleParts = [];
+                    if (assigneeName) titleParts.push(assigneeName);
+                    if (category) titleParts.push(category);
+                    else if (!status) titleParts.push(includeAll ? 'All Statuses' : 'All Categories');
                     if (status) titleParts.push(status);
                     titleParts.push(bucket ? `${bucket} days` : 'all ages');
                     $('#agingListTitle').text(titleParts.join(' · '));
@@ -1746,7 +2041,7 @@
                     `);
                     new bootstrap.Modal('#agingListModal').show();
 
-                    const params = new URLSearchParams({ category: category || '', status: status || '', bucket: bucket || '' });
+                    const params = new URLSearchParams({ category: category || '', status: status || '', bucket: bucket || '', all: includeAll ? '1' : '', assignee: assignee || '' });
                     fetch('{{ route('executive.dashboard.aging-tickets') }}?' + params.toString(), {
                         headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                     })
