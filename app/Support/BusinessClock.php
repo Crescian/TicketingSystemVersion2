@@ -170,6 +170,32 @@ class BusinessClock
         return max(0, (int) $start->diffInMinutes($end) - $lunchOverlap);
     }
 
+    // Business minutes between two moments that may span days — the inverse of
+    // addBusinessMinutes(): walks the same open segments, skipping lunch, nights,
+    // weekends and holidays. Returns 0 when $end is not after $start. Used by
+    // TicketHold::resume() to carry a paused ticket's remaining SLA forward.
+    public static function businessMinutesSpanning(Carbon $start, Carbon $end): int
+    {
+        $end = $end->copy()->setTimezone(self::TIMEZONE);
+        $cursor = self::rollForwardIntoBusinessWindow($start->copy()->setTimezone(self::TIMEZONE));
+
+        $total = 0;
+
+        while ($cursor->lt($end)) {
+            $segmentEnd = self::segmentEnd($cursor);
+            $stop = $segmentEnd->lt($end) ? $segmentEnd : $end;
+            $total += (int) $cursor->diffInMinutes($stop);
+
+            if ($segmentEnd->gte($end)) {
+                break;
+            }
+
+            $cursor = self::rollForwardIntoBusinessWindow($segmentEnd);
+        }
+
+        return $total;
+    }
+
     // Per-request memoized holiday lookup, keyed by local calendar date — avoids
     // re-querying for every day walked while laying out a specialist's queue.
     private static array $holidayCache = [];
