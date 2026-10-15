@@ -243,6 +243,17 @@
 
     .itteam-aging-select:focus { outline: none; border-color: var(--ex-yg); }
 
+    /* ── Employee Feedback panel ── */
+    .feedback-scroll { max-height: 420px; overflow-y: auto; }
+    .feedback-scroll thead th { position: sticky; top: 0; background: var(--ex-card); z-index: 1; }
+    .feedback-stars { color: var(--ex-amber); font-size: 14px; letter-spacing: 1px; }
+    .feedback-stars-off { color: rgba(255,255,255,.18); }
+    .feedback-comment { font-size: 12px; min-width: 220px; max-width: 420px; white-space: normal; word-break: break-word; }
+    .feedback-filter {
+        background: var(--ex-card2); color: var(--ex-txt); border: 1px solid rgba(255,255,255,.1);
+        border-radius: 20px; font-size: 12px; font-weight: 700; padding: 4px 10px;
+    }
+
     /* ── Floating IT Team Status ── */
     .itteam-fab {
         position: fixed;
@@ -1040,6 +1051,50 @@
 
         </div>
 
+        {{-- ── Employee Feedback: individual ratings + comments behind the CSAT breakdown ── --}}
+        <div class="row g-3 mb-2">
+            <div class="col-12">
+                <div class="chart-card">
+                    <div class="d-flex justify-content-between align-items-center mb-1 gap-2 flex-wrap">
+                        <div>
+                            <div class="chart-title">Employee Feedback</div>
+                            <div class="chart-sub" id="feedbackSub">Ratings and comments from requestors — {{ $rangeLabel }}</div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <select id="feedbackCommentFilter" class="feedback-filter" aria-label="Filter feedback by comment">
+                                <option value="comments" selected>With comments only</option>
+                                <option value="">All feedback</option>
+                            </select>
+                            <select id="feedbackFilter" class="feedback-filter" aria-label="Filter feedback by rating">
+                                <option value="">All ratings</option>
+                                @foreach([5, 4, 3, 2, 1] as $star)
+                                    <option value="{{ $star }}">{{ $star }}★ only</option>
+                                @endforeach
+                            </select>
+                            <span id="feedbackCountBadge"
+                                style="background:rgba(200,230,60,.12);color:var(--ex-yg);font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;border:1px solid rgba(200,230,60,.25);white-space:nowrap">
+                            </span>
+                        </div>
+                    </div>
+                    <div class="table-responsive feedback-scroll">
+                        <table class="lb-table mt-2">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Employee</th>
+                                    <th>Support Request</th>
+                                    <th>Resolved By</th>
+                                    <th>Rating</th>
+                                    <th>Comment</th>
+                                </tr>
+                            </thead>
+                            <tbody id="feedbackBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- ── Floating IT Team Status ── --}}
         <button type="button" class="itteam-fab" id="itTeamFab" title="IT Team Status" aria-label="IT Team Status" aria-controls="itTeamPanel" aria-expanded="false">
             <i class="bi bi-people-fill"></i>
@@ -1583,6 +1638,7 @@
                             leaderboardSub: `Ranked by support requests closed — ${data.rangeLabel}`,
                             weeklyChartSub: `Support requests by status per week — ${data.rangeLabel}`,
                             csatChartSub: `Rating breakdown — ${data.rangeLabel}`,
+                            feedbackSub: `Ratings and comments from requestors — ${data.rangeLabel}`,
                         };
                         Object.entries(subs).forEach(([id, text]) => {
                             const el = document.getElementById(id);
@@ -1796,6 +1852,77 @@
                     return `${Math.floor(diff / 86400)} days ago`;
                 }
 
+                // ── Employee Feedback table. Filters are applied server-side
+                // so the 50-row cap never hides older matches; re-render is skipped when a
+                // poll returns the same rows, so reading/selecting a comment isn't disturbed.
+                let lastFeedbackKey = null;
+                let feedbackReq = 0;
+
+                function renderFeedback(payload) {
+                    const body = document.getElementById('feedbackBody');
+                    const badge = document.getElementById('feedbackCountBadge');
+                    if (!body || !payload) return;
+
+                    const key = JSON.stringify(payload);
+                    if (key === lastFeedbackKey) return;
+                    lastFeedbackKey = key;
+
+                    const rows = payload.rows || [];
+                    const total = payload.total || 0;
+                    if (badge) {
+                        badge.textContent = total > rows.length
+                            ? `Latest ${rows.length} of ${total}`
+                            : `${rows.length} shown`;
+                    }
+
+                    const filtered = document.getElementById('feedbackFilter')?.value
+                        || document.getElementById('feedbackCommentFilter')?.value;
+                    if (!rows.length) {
+                        const msg = filtered ? 'No feedback matches the selected filters.' : 'No feedback received in this period.';
+                        body.innerHTML = `<tr><td colspan="6" class="text-center" style="color:var(--ex-muted);padding:24px">${msg}</td></tr>`;
+                        return;
+                    }
+                    body.innerHTML = rows.map(fb => {
+                        const rating = parseInt(fb.rating, 10) || 0;
+                        return `<tr>
+                            <td style="white-space:nowrap;font-size:12px;color:var(--ex-muted)">${escHtml(fb.created_at_label)}</td>
+                            <td>
+                                <div class="lb-name">${escHtml(fb.employee_name || 'N/A')}</div>
+                                <div class="lb-role">${escHtml(fb.department_name || '—')}</div>
+                            </td>
+                            <td>
+                                <div style="color:var(--ex-yg);font-weight:800;font-size:12px">#${escHtml(fb.ticket_number)}</div>
+                                <div class="lb-role">${escHtml(fb.subject)}</div>
+                            </td>
+                            <td style="font-size:12px">${escHtml(fb.resolved_by_name || '—')}</td>
+                            <td class="feedback-stars" style="white-space:nowrap" title="${rating} out of 5">${'★'.repeat(rating)}<span class="feedback-stars-off">${'★'.repeat(Math.max(0, 5 - rating))}</span></td>
+                            <td class="feedback-comment">${fb.comments ? escHtml(fb.comments) : '<span style="color:var(--ex-muted);font-style:italic">No comment</span>'}</td>
+                        </tr>`;
+                    }).join('');
+                }
+
+                function fetchFeedback() {
+                    const params = new URLSearchParams({ range: currentRange });
+                    const rating = document.getElementById('feedbackFilter')?.value;
+                    if (rating) params.set('rating', rating);
+                    if (document.getElementById('feedbackCommentFilter')?.value === 'comments') params.set('comments', '1');
+
+                    const req = ++feedbackReq; // ignore responses that arrive after a newer request
+                    fetch('{{ route('executive.dashboard.feedback') }}?' + params.toString(), {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                    })
+                        .then(r => {
+                            if (!r.ok) throw new Error('HTTP ' + r.status);
+                            return r.json();
+                        })
+                        .then(payload => { if (req === feedbackReq) renderFeedback(payload); })
+                        .catch(() => { }); // Silent fail
+                }
+                // A filter change always re-renders, even if the rows match (empty-state text differs).
+                const onFeedbackFilterChange = () => { lastFeedbackKey = null; fetchFeedback(); };
+                document.getElementById('feedbackFilter')?.addEventListener('change', onFeedbackFilterChange);
+                document.getElementById('feedbackCommentFilter')?.addEventListener('change', onFeedbackFilterChange);
+
                 // ── Helper: escape HTML
                 function escHtml(str) {
                     return String(str || '')
@@ -1835,6 +1962,8 @@
                             initCharts(data);
                         })
                         .catch(() => { }); // Silent fail
+
+                    fetchFeedback();
                 }
 
                 // ── Date-range buttons (7D/30D/90D/YTD) — event fired by layouts/executive.blade.php
@@ -1866,6 +1995,8 @@
                 });
 
                 renderItTeamAging({ itTeamAging: {!! json_encode($itTeamAging) !!} });
+
+                renderFeedback({!! json_encode($feedback) !!});
 
                 /* ══ AUTO-REFRESH every 30 seconds ══ */
                 let refreshTimer = setInterval(fetchExecutiveData, 30000);

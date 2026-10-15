@@ -327,18 +327,27 @@ class TicketController extends Controller
         ]);
 
         $oldStatus = $ticket->status;
-        $startedAt = now();
-        $resolutionMinutes = $ticket->effectiveResolutionTimeMinutes();
 
-        $ticket->update([
-            'status' => TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
-            'started_at' => $startedAt, // SLA resolution clock starts here
-            'sla_due_at' => $resolutionMinutes
-                ? BusinessClock::addBusinessMinutes($startedAt->copy(), $resolutionMinutes)
-                : null,
-            'sla_risk_notified_at' => null,
-            'sla_breached_notified_at' => null,
-        ]);
+        // A revision that waited in the queue was already started once — keep its
+        // original SLA clock instead of restarting it.
+        $isQueuedRevision = $ticket->revision_requested_at && $ticket->started_at;
+
+        if ($isQueuedRevision) {
+            $ticket->update(['status' => TicketStatus::IN_PROGRESS_SERVICE_REQUEST]);
+        } else {
+            $startedAt = now();
+            $resolutionMinutes = $ticket->effectiveResolutionTimeMinutes();
+
+            $ticket->update([
+                'status' => TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
+                'started_at' => $startedAt, // SLA resolution clock starts here
+                'sla_due_at' => $resolutionMinutes
+                    ? BusinessClock::addBusinessMinutes($startedAt->copy(), $resolutionMinutes)
+                    : null,
+                'sla_risk_notified_at' => null,
+                'sla_breached_notified_at' => null,
+            ]);
+        }
 
         // Ticket just left the not-started queue (promoted to In Progress) — compact the
         // technician's remaining queued tickets forward to fill the gap it leaves behind.
@@ -349,14 +358,16 @@ class TicketController extends Controller
             'old_status' => $oldStatus,
             'new_status' => TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
             'changed_by' => Auth::id(),
-            'notes' => "Ticket started by " . Auth::user()->name . "." .
+            'notes' => ($isQueuedRevision ? "Revision started by " : "Ticket started by ") . Auth::user()->name . "." .
                 ($request->notes ? " Notes: {$request->notes}" : ''),
             'changed_at' => now(),
         ]);
 
         return back()->with(
             'success',
-            "Ticket #{$ticket->ticket_number} started. SLA resolution timer is now running."
+            $isQueuedRevision
+                ? "Revision on ticket #{$ticket->ticket_number} started. The original SLA timer continues."
+                : "Ticket #{$ticket->ticket_number} started. SLA resolution timer is now running."
         );
     }
 
@@ -506,6 +517,9 @@ class TicketController extends Controller
             'service_type' => $request->service_type,
             'findings' => $request->findings,
             'recommendation' => $request->recommendation,
+            // Resubmitted — any requested revision is now addressed.
+            'revision_requested_at' => null,
+            'revision_notes' => null,
         ]);
 
         // Ticket just left the In-Progress anchor slot — if it finished early (or ran

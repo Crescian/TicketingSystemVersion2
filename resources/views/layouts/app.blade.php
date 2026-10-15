@@ -1029,6 +1029,11 @@
                         <i class="bi bi-ticket-perforated me-1"></i>My Requests
                     </a>
                 @endif
+                @if(in_array(Auth::user()->role?->role_name, \App\Models\DeveloperConcern::SENDER_ROLES, true) && !Route::is('developer-concerns.*'))
+                    <a href="{{ route('developer-concerns.index') }}" class="btn-back-dashboard">
+                        <i class="bi bi-bug me-1"></i>Report to Developer
+                    </a>
+                @endif
                 {{-- Read-only access to the Executive dashboard, authorized for these
                      support-tier roles alongside Manager (see routes/web.php executive group). --}}
                 @if((Auth::user()->hasRole('Helpdesk') || Auth::user()->hasRole('Supervisor - Support Specialist') || Auth::user()->hasRole('Supervisor - IT Admin')) && !Route::is('executive.*'))

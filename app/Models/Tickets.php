@@ -81,6 +81,10 @@ class Tickets extends Model
         'scheduled_end',
         'is_overtime',
         'queued_at',
+
+        // ── Supervisor "Request Revision" (see SupervisorDashboardController::requestRevision)
+        'revision_requested_at',
+        'revision_notes',
     ];
 
     protected $casts = [
@@ -106,6 +110,7 @@ class Tickets extends Model
         'scheduled_end' => 'datetime',
         'queued_at' => 'datetime',
         'is_overtime' => 'boolean',
+        'revision_requested_at' => 'datetime',
     ];
 
     public function user()

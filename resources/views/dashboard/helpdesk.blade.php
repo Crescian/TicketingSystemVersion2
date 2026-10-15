@@ -497,22 +497,10 @@
 
     {{-- IT Support Specialists availability --}}
     <div class="sidebar-card">
-        <div class="sidebar-head">IT Support Specialists</div>
+        @include('dashboard.partials.specialist-availability-head')
         <div>
             @forelse($technicians as $tech)
-                @php
-                    $initials = strtoupper(substr($tech->name, 0, 1)) .
-                                strtoupper(substr($tech->name, strpos($tech->name, ' ') + 1, 1));
-                @endphp
-                <div class="tech-row">
-                    <div class="tech-av-lg">{{ $initials }}</div>
-                    <div>
-                        <div class="tech-name">{{ $tech->name }}</div>
-                        <div class="tech-load">{{ $tech->free_time_label }}</div>
-                    </div>
-                    <div class="avail-dot {{ $tech->availability }}"
-                         title="{{ match($tech->schedule_status) { 'overtime' => 'Overtime', 'on_leave' => 'On approved leave', default => ucfirst($tech->availability) } }}"></div>
-                </div>
+                @include('dashboard.partials.specialist-availability-row', ['tech' => $tech])
             @empty
                 <div class="p-3" style="font-size:13px;color:var(--tm)">
                     No technicians found.
@@ -528,7 +516,7 @@
 
     {{-- IT Admin + Supervisor availability — based on how many tickets each
          currently has open (no real time-slot scheduling on this track yet),
-         unlike the free-time label above for IT Support Specialists. --}}
+         unlike the free-time capacity bar above for IT Support Specialists. --}}
     <div class="sidebar-card mt-3">
         <div class="sidebar-head">IT Admin Availability</div>
         <div>
@@ -2286,6 +2274,7 @@ $(function () {
                 const priColor = sub.priority === 'Critical' ? '#8b0000' : (sub.priority === 'High' ? '#e24b4a' : (sub.priority === 'Medium' ? '#f5c842' : '#4a7c4a'));
                 $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}"
                      data-priority="${sub.priority}" data-response="${sub.response}" data-resolution="${sub.resolution}"
+                     data-workload-class-id="${sub.workload_class_id ?? ''}"
                      data-helpdesk-resolvable="${sub.helpdesk_resolvable ? '1' : '0'}"
                      data-admin-only="${sub.admin_only ? '1' : '0'}">
                     <div class="sub-check"></div>
@@ -2315,6 +2304,15 @@ $(function () {
         $('#acResponseTime').val($(this).data('response'));
         $('#acResolutionTime').val($(this).data('resolution'));
         $('#acOverrideWrap').removeClass('d-none');
+
+        // Auto-select the subcategory's default workload class (SlaRule::workload_class_id).
+        // Set silently — no 'change' trigger — since the rule's minutes above already come
+        // from that class, and triggering would wipe the resolution for manual classes.
+        const wcId = $(this).data('workload-class-id') || '';
+        const $wcSel = $('#acWorkloadClass');
+        $wcSel.val($wcSel.find(`option[value="${wcId}"]`).length ? wcId : '');
+        const wcManual = String($wcSel.find(':selected').data('manual')) === '1';
+        $('#acWorkloadManualHint').toggleClass('d-none', !($wcSel.val() && wcManual));
 
         // "Handle this myself" only offered when IT Admin marked this exact
         // subcategory as Helpdesk-resolvable — see SlaRule::helpdesk_resolvable.

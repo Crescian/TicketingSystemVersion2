@@ -19,7 +19,8 @@ Route::middleware('auth:sanctum')->group(function () {
 // token ability (issued via `php artisan api:issue-org-token`), not tied to the
 // session-based web roles used elsewhere in this app.
 Route::middleware(['auth:sanctum', 'abilities:org:read'])->prefix('org')->group(function () {
-    Route::get('/business-units', [OrgController::class, 'businessUnits']);
+    Route::get('/hierarchy', [OrgController::class, 'hierarchy']);
+    Route::get('/business-units',[OrgController::class, 'businessUnits']);
     Route::get('/companies', [OrgController::class, 'companies']);
     Route::get('/departments', [OrgController::class, 'departments']);
     Route::get('/users', [OrgController::class, 'users']);

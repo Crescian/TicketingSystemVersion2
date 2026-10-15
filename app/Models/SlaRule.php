@@ -14,6 +14,7 @@ class SlaRule extends Model
         'sla_category_id',
         'subcategory_name',
         'priority',
+        'workload_class_id',
         'response_time_minutes',
         'resolution_time_minutes',
         'is_active',
@@ -33,6 +34,11 @@ class SlaRule extends Model
     public function category()
     {
         return $this->belongsTo(SlaCategory::class, 'sla_category_id');
+    }
+
+    public function workloadClass()
+    {
+        return $this->belongsTo(WorkloadClass::class, 'workload_class_id');
     }
 
     public static function formatMinutes(float $minutes): string

@@ -54,15 +54,19 @@ class TicketScheduler
     // Returns either ['needs_decision' => true, 'start', 'end', 'day_end'] (nothing
     // persisted) or ['needs_decision' => false, 'scheduled_start', 'scheduled_end',
     // 'is_overtime', 'queued_at'] for the caller to merge into its own ticket update.
+    // $queuedAt overrides the ticket's arrival time within its priority tier — a
+    // revision passes its original one so it sorts ahead of newer same-tier tickets.
     public static function commitAssignment(
         Tickets $ticket,
         User $technician,
         string $priority,
         int $effortMinutes,
         string $decision = 'auto',
-        ?Carbon $now = null
+        ?Carbon $now = null,
+        ?Carbon $queuedAt = null
     ): array {
         $now = ($now ?? now())->copy();
+        $queuedAt = ($queuedAt ?? $now)->copy();
         $effortMinutes = max(1, $effortMinutes);
 
         $existing = self::notStartedQueueItems($technician, $ticket->id);
@@ -70,7 +74,7 @@ class TicketScheduler
         $candidate = [
             'key' => $candidateKey,
             'priorityRank' => self::PRIORITY_RANK[$priority] ?? self::DEFAULT_PRIORITY_RANK,
-            'queuedAt' => $now,
+            'queuedAt' => $queuedAt,
             'effort' => $effortMinutes,
         ];
 
@@ -129,7 +133,7 @@ class TicketScheduler
             'scheduled_start' => $candidateSlot['start'],
             'scheduled_end' => $candidateSlot['end'],
             'is_overtime' => $candidateSlot['is_overtime'],
-            'queued_at' => $now,
+            'queued_at' => $queuedAt,
         ];
     }
 

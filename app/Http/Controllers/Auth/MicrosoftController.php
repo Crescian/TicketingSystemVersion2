@@ -102,6 +102,7 @@ class MicrosoftController extends Controller
             'IT Admin' => redirect()->route('admin.dashboard'),
             'Supervisor - IT Admin' => redirect()->route('supervisor.dashboard'),
             'Manager' => redirect()->route('executive.dashboard'),
+            'Developer' => redirect()->route('developer.dashboard'),
             default => redirect('/login'),
         };
     }

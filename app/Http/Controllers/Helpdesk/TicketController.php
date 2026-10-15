@@ -214,9 +214,20 @@ class TicketController extends Controller
         ];
         $counts['active'] = $this->scopeActive(Tickets::query())->count();
 
-        // Technicians with real time-slot capacity (App\Services\TicketScheduler)
+        // Technicians with real time-slot capacity (App\Services\TicketScheduler),
+        // plus what they're actually holding right now — free time alone says
+        // nothing outside business hours and never says what they're working on.
         $technicians = User::whereHas('role', fn($q) =>
             $q->where('role_name', 'IT Support Specialist'))
+            ->withCount([
+                'assignedTickets as in_progress_count' => fn($q) => $q->whereIn('status', [
+                    TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
+                    TicketStatus::IN_PROGRESS_SERVICE_REPORT,
+                ]),
+                'assignedTickets as queued_count' => fn($q) => $q->where('status', TicketStatus::ASSIGNED),
+                'assignedTickets as on_hold_count' => fn($q) => $q->where('status', TicketStatus::ON_HOLD),
+            ])
+            ->orderBy('name')
             ->get()
             ->map(function ($tech) {
                 $status = TicketScheduler::statusFor($tech);
@@ -228,6 +239,7 @@ class TicketController extends Controller
                 };
                 $tech->free_minutes_today = TicketScheduler::freeMinutesToday($tech);
                 $tech->free_time_label = TicketScheduler::freeTimeLabel($tech);
+                $tech->free_window_today = TicketScheduler::freeWindowToday($tech);
                 return $tech;
             });
 
@@ -259,7 +271,7 @@ class TicketController extends Controller
         $slaCategories = \App\Models\SlaCategory::with([
             'rules' => function ($q) {
                 $q->where('is_active', true)
-                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes', 'helpdesk_resolvable', 'admin_only', 'description')
+                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'workload_class_id', 'response_time_minutes', 'resolution_time_minutes', 'helpdesk_resolvable', 'admin_only', 'description')
                     ->orderBy('subcategory_name');
             }
         ])
@@ -278,6 +290,7 @@ class TicketController extends Controller
                 'rule_id' => $r->id,
                 'name' => $r->subcategory_name,
                 'priority' => $r->priority,
+                'workload_class_id' => $r->workload_class_id,
                 'response' => $r->response_time_minutes,
                 'resolution' => $r->resolution_time_minutes,
                 'helpdesk_resolvable' => $r->helpdesk_resolvable,
@@ -770,6 +783,9 @@ class TicketController extends Controller
             'service_type' => $request->service_type,
             'findings' => $request->findings,
             'recommendation' => $request->recommendation,
+            // Resubmitted — any requested revision is now addressed.
+            'revision_requested_at' => null,
+            'revision_notes' => null,
         ]);
 
         foreach ($request->file('attachments', []) as $file) {

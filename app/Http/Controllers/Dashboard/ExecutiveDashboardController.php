@@ -24,6 +24,9 @@ class ExecutiveDashboardController extends Controller
 
     private const ONLINE_WINDOW_MINUTES = 5;
 
+    // Most recent feedback responses shown in the Employee Feedback panel.
+    private const FEEDBACK_LIST_LIMIT = 50;
+
     private const ACTIVE_TICKET_EXCLUDED_STATUSES = [TicketStatus::CLOSED, TicketStatus::CANCELLED];
 
     // ── Lifecycle order for the "Status Aging" panel — TicketStatus::PIPELINE plus
@@ -83,11 +86,16 @@ class ExecutiveDashboardController extends Controller
 
         $itTeamStatus = $this->itTeamStatus();
 
+        // First render of the Employee Feedback panel, using its default filter
+        // (with comments only, all ratings).
+        $feedback = $this->feedbackList($range, null, true);
+
         return view('dashboard.executive', array_merge($data, compact(
             'user',
             'greeting',
             'range',
             'itTeamStatus',
+            'feedback',
         )));
     }
 
@@ -432,6 +440,73 @@ class ExecutiveDashboardController extends Controller
         $data['itTeamStatus'] = $this->itTeamStatus();
 
         return response()->json($data);
+    }
+
+    // ── JSON endpoint for the Employee Feedback panel — filter
+    // changes, range switches and the 30s poll all come through here.
+    public function feedback(Request $request)
+    {
+        $validated = $request->validate([
+            'range' => 'nullable|string',
+            'rating' => 'nullable|integer|between:1,5',
+            'comments' => 'nullable|boolean',
+        ]);
+
+        return response()->json($this->feedbackList(
+            $validated['range'] ?? 'YTD',
+            isset($validated['rating']) ? (int) $validated['rating'] : null,
+            (bool) ($validated['comments'] ?? false),
+        ));
+    }
+
+    // ── Individual ratings + comments behind the CSAT breakdown, newest first. The
+    // panel's filters are applied in SQL before the limit, so older matches aren't
+    // crowded out by newer non-matching rows; `total` lets the panel say when the
+    // list is capped.
+    private function feedbackList(string $range, ?int $rating, bool $commentsOnly): array
+    {
+        $window = $this->rangeWindows($range);
+
+        $query = DB::table('ticket_feed_backs as f')
+            ->whereBetween('f.created_at', [$window['start'], $window['end']])
+            ->when($rating, fn($q) => $q->where('f.rating', $rating))
+            ->when($commentsOnly, fn($q) => $q->whereNotNull('f.comments')->whereRaw("TRIM(f.comments) <> ''"));
+
+        $total = (clone $query)->count();
+
+        $rows = $query
+            ->join('tickets as t', 't.id', '=', 'f.ticket_id')
+            ->leftJoin('users as u', 'u.id', '=', 'f.user_id')
+            ->leftJoin('departments as d', 'd.id', '=', 'u.department_id')
+            ->leftJoin('users as r', 'r.id', '=', 't.resolved_by')
+            ->orderByDesc('f.created_at')
+            ->limit(self::FEEDBACK_LIST_LIMIT)
+            ->get([
+                'f.rating',
+                'f.comments',
+                'f.created_at',
+                't.ticket_number',
+                't.subject',
+                'u.name as employee_name',
+                'd.department_name',
+                'r.name as resolved_by_name',
+            ])
+            ->map(fn($fb) => [
+                'rating' => (int) $fb->rating,
+                'comments' => trim((string) $fb->comments),
+                'created_at_label' => $fb->created_at
+                    ? \Illuminate\Support\Carbon::parse($fb->created_at)->format('M d, Y g:i A')
+                    : null,
+                'ticket_number' => $fb->ticket_number,
+                // Truncated here so page load and polls render the same text.
+                'subject' => \Illuminate\Support\Str::limit((string) $fb->subject, 50),
+                'employee_name' => $fb->employee_name,
+                'department_name' => $fb->department_name,
+                'resolved_by_name' => $fb->resolved_by_name,
+            ])
+            ->values();
+
+        return ['rows' => $rows, 'total' => $total, 'limit' => self::FEEDBACK_LIST_LIMIT];
     }
 
     // ── Users online right now (session activity within the last 5 minutes) —

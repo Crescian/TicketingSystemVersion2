@@ -21,6 +21,7 @@ class RoleSeeder extends Seeder
             ['id' => '539bad4b-2ad1-40fb-b1af-2bfc10cc8865', 'role_name' => 'IT Admin', 'description' => 'Manages system and users', 'level' => 3],
             ['id' => '798a1b73-a2de-47dc-96a1-a8afb77fe589', 'role_name' => 'Supervisor - IT Admin', 'description' => 'Supervises IT Administrators', 'level' => 3],
             ['id' => 'bc8d510f-171b-447f-a674-0f4e8d251a6f', 'role_name' => 'Manager', 'description' => 'Views reports and analytics', 'level' => 4],
+            ['id' => 'a7d3c2e1-5b4f-4e8a-9c6d-2f1e0b9a8d7c', 'role_name' => 'Developer', 'description' => 'Receives and resolves system concerns from ICT staff', 'level' => null],
         ];
 
         foreach ($roles as &$role) {

@@ -309,7 +309,8 @@ class TicketsController extends Controller
     {
         $user = Auth::user();
         $isOwner = $attachment->ticket->users_id === $user->id;
-        $isStaff = $user->role?->role_name !== 'Employee';
+        // Developer isn't a support tier — like an Employee, only their own tickets.
+        $isStaff = !in_array($user->role?->role_name, ['Employee', 'Developer'], true);
 
         if (!$isOwner && !$isStaff) {
             abort(403);

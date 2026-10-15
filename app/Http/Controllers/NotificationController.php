@@ -321,6 +321,7 @@ class NotificationController extends Controller
             'IT Support Specialist' => route('technician.dashboard'),
             'IT Admin' => route('admin.dashboard'),
             'Manager' => route('executive.tickets.index'),
+            'Developer' => route('developer.dashboard'),
             default => '/',
         };
     }

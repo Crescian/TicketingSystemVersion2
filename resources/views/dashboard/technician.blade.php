@@ -1010,6 +1010,14 @@
                         </button>
                     @endif
 
+                    {{-- Supervisor sent the resolution back — show why until it's resubmitted --}}
+                    @if($ticket->revision_notes)
+                        <div class="w-100 mb-2 p-2 px-3 rounded" style="background:#fdecec;font-size:12px;color:#a32d2d">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>
+                            <strong>Revision requested{{ $ticket->revision_requested_at ? ' ' . $ticket->revision_requested_at->diffForHumans() : '' }}:</strong> {{ $ticket->revision_notes }}
+                        </div>
+                    @endif
+
                     {{-- On Hold: waiting on the requestor — Resume Work + Message only --}}
                     @if($isOnHold)
                         @if($ticket->hold_reason)

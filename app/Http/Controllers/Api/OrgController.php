@@ -24,6 +24,31 @@ class OrgController extends Controller
         );
     }
 
+    // Nested business unit -> company -> department tree in one call.
+    public function hierarchy(Request $request)
+    {
+        $businessUnits = BusinessUnits::with([
+            'companies' => fn ($q) => $q->orderBy('company_name'),
+            'companies.departments' => fn ($q) => $q->orderBy('department_name'),
+        ])
+            ->when($request->filled('business_unit_id'), fn ($q) => $q->where('id', $request->business_unit_id))
+            ->orderBy('business_units_name')
+            ->get();
+
+        return response()->json($businessUnits->map(fn (BusinessUnits $bu) => [
+            'id' => $bu->id,
+            'name' => $bu->business_units_name,
+            'companies' => $bu->companies->map(fn (Companies $c) => [
+                'id' => $c->id,
+                'name' => $c->company_name,
+                'departments' => $c->departments->map(fn (Departments $d) => [
+                    'id' => $d->id,
+                    'name' => $d->department_name,
+                ])->values(),
+            ])->values(),
+        ]));
+    }
+
     public function companies(Request $request)
     {
         $companies = Companies::with('businessUnit')

@@ -33,4 +33,9 @@ class WorkloadClass extends Model
     {
         return $this->hasMany(Tickets::class, 'workload_class_id');
     }
+
+    public function slaRules()
+    {
+        return $this->hasMany(SlaRule::class, 'workload_class_id');
+    }
 }

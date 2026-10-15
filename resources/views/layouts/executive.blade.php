@@ -929,6 +929,12 @@
         </a>
       @endif
 
+      @if(in_array(Auth::user()->role?->role_name, \App\Models\DeveloperConcern::SENDER_ROLES, true))
+        <a href="{{ route('developer-concerns.index') }}" class="btn-exec-signout">
+          <i class="bi bi-bug me-1"></i>Report to Developer
+        </a>
+      @endif
+
       <div class="top-avatar">
         {{ strtoupper(collect(explode(' ', Auth::user()->name))
   ->map(fn($name) => substr($name, 0, 1))

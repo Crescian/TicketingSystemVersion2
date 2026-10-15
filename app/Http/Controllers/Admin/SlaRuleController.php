@@ -15,7 +15,7 @@ class SlaRuleController extends Controller
 {
     public function index()
     {
-        $categories = SlaCategory::with(['rules'])
+        $categories = SlaCategory::with(['rules.workloadClass'])
             ->orderBy('sort_order')->orderBy('name')->get();
 
         $start        = now()->startOfMonth();
@@ -85,6 +85,7 @@ class SlaRuleController extends Controller
             'sla_category_id'        => 'required|exists:sla_categories,id',
             'subcategory_name'        => 'required|string|max:255',
             'priority'                => 'required|in:Critical,High,Medium,Low',
+            'workload_class_id'       => 'nullable|exists:workload_classes,id',
             'response_time_minutes'   => 'required|numeric|min:5|max:43200',
             'resolution_time_minutes' => 'required|numeric|min:5|max:43200',
             'description'             => 'nullable|string|max:500',
@@ -98,7 +99,7 @@ class SlaRuleController extends Controller
             return back()->with('error', "A rule can't be both Helpdesk-resolvable (L1) and Admin-only (L3).");
         }
         SlaRule::create($request->only([
-            'sla_category_id', 'subcategory_name', 'priority',
+            'sla_category_id', 'subcategory_name', 'priority', 'workload_class_id',
             'response_time_minutes', 'resolution_time_minutes', 'description'
         ]) + [
             'is_active' => true,
@@ -119,6 +120,7 @@ class SlaRuleController extends Controller
             'sla_category_id'        => 'required|exists:sla_categories,id',
             'subcategory_name'        => 'required|string|max:255',
             'priority'                => 'required|in:Critical,High,Medium,Low',
+            'workload_class_id'       => 'nullable|exists:workload_classes,id',
             'response_time_minutes'   => 'required|numeric|min:5|max:43200',
             'resolution_time_minutes' => 'required|numeric|min:5|max:43200',
             'description'             => 'nullable|string|max:500',
@@ -132,7 +134,7 @@ class SlaRuleController extends Controller
             return back()->with('error', "A rule can't be both Helpdesk-resolvable (L1) and Admin-only (L3).");
         }
         $slaRule->update($request->only([
-            'sla_category_id', 'subcategory_name', 'priority',
+            'sla_category_id', 'subcategory_name', 'priority', 'workload_class_id',
             'response_time_minutes', 'resolution_time_minutes', 'description'
         ]) + [
             'helpdesk_resolvable' => $request->boolean('helpdesk_resolvable'),

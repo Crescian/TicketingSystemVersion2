@@ -23,6 +23,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AccountSetupController;
 use App\Http\Controllers\SSOController;
 use App\Http\Controllers\Dashboard\SupervisorDashboardController as SupportSupervisorController;
+use App\Http\Controllers\DeveloperConcernController;
 ;
 
 // ── Root: send authenticated users to their dashboard, everyone else to login
@@ -72,7 +73,7 @@ Route::middleware(['auth', 'role:Employee', 'throttle:ticket-actions'])
 // users_id === Auth::id(), not role) and the same dashboard.employee /
 // employee.ticket-detail views — TicketsController computes $routePrefix
 // so those views resolve to these route names instead of employee.*.
-Route::middleware(['auth', 'role:Helpdesk,IT Support Specialist,Supervisor - Support Specialist,IT Admin,Supervisor - IT Admin,Manager', 'throttle:ticket-actions'])
+Route::middleware(['auth', 'role:Helpdesk,IT Support Specialist,Supervisor - Support Specialist,IT Admin,Supervisor - IT Admin,Manager,Developer', 'throttle:ticket-actions'])
     ->prefix('my-requests')
     ->name('my-requests.')
     ->group(function () {
@@ -83,6 +84,27 @@ Route::middleware(['auth', 'role:Helpdesk,IT Support Specialist,Supervisor - Sup
         Route::patch('/tickets/{ticket}/cancel', [EmployeeTicketsController::class, 'cancel'])->name('tickets.cancel')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/feedback', [EmployeeTicketsController::class, 'storeFeedback'])->name('tickets.feedback')->middleware('idempotent:8');
         Route::patch('/tickets/{ticket}/acknowledge', [EmployeeTicketsController::class, 'acknowledge'])->name('tickets.acknowledge')->middleware('idempotent:8');
+    });
+
+// ── "Report to Developer" — ICT staff send system concerns (bugs, feature
+// requests, data fixes) straight to the Developer role. Kept outside the
+// ticket pipeline; see App\Models\DeveloperConcern.
+Route::middleware(['auth', 'role:Helpdesk,IT Support Specialist,Supervisor - Support Specialist,IT Admin,Supervisor - IT Admin,Manager', 'throttle:ticket-actions'])
+    ->prefix('developer-concerns')
+    ->name('developer-concerns.')
+    ->group(function () {
+        Route::get('/', [DeveloperConcernController::class, 'index'])->name('index');
+        Route::post('/', [DeveloperConcernController::class, 'store'])->name('store')->middleware(['throttle:ticket-submit', 'idempotent:10']);
+    });
+
+// ── Developer inbox: acknowledge and close concerns sent by ICT staff.
+Route::middleware(['auth', 'role:Developer', 'throttle:ticket-actions'])
+    ->prefix('developer')
+    ->name('developer.')
+    ->group(function () {
+        Route::get('/dashboard', [DeveloperConcernController::class, 'dashboard'])->name('dashboard');
+        Route::patch('/concerns/{concern}/acknowledge', [DeveloperConcernController::class, 'acknowledge'])->name('concerns.acknowledge')->middleware('idempotent:8');
+        Route::patch('/concerns/{concern}/close', [DeveloperConcernController::class, 'close'])->name('concerns.close')->middleware('idempotent:8');
     });
 
 Route::middleware(['auth', 'role:Helpdesk,IT Admin,Supervisor - IT Admin,Supervisor - Support Specialist'])
@@ -288,6 +310,9 @@ Route::middleware(['auth', 'role:Supervisor - IT Admin', 'throttle:ticket-action
 
         Route::post('/tickets/{ticket}/reject-reclassification', [SupportSupervisorController::class, 'adminRejectReclassification'])
             ->name('tickets.reject-reclassification')->middleware('idempotent:8');
+
+        Route::post('/tickets/{ticket}/return-to-helpdesk', [SupportSupervisorController::class, 'adminReturnToHelpdesk'])
+            ->name('tickets.return-to-helpdesk')->middleware('idempotent:8');
     });
 
 Route::middleware(['auth', 'role:Supervisor - Support Specialist', 'throttle:ticket-actions'])
@@ -345,6 +370,9 @@ Route::middleware(['auth', 'role:Supervisor - Support Specialist', 'throttle:tic
         Route::post('/tickets/{ticket}/reject-reclassification', [SupportSupervisorController::class, 'rejectReclassification'])
             ->name('tickets.reject-reclassification')->middleware('idempotent:8');
 
+        Route::post('/tickets/{ticket}/return-to-helpdesk', [SupportSupervisorController::class, 'returnToHelpdesk'])
+            ->name('tickets.return-to-helpdesk')->middleware('idempotent:8');
+
         Route::get('/tickets/{ticket}', [SupportSupervisorController::class, 'show'])
             ->name('tickets.show');
     });
@@ -360,6 +388,7 @@ Route::middleware(['auth', 'role:Manager,Supervisor - Support Specialist,Supervi
         Route::get('/dashboard/data', [ExecutiveDashboardController::class, 'data'])->name('dashboard.data'); // ← add this
         Route::get('/dashboard/aging-tickets', [ExecutiveDashboardController::class, 'agingTickets'])->name('dashboard.aging-tickets');
         Route::get('/dashboard/resolution-top', [ExecutiveDashboardController::class, 'resolutionTimeTop'])->name('dashboard.resolution-top');
+        Route::get('/dashboard/feedback', [ExecutiveDashboardController::class, 'feedback'])->name('dashboard.feedback');
         // Read-only, and the aging drill-down list's Timeline/Details button (visible to
         // all roles above) calls this — belongs with the view-only routes, not the
         // Manager-only ticket-management group below.

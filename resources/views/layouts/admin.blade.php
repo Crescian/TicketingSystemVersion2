@@ -1417,6 +1417,11 @@
                 <i class="bi bi-ticket-perforated me-1"></i>My Requests
             </a>
         @endif
+        @if(in_array($user->role?->role_name, \App\Models\DeveloperConcern::SENDER_ROLES, true) && !Route::is('developer-concerns.*'))
+            <a href="{{ route('developer-concerns.index') }}" class="btn-back-dashboard">
+                <i class="bi bi-bug me-1"></i>Report to Developer
+            </a>
+        @endif
         @yield('nav-role-badge')
         <a href="{{ route('profile') }}" class="d-flex align-items-center gap-2 text-decoration-none text-reset">
           <div class="avatar-chip-admin">@yield('avatar-initials', 'MA')</div>

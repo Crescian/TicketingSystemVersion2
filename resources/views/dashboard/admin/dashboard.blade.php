@@ -671,6 +671,10 @@
                                 <i class="bi bi-eye me-1"></i>Acknowledge
                             </button>
                         </form>
+                        <button type="button" class="btn-cancel-modal"
+                                onclick="openReturnHelpdeskModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-arrow-return-left me-1"></i>Return to Helpdesk
+                        </button>
                     @endif
 
                     {{-- Awaiting Classification: classify & assign to an IT Admin --}}
@@ -691,6 +695,10 @@
                                     'workloadClassId' => $ticket->workload_class_id,
                                 ]) }})">
                             <i class="bi bi-tags me-1"></i>{{ $ticket->subcategory_name ? 'Review & Assign' : 'Classify & Assign' }}
+                        </button>
+                        <button type="button" class="btn-cancel-modal"
+                                onclick="openReturnHelpdeskModal('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
+                            <i class="bi bi-arrow-return-left me-1"></i>Return to Helpdesk
                         </button>
                     @endif
 
@@ -1025,6 +1033,40 @@
                         <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn-confirm">
                             <i class="bi bi-check-lg me-1"></i>Confirm Approval
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Return to Helpdesk modal --}}
+    <div class="modal fade" id="returnHelpdeskModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header-gd d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Return to Helpdesk — <em id="rhTicketRef">#TKT-0000</em></h5>
+                    <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
+                </div>
+                <form method="POST" id="returnHelpdeskForm">
+                    @csrf
+                    <div class="modal-body px-4 py-4">
+                        <div class="info-box-red p-3 mb-3">
+                            <i class="bi bi-arrow-return-left me-1"></i>
+                            The ticket will go back to Helpdesk's For Classification queue.
+                        </div>
+                        <div>
+                            <label class="form-label">
+                                Reason for returning <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" name="reason" rows="3" required maxlength="1000"
+                                      placeholder="Explain why this ticket should be re-classified by Helpdesk…"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+                        <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-confirm" style="background:#8b1a1a">
+                            <i class="bi bi-arrow-return-left me-1"></i>Return to Helpdesk
                         </button>
                     </div>
                 </form>
@@ -1773,7 +1815,8 @@
             cat.subs.forEach(sub => {
                 const priColor = sub.priority === 'Critical' ? '#8b0000' : (sub.priority === 'High' ? '#e24b4a' : (sub.priority === 'Medium' ? '#f5c842' : '#4a7c4a'));
                 $subList.append(`<div class="cat-sub-opt" data-rule-id="${sub.rule_id}" data-name="${sub.name}"
-                     data-priority="${sub.priority}" data-response="${sub.response}" data-resolution="${sub.resolution}">
+                     data-priority="${sub.priority}" data-response="${sub.response}" data-resolution="${sub.resolution}"
+                     data-workload-class-id="${sub.workload_class_id ?? ''}">
                     <div class="sub-check"></div>
                     <div style="flex:1">
                         <div>${sub.name}</div>
@@ -1822,13 +1865,6 @@
         });
         $('#caWorkloadManualHint').addClass('d-none');
 
-        // Reflect the workload class Helpdesk already picked, if any — set silently
-        // (no 'change' trigger) so it doesn't clobber the response/resolution values
-        // set from defaults below, which already carry any manual customization.
-        if (defaults && defaults.workloadClassId) {
-            $wcSelect.val(defaults.workloadClassId);
-        }
-
         // Pre-select Helpdesk's classification, if this ticket already has one — a
         // fresh admin-only ticket routed straight in arrives already Classified, so
         // this saves re-picking the same category/subcategory from scratch. Still
@@ -1847,6 +1883,15 @@
             if (defaults.resolution) $('#caResolutionTime').val(defaults.resolution);
         }
 
+        // Reflect the workload class Helpdesk already picked, if any — applied after the
+        // subcategory click above so it wins over that rule's auto-selected default. Set
+        // silently (no 'change' trigger) so it doesn't clobber the response/resolution
+        // values from defaults, which already carry any manual customization.
+        if (defaults && defaults.workloadClassId) {
+            $wcSelect.val(defaults.workloadClassId);
+            $('#caWorkloadManualHint').toggleClass('d-none', String($wcSelect.find(':selected').data('manual')) !== '1');
+        }
+
         new bootstrap.Modal('#classifyAssignModal').show();
     };
 
@@ -1856,6 +1901,13 @@
         $('#approveReclassForm').attr('action', '/supervisor/tickets/' + ticketId + '/approve-reclassification');
         $('#approveReclassForm textarea[name="review_notes"]').val('');
         new bootstrap.Modal('#approveReclassModal').show();
+    };
+
+    window.openReturnHelpdeskModal = function (ticketId, ticketNumber) {
+        $('#rhTicketRef').text('#' + ticketNumber);
+        $('#returnHelpdeskForm').attr('action', '/supervisor/tickets/' + ticketId + '/return-to-helpdesk');
+        $('#returnHelpdeskForm textarea[name="reason"]').val('');
+        new bootstrap.Modal('#returnHelpdeskModal').show();
     };
 
     window.openRejectReclassModal = function (ticketId, ticketNumber) {
@@ -2226,6 +2278,15 @@ function showStep(n) {
         $('#caResponseTime').val($(this).data('response'));
         $('#caResolutionTime').val($(this).data('resolution'));
         $('#caOverrideWrap').removeClass('d-none');
+
+        // Auto-select the subcategory's default workload class (SlaRule::workload_class_id).
+        // Set silently — no 'change' trigger — since the rule's minutes above already come
+        // from that class, and triggering would wipe the resolution for manual classes.
+        const wcId = $(this).data('workload-class-id') || '';
+        const $wcSel = $('#caWorkloadClass');
+        $wcSel.val($wcSel.find(`option[value="${wcId}"]`).length ? wcId : '');
+        const wcManual = String($wcSel.find(':selected').data('manual')) === '1';
+        $('#caWorkloadManualHint').toggleClass('d-none', !($wcSel.val() && wcManual));
     });
 
     $(document).on('click', '#caTechList .tech-select-option:not(.disabled)', function () {

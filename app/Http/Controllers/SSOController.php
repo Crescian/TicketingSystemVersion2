@@ -55,6 +55,7 @@ class SSOController extends Controller
             'IT Support Specialist' => 'technician.dashboard',
             'IT Admin'              => 'admin.dashboard',
             'Manager'               => 'executive.dashboard',
+            'Developer'             => 'developer.dashboard',
             default                 => 'employee.tickets.index',
         };
 

@@ -96,6 +96,7 @@ class User extends Authenticatable
             'IT Admin' => 'admin.dashboard',
             'Supervisor - IT Admin' => 'supervisor.dashboard',
             'Manager' => 'executive.dashboard',
+            'Developer' => 'developer.dashboard',
             default => 'employee.tickets.index',
         };
     }

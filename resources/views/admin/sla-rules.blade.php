@@ -44,72 +44,347 @@
 @endsection
 
 @section('sidebar')
-    <div class="sidebar-card mb-3">
-        <div class="sidebar-head red"><i class="bi bi-gear me-1"></i>Settings</div>
-        <ul class="list-group sidebar-menu rounded-0">
-            @if($canManageOrg)
-                <li class="list-group-item">
-                    <a href="{{ route('portal.users.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
-                        <i class="bi bi-people me-1"></i>User
+<div class="sla-sidebar">
+        <div class="sidebar-card mb-3">
+            <div class="sidebar-head red"><i class="bi bi-gear me-1"></i>Settings</div>
+            <ul class="list-group sidebar-menu rounded-0">
+                @if($canManageOrg)
+                    <li class="list-group-item">
+                        <a href="{{ route('portal.users.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                            <i class="bi bi-people me-1"></i>User
+                        </a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ route('portal.settings') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                            <i class="bi bi-building me-1"></i>Organization
+                        </a>
+                    </li>
+                @endif
+                <li class="list-group-item active">
+                    <a href="{{ route('portal.sla-rules.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                        <i class="bi bi-stopwatch me-1"></i>SLA Rules
                     </a>
                 </li>
                 <li class="list-group-item">
-                    <a href="{{ route('portal.settings') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
-                        <i class="bi bi-building me-1"></i>Organization
+                    <a href="{{ route('portal.holidays.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                        <i class="bi bi-calendar-x me-1"></i>Holidays
                     </a>
                 </li>
-            @endif
-            <li class="list-group-item active">
-                <a href="{{ route('portal.sla-rules.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
-                    <i class="bi bi-stopwatch me-1"></i>SLA Rules
-                </a>
-            </li>
-            <li class="list-group-item">
-                <a href="{{ route('portal.holidays.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
-                    <i class="bi bi-calendar-x me-1"></i>Holidays
-                </a>
-            </li>
-            <li class="list-group-item">
-                <a href="{{ route('portal.leaves.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
-                    <i class="bi bi-calendar-minus me-1"></i>Leave
-                </a>
-            </li>
-            @if($canManageOrg)
                 <li class="list-group-item">
-                    <a href="{{ route('portal.audit-log') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
-                        <i class="bi bi-journal-text me-1"></i>Audit Log
+                    <a href="{{ route('portal.leaves.index') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                        <i class="bi bi-calendar-minus me-1"></i>Leave
                     </a>
                 </li>
-            @endif
-        </ul>
-    </div>
+                @if($canManageOrg)
+                    <li class="list-group-item">
+                        <a href="{{ route('portal.audit-log') }}" class="d-flex align-items-center gap-2 text-decoration-none w-100">
+                            <i class="bi bi-journal-text me-1"></i>Audit Log
+                        </a>
+                    </li>
+                @endif
+            </ul>
+        </div>
 
-    {{-- Priority live counts --}}
-    <div class="sidebar-card mb-3">
-        <div class="sidebar-head dark">Live Open Support Requests</div>
-        <div class="p-3 d-flex flex-column gap-2">
-            @foreach(['Critical' => ['#fff','#8b0000'], 'High' => ['#e24b4a','#fde8e8'], 'Medium' => ['#f5c842','#fff4cc'], 'Low' => ['#4a7c4a','#d4f0d4']] as $pri => $colors)
-                <div style="background:{{ $colors[1] }};border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between">
-                    <div style="font-size:12px;font-weight:800;color:{{ $colors[0] }}">{{ $pri }}</div>
-                    <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:18px;color:{{ $pri === 'Critical' ? '#fff' : 'var(--gd)' }}">{{ $priorityCounts[$pri] }}</div>
+        {{-- Settings forms — tabbed so only one form takes up the sidebar at a time.
+             Edit/Add buttons in the main list switch to the right tab (showFormTab). --}}
+        <div class="sla-forms mb-3">
+            <div class="form-tabs" role="tablist">
+                <button type="button" class="form-tab" data-tab="category" role="tab" onclick="showFormTab('category')">
+                    <i class="bi bi-folder-plus me-1"></i>Category
+                </button>
+                <button type="button" class="form-tab active" data-tab="rule" role="tab" onclick="showFormTab('rule')">
+                    <i class="bi bi-stopwatch me-1"></i>SLA Rule
+                </button>
+                <button type="button" class="form-tab" data-tab="workload" role="tab" onclick="showFormTab('workload')">
+                    <i class="bi bi-speedometer2 me-1"></i>Workload
+                </button>
+            </div>
+            <div class="form-pane" data-pane="category">
+                <div class="sla-panel" id="catFormCard">
+                    <div class="sla-panel-head">
+                        <div class="sph-icon" style="background:var(--rd)"><i class="bi bi-folder-plus"></i></div>
+                        <div>
+                            <div class="sph-title" id="catFormTitle">Add Category</div>
+                            <div class="sph-sub">e.g. Hardware, Software, Network</div>
+                        </div>
+                    </div>
+                    <form method="POST" id="catForm" action="{{ route('portal.sla-rules.category.store') }}">
+                        @csrf
+                        <input type="hidden" id="catMethod" name="_method" value="POST">
+
+                        <div class="sf-field">
+                            <label>Category Name <span class="req">*</span></label>
+                            <input type="text" class="form-control" name="name" id="catName"
+                                   placeholder="e.g. Hardware" required>
+                        </div>
+
+                        <div class="field-row">
+                            <div class="sf-field flex-1">
+                                <label>Icon <span style="font-weight:600;font-size:10px;color:var(--tm)">(Bootstrap icon)</span></label>
+                                <div style="position:relative">
+                                    <input type="text" class="form-control" name="icon" id="catIcon"
+                                           placeholder="bi-laptop" oninput="previewIcon(this.value)">
+                                    <span id="iconPreview" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--gd)"></span>
+                                </div>
+                            </div>
+                            <div class="sf-field" style="width:80px">
+                                <label>Color</label>
+                                <input type="color" class="form-control" name="color" id="catColor"
+                                       value="#1a4a8a" style="height:42px;padding:4px 8px;cursor:pointer">
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-2">
+                            <button type="submit" class="btn-save"><i class="bi bi-check-lg me-1"></i><span id="catSaveText">Add Category</span></button>
+                            <button type="button" class="btn-cancel d-none" id="catCancelBtn" onclick="resetCatForm()">Cancel</button>
+                        </div>
+                    </form>
                 </div>
-            @endforeach
-        </div>
-    </div>
+            </div>
+            <div class="form-pane active" data-pane="rule">
+                <div class="sla-panel" id="ruleFormCard">
+                    <div class="sla-panel-head">
+                        <div class="sph-icon" style="background:var(--gd)"><i class="bi bi-stopwatch"></i></div>
+                        <div>
+                            <div class="sph-title" id="ruleFormTitle">Add SLA Rule</div>
+                            <div class="sph-sub">Assign to a subcategory</div>
+                        </div>
+                    </div>
+                    <form method="POST" id="ruleForm" action="{{ route('portal.sla-rules.rule.store') }}">
+                        @csrf
+                        <input type="hidden" id="ruleMethod" name="_method" value="POST">
 
-    {{-- Time legend --}}
-    <div class="sidebar-card">
-        <div class="sidebar-head dark">Time Guide</div>
-        <div class="p-3 d-flex flex-column gap-1" style="font-size:12px;color:var(--tm);font-weight:600">
-            <div class="d-flex justify-content-between"><span>30 minutes</span><span class="fw-800 text-dark">= 30 min</span></div>
-            <div class="d-flex justify-content-between"><span>1 hour</span><span class="fw-800 text-dark">= 60 min</span></div>
-            <div class="d-flex justify-content-between"><span>2 hours</span><span class="fw-800 text-dark">= 120 min</span></div>
-            <div class="d-flex justify-content-between"><span>4 hours</span><span class="fw-800 text-dark">= 240 min</span></div>
-            <div class="d-flex justify-content-between"><span>8 hours</span><span class="fw-800 text-dark">= 480 min</span></div>
-            <div class="d-flex justify-content-between"><span>1 day</span><span class="fw-800 text-dark">= 1440 min</span></div>
-            <div class="d-flex justify-content-between"><span>3 days</span><span class="fw-800 text-dark">= 4320 min</span></div>
+                        {{-- Category --}}
+                        <div class="sf-field">
+                            <label>Category <span class="req">*</span></label>
+                            <select class="form-select" name="sla_category_id" id="ruleCategoryId" required
+                                    onchange="updateSubcategoryHint()">
+                                <option value="">— Select Category —</option>
+                                @foreach($categories as $cat)
+                                    <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        {{-- Subcategory --}}
+                        <div class="sf-field">
+                            <label>Subcategory Name <span class="req">*</span></label>
+                            <input type="text" class="form-control" name="subcategory_name" id="ruleSubcat"
+                                   placeholder="e.g. Laptop" required list="subcatSuggestions">
+                            <datalist id="subcatSuggestions"></datalist>
+                            <div style="font-size:11px;color:var(--tm);font-weight:600;margin-top:4px" id="subcatHint"></div>
+                        </div>
+
+                        {{-- Priority --}}
+                        <div class="sf-field">
+                            <label>Priority <span class="req">*</span></label>
+                            <div class="d-flex gap-2">
+                                @foreach(['Critical' => '#8b0000', 'High' => '#e24b4a', 'Medium' => '#f5c842', 'Low' => '#4a7c4a'] as $pri => $color)
+                                    <div class="pri-chip {{ strtolower($pri) }}" data-val="{{ $pri }}"
+                                         onclick="pickPriority('{{ $pri }}', this)">
+                                        <span class="pc-dot" style="background:{{ $color }}"></span>{{ $pri }}
+                                    </div>
+                                @endforeach
+                            </div>
+                            <input type="hidden" name="priority" id="rulePriority" required>
+                        </div>
+
+                        {{-- Workload Class --}}
+                        <div class="sf-field">
+                            <label>Workload Class <span style="font-weight:600;font-size:10px;color:var(--tm)">(optional — sets the response &amp; resolution time below)</span></label>
+                            <select class="form-select" name="workload_class_id" id="ruleWorkloadClass" onchange="onRuleWorkloadChange()">
+                                <option value="">— None —</option>
+                                @foreach($workloadClasses as $wc)
+                                    <option value="{{ $wc->id }}"
+                                            data-response="{{ $wc->response_minutes }}"
+                                            data-resolution="{{ $wc->resolution_minutes }}"
+                                            data-manual="{{ $wc->requires_manual_resolution ? '1' : '0' }}">
+                                        {{ $wc->name }}{{ $wc->is_active ? '' : ' (inactive)' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <div id="ruleWorkloadManualHint" class="d-none" style="font-size:11px;color:var(--tm);font-weight:600;margin-top:4px">
+                                <i class="bi bi-info-circle me-1"></i>This class has no fixed resolution target — enter this subcategory's resolution time below.
+                            </div>
+                        </div>
+
+                        {{-- Response time --}}
+                        <div class="sf-field">
+                            <label>First Response Time <span class="req">*</span></label>
+                            <div class="time-wrap">
+                                <input type="number" class="form-control" name="response_time_minutes"
+                                       id="ruleResponse" min="5" max="43200" step="5"
+                                       placeholder="30" required oninput="syncTimeUnit('ruleResponse', 'ruleResponseUnit'); updateRulePreview()">
+                                <span class="time-unit-badge" id="ruleResponseUnit">30 mins</span>
+                            </div>
+                            <div class="quick-wrap">
+                                @foreach([30=>'30m', 60=>'1h', 120=>'2h', 240=>'4h', 480=>'8h', 1440=>'1d'] as $mins => $label)
+                                    <button type="button" class="qbtn" onclick="setTimeMins('ruleResponse', {{ $mins }}, 'ruleResponseUnit', this)">{{ $label }}</button>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Resolution time --}}
+                        <div class="sf-field">
+                            <label>Resolution Time <span class="req">*</span></label>
+                            <div class="time-wrap">
+                                <input type="number" class="form-control" name="resolution_time_minutes"
+                                       id="ruleResolution" min="5" max="43200" step="5"
+                                       placeholder="240" required oninput="syncTimeUnit('ruleResolution', 'ruleResolutionUnit'); updateRulePreview()">
+                                <span class="time-unit-badge" id="ruleResolutionUnit">4 hrs</span>
+                            </div>
+                            <div class="quick-wrap">
+                                @foreach([60=>'1h', 240=>'4h', 480=>'8h', 1440=>'1d', 2880=>'2d', 4320=>'3d', 10080=>'1wk'] as $mins => $label)
+                                    <button type="button" class="qbtn" onclick="setTimeMins('ruleResolution', {{ $mins }}, 'ruleResolutionUnit', this)">{{ $label }}</button>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Description --}}
+                        <div class="sf-field">
+                            <label>Description <span style="font-weight:600;font-size:10px;color:var(--tm)">(optional)</span></label>
+                            <textarea class="form-control" name="description" id="ruleDescription"
+                                      rows="2" placeholder="Notes…"></textarea>
+                        </div>
+
+                        {{-- Helpdesk direct-resolve --}}
+                        <div class="sf-field">
+                            <label class="d-flex align-items-center gap-2" style="cursor:pointer;font-weight:600">
+                                <input type="checkbox" name="helpdesk_resolvable" id="ruleHelpdeskResolvable" value="1"
+                                       style="width:16px;height:16px;cursor:pointer">
+                                Helpdesk can resolve this directly (L1)
+                            </label>
+                            <div style="font-size:11px;color:var(--tm);margin-top:4px">
+                                Lets Helpdesk classify a support request in this subcategory and keep it for themselves
+                                instead of sending it to the Supervisor for technician assignment. Leave unchecked
+                                for anything that genuinely needs a Support Specialist.
+                            </div>
+                        </div>
+
+                        {{-- Admin-only (L3) --}}
+                        <div class="sf-field">
+                            <label class="d-flex align-items-center gap-2" style="cursor:pointer;font-weight:600">
+                                <input type="checkbox" name="admin_only" id="ruleAdminOnly" value="1"
+                                       style="width:16px;height:16px;cursor:pointer">
+                                This subcategory is Admin-only (L3)
+                            </label>
+                            <div style="font-size:11px;color:var(--tm);margin-top:4px">
+                                When Helpdesk classifies a ticket under this subcategory, it goes straight to the
+                                Supervisor - IT Admin queue, skipping the Support Supervisor entirely. Use this only
+                                for work that genuinely can't be handled by an IT Support Specialist.
+                            </div>
+                        </div>
+
+                        {{-- Preview --}}
+                        <div class="rule-preview" id="rulePreview">
+                            <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Preview</div>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <span class="prev-chip blue"><i class="bi bi-bell me-1"></i>Response: <strong id="prevResp">—</strong></span>
+                                <span class="prev-chip green"><i class="bi bi-check-circle me-1"></i>Resolve: <strong id="prevRes">—</strong></span>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="submit" class="btn-save"><i class="bi bi-check-lg me-1"></i><span id="ruleSaveText">Add Rule</span></button>
+                            <button type="button" class="btn-cancel d-none" id="ruleCancelBtn" onclick="resetRuleForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="form-pane" data-pane="workload">
+                <div class="sla-panel" id="wcFormCard">
+                    <div class="sla-panel-head">
+                        <div class="sph-icon" style="background:var(--rd)"><i class="bi bi-speedometer2"></i></div>
+                        <div>
+                            <div class="sph-title" id="wcFormTitle">Add Workload Class</div>
+                            <div class="sph-sub">e.g. Quick Fix, Standard, Complex, Major</div>
+                        </div>
+                    </div>
+                    <form method="POST" id="wcForm" action="{{ route('portal.sla-rules.workload-class.store') }}">
+                        @csrf
+                        <input type="hidden" id="wcMethod" name="_method" value="POST">
+
+                        <div class="sf-field">
+                            <label>Class Name <span class="req">*</span></label>
+                            <input type="text" class="form-control" name="name" id="wcName"
+                                   placeholder="e.g. Quick Fix" required>
+                        </div>
+
+                        <div class="sf-field">
+                            <label>Typical Application</label>
+                            <textarea class="form-control" name="typical_application" id="wcTypical" rows="2"
+                                      placeholder="e.g. Password reset, Wi-Fi account issue, peripheral swap"></textarea>
+                        </div>
+
+                        <div class="sf-field">
+                            <label>Response Target (minutes) <span class="req">*</span></label>
+                            <input type="number" class="form-control" name="response_minutes" id="wcResponseMinutes"
+                                   min="1" max="43200" required>
+                        </div>
+                        <div class="sf-field">
+                            <label>Response Label <span class="req">*</span></label>
+                            <input type="text" class="form-control" name="response_label" id="wcResponseLabel"
+                                   placeholder="e.g. Within 15 Minutes" required>
+                        </div>
+
+                        <div class="sf-field">
+                            <label class="d-flex align-items-start gap-2" style="cursor:pointer;text-transform:none;font-size:12px;font-weight:700;color:var(--gd);line-height:1.4">
+                                <input type="checkbox" name="requires_manual_resolution" id="wcManual"
+                                       value="1" onchange="wcToggleManual()" style="margin-top:3px;flex-shrink:0">
+                                <span>No fixed resolution target — Helpdesk/Supervisor enters the agreed minutes per support request
+                                (e.g. vendor-committed SLA, approved project timeline)</span>
+                            </label>
+                        </div>
+
+                        <div id="wcResolutionMinutesField">
+                            <div class="sf-field">
+                                <label>Resolution Target (minutes) <span class="req" id="wcResolutionReq">*</span></label>
+                                <input type="number" class="form-control" name="resolution_minutes" id="wcResolutionMinutes"
+                                       min="1" max="43200">
+                            </div>
+                        </div>
+                        <div class="sf-field">
+                            <label>Resolution Label <span class="req">*</span></label>
+                            <input type="text" class="form-control" name="resolution_label" id="wcResolutionLabel"
+                                   placeholder="e.g. Within 30 Minutes / Based on Vendor Committed SLA" required>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-2">
+                            <button type="submit" class="btn-save"><i class="bi bi-check-lg me-1"></i><span id="wcSaveText">Add Workload Class</span></button>
+                            <button type="button" class="btn-cancel d-none" id="wcCancelBtn" onclick="resetWcForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
-    </div>
+
+        {{-- Priority live counts --}}
+        <div class="sidebar-card mb-3">
+            <div class="sidebar-head dark">Live Open Support Requests</div>
+            <div class="p-3 d-flex flex-column gap-2">
+                @foreach(['Critical' => ['#fff','#8b0000'], 'High' => ['#e24b4a','#fde8e8'], 'Medium' => ['#f5c842','#fff4cc'], 'Low' => ['#4a7c4a','#d4f0d4']] as $pri => $colors)
+                    <div style="background:{{ $colors[1] }};border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between">
+                        <div style="font-size:12px;font-weight:800;color:{{ $colors[0] }}">{{ $pri }}</div>
+                        <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:18px;color:{{ $pri === 'Critical' ? '#fff' : 'var(--gd)' }}">{{ $priorityCounts[$pri] }}</div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+
+        {{-- Time legend --}}
+        <div class="sidebar-card">
+            <div class="sidebar-head dark">Time Guide</div>
+            <div class="p-3 d-flex flex-column gap-1" style="font-size:12px;color:var(--tm);font-weight:600">
+                <div class="d-flex justify-content-between"><span>30 minutes</span><span class="fw-800 text-dark">= 30 min</span></div>
+                <div class="d-flex justify-content-between"><span>1 hour</span><span class="fw-800 text-dark">= 60 min</span></div>
+                <div class="d-flex justify-content-between"><span>2 hours</span><span class="fw-800 text-dark">= 120 min</span></div>
+                <div class="d-flex justify-content-between"><span>4 hours</span><span class="fw-800 text-dark">= 240 min</span></div>
+                <div class="d-flex justify-content-between"><span>8 hours</span><span class="fw-800 text-dark">= 480 min</span></div>
+                <div class="d-flex justify-content-between"><span>1 day</span><span class="fw-800 text-dark">= 1440 min</span></div>
+                <div class="d-flex justify-content-between"><span>3 days</span><span class="fw-800 text-dark">= 4320 min</span></div>
+            </div>
+        </div>
+</div>
 @endsection
 
 @section('content')
@@ -158,510 +433,280 @@
         </div>
     </div>
 
-    {{-- ── Two-column layout ── --}}
-    <div class="sla-main-layout">
-
-        {{-- ══ LEFT PANEL — Add Category + Add Rule ══ --}}
-        <div class="sla-left">
-
-            {{-- Add Category --}}
-            <div class="sla-panel mb-4" id="catFormCard">
-                <div class="sla-panel-head">
-                    <div class="sph-icon" style="background:var(--rd)"><i class="bi bi-folder-plus"></i></div>
-                    <div>
-                        <div class="sph-title" id="catFormTitle">Add Category</div>
-                        <div class="sph-sub">e.g. Hardware, Software, Network</div>
-                    </div>
+    {{-- ══ Categories & Rules — forms live in the sidebar (Category / SLA Rule tabs) ══ --}}
+    <div class="sla-list">
+        @if($categories->isEmpty())
+            <div class="sla-empty-state">
+                <div style="font-size:48px;opacity:.25">⏱️</div>
+                <div class="font-brand fw-900 mt-3" style="font-size:18px;color:var(--tm)">No categories yet</div>
+                <div style="font-size:13px;color:var(--tm);margin-top:4px">
+                    Start by adding a category (e.g. Hardware) on the left.
                 </div>
-                <form method="POST" id="catForm" action="{{ route('portal.sla-rules.category.store') }}">
-                    @csrf
-                    <input type="hidden" id="catMethod" name="_method" value="POST">
-
-                    <div class="sf-field">
-                        <label>Category Name <span class="req">*</span></label>
-                        <input type="text" class="form-control" name="name" id="catName"
-                               placeholder="e.g. Hardware" required>
-                    </div>
-
-                    <div class="field-row">
-                        <div class="sf-field flex-1">
-                            <label>Icon <span style="font-weight:600;font-size:10px;color:var(--tm)">(Bootstrap icon)</span></label>
-                            <div style="position:relative">
-                                <input type="text" class="form-control" name="icon" id="catIcon"
-                                       placeholder="bi-laptop" oninput="previewIcon(this.value)">
-                                <span id="iconPreview" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--gd)"></span>
-                            </div>
-                        </div>
-                        <div class="sf-field" style="width:80px">
-                            <label>Color</label>
-                            <input type="color" class="form-control" name="color" id="catColor"
-                                   value="#1a4a8a" style="height:42px;padding:4px 8px;cursor:pointer">
-                        </div>
-                    </div>
-
-                    <div class="d-flex gap-2 mt-2">
-                        <button type="submit" class="btn-save"><i class="bi bi-check-lg me-1"></i><span id="catSaveText">Add Category</span></button>
-                        <button type="button" class="btn-cancel d-none" id="catCancelBtn" onclick="resetCatForm()">Cancel</button>
-                    </div>
-                </form>
+            </div>
+        @else
+            <div class="cat-toolbar">
+                <button type="button" class="cat-toolbar-btn" onclick="setAllCategories(true)">
+                    <i class="bi bi-arrows-expand me-1"></i>Expand all
+                </button>
+                <button type="button" class="cat-toolbar-btn" onclick="setAllCategories(false)">
+                    <i class="bi bi-arrows-collapse me-1"></i>Collapse all
+                </button>
             </div>
 
-            {{-- Add SLA Rule --}}
-            <div class="sla-panel" id="ruleFormCard">
-                <div class="sla-panel-head">
-                    <div class="sph-icon" style="background:var(--gd)"><i class="bi bi-stopwatch"></i></div>
-                    <div>
-                        <div class="sph-title" id="ruleFormTitle">Add SLA Rule</div>
-                        <div class="sph-sub">Assign to a subcategory</div>
-                    </div>
-                </div>
-                <form method="POST" id="ruleForm" action="{{ route('portal.sla-rules.rule.store') }}">
-                    @csrf
-                    <input type="hidden" id="ruleMethod" name="_method" value="POST">
+            @foreach($categories as $category)
+                @php
+                    $totalRules  = $category->rules->count();
+                    $activeRules = $category->rules->where('is_active', true)->count();
+                @endphp
 
-                    {{-- Category --}}
-                    <div class="sf-field">
-                        <label>Category <span class="req">*</span></label>
-                        <select class="form-select" name="sla_category_id" id="ruleCategoryId" required
-                                onchange="updateSubcategoryHint()">
-                            <option value="">— Select Category —</option>
-                            @foreach($categories as $cat)
-                                <option value="{{ $cat->id }}">{{ $cat->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+                <div class="cat-block collapsed mb-4" id="cat-{{ $category->id }}" data-cat-id="{{ $category->id }}">
 
-                    {{-- Subcategory --}}
-                    <div class="sf-field">
-                        <label>Subcategory Name <span class="req">*</span></label>
-                        <input type="text" class="form-control" name="subcategory_name" id="ruleSubcat"
-                               placeholder="e.g. Laptop" required list="subcatSuggestions">
-                        <datalist id="subcatSuggestions"></datalist>
-                        <div style="font-size:11px;color:var(--tm);font-weight:600;margin-top:4px" id="subcatHint"></div>
-                    </div>
-
-                    {{-- Priority --}}
-                    <div class="sf-field">
-                        <label>Priority <span class="req">*</span></label>
-                        <div class="d-flex gap-2">
-                            @foreach(['Critical' => '#8b0000', 'High' => '#e24b4a', 'Medium' => '#f5c842', 'Low' => '#4a7c4a'] as $pri => $color)
-                                <div class="pri-chip {{ strtolower($pri) }}" data-val="{{ $pri }}"
-                                     onclick="pickPriority('{{ $pri }}', this)">
-                                    <span class="pc-dot" style="background:{{ $color }}"></span>{{ $pri }}
-                                </div>
-                            @endforeach
-                        </div>
-                        <input type="hidden" name="priority" id="rulePriority" required>
-                    </div>
-
-                    {{-- Response time --}}
-                    <div class="sf-field">
-                        <label>First Response Time <span class="req">*</span></label>
-                        <div class="time-wrap">
-                            <input type="number" class="form-control" name="response_time_minutes"
-                                   id="ruleResponse" min="5" max="43200" step="5"
-                                   placeholder="30" required oninput="syncTimeUnit('ruleResponse', 'ruleResponseUnit'); updateRulePreview()">
-                            <span class="time-unit-badge" id="ruleResponseUnit">30 mins</span>
-                        </div>
-                        <div class="quick-wrap">
-                            @foreach([30=>'30m', 60=>'1h', 120=>'2h', 240=>'4h', 480=>'8h', 1440=>'1d'] as $mins => $label)
-                                <button type="button" class="qbtn" onclick="setTimeMins('ruleResponse', {{ $mins }}, 'ruleResponseUnit', this)">{{ $label }}</button>
-                            @endforeach
-                        </div>
-                    </div>
-
-                    {{-- Resolution time --}}
-                    <div class="sf-field">
-                        <label>Resolution Time <span class="req">*</span></label>
-                        <div class="time-wrap">
-                            <input type="number" class="form-control" name="resolution_time_minutes"
-                                   id="ruleResolution" min="5" max="43200" step="5"
-                                   placeholder="240" required oninput="syncTimeUnit('ruleResolution', 'ruleResolutionUnit'); updateRulePreview()">
-                            <span class="time-unit-badge" id="ruleResolutionUnit">4 hrs</span>
-                        </div>
-                        <div class="quick-wrap">
-                            @foreach([60=>'1h', 240=>'4h', 480=>'8h', 1440=>'1d', 2880=>'2d', 4320=>'3d', 10080=>'1wk'] as $mins => $label)
-                                <button type="button" class="qbtn" onclick="setTimeMins('ruleResolution', {{ $mins }}, 'ruleResolutionUnit', this)">{{ $label }}</button>
-                            @endforeach
-                        </div>
-                    </div>
-
-                    {{-- Description --}}
-                    <div class="sf-field">
-                        <label>Description <span style="font-weight:600;font-size:10px;color:var(--tm)">(optional)</span></label>
-                        <textarea class="form-control" name="description" id="ruleDescription"
-                                  rows="2" placeholder="Notes…"></textarea>
-                    </div>
-
-                    {{-- Helpdesk direct-resolve --}}
-                    <div class="sf-field">
-                        <label class="d-flex align-items-center gap-2" style="cursor:pointer;font-weight:600">
-                            <input type="checkbox" name="helpdesk_resolvable" id="ruleHelpdeskResolvable" value="1"
-                                   style="width:16px;height:16px;cursor:pointer">
-                            Helpdesk can resolve this directly (L1)
-                        </label>
-                        <div style="font-size:11px;color:var(--tm);margin-top:4px">
-                            Lets Helpdesk classify a support request in this subcategory and keep it for themselves
-                            instead of sending it to the Supervisor for technician assignment. Leave unchecked
-                            for anything that genuinely needs a Support Specialist.
-                        </div>
-                    </div>
-
-                    {{-- Admin-only (L3) --}}
-                    <div class="sf-field">
-                        <label class="d-flex align-items-center gap-2" style="cursor:pointer;font-weight:600">
-                            <input type="checkbox" name="admin_only" id="ruleAdminOnly" value="1"
-                                   style="width:16px;height:16px;cursor:pointer">
-                            This subcategory is Admin-only (L3)
-                        </label>
-                        <div style="font-size:11px;color:var(--tm);margin-top:4px">
-                            When Helpdesk classifies a ticket under this subcategory, it goes straight to the
-                            Supervisor - IT Admin queue, skipping the Support Supervisor entirely. Use this only
-                            for work that genuinely can't be handled by an IT Support Specialist.
-                        </div>
-                    </div>
-
-                    {{-- Preview --}}
-                    <div class="rule-preview" id="rulePreview">
-                        <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Preview</div>
-                        <div class="d-flex gap-2 flex-wrap">
-                            <span class="prev-chip blue"><i class="bi bi-bell me-1"></i>Response: <strong id="prevResp">—</strong></span>
-                            <span class="prev-chip green"><i class="bi bi-check-circle me-1"></i>Resolve: <strong id="prevRes">—</strong></span>
-                        </div>
-                    </div>
-
-                    <div class="d-flex gap-2 mt-3">
-                        <button type="submit" class="btn-save"><i class="bi bi-check-lg me-1"></i><span id="ruleSaveText">Add Rule</span></button>
-                        <button type="button" class="btn-cancel d-none" id="ruleCancelBtn" onclick="resetRuleForm()">Cancel</button>
-                    </div>
-                </form>
-            </div>
-
-        </div>
-
-        {{-- ══ RIGHT PANEL — Categories & Rules ══ --}}
-        <div class="sla-right">
-
-            @if($categories->isEmpty())
-                <div class="sla-empty-state">
-                    <div style="font-size:48px;opacity:.25">⏱️</div>
-                    <div class="font-brand fw-900 mt-3" style="font-size:18px;color:var(--tm)">No categories yet</div>
-                    <div style="font-size:13px;color:var(--tm);margin-top:4px">
-                        Start by adding a category (e.g. Hardware) on the left.
-                    </div>
-                </div>
-            @else
-                @foreach($categories as $category)
-                    @php
-                        $totalRules  = $category->rules->count();
-                        $activeRules = $category->rules->where('is_active', true)->count();
-                    @endphp
-
-                    <div class="cat-block mb-4" id="cat-{{ $category->id }}">
-
-                        {{-- Category header --}}
-                        <div class="cat-header" style="border-left:4px solid {{ $category->color ?? '#1a4a8a' }}">
-                            <div class="d-flex align-items-center gap-3 flex-wrap">
-                                <div class="cat-icon-wrap" style="background:{{ $category->color ?? '#1a4a8a' }}20;color:{{ $category->color ?? '#1a4a8a' }}">
-                                    <i class="bi {{ $category->icon ?? 'bi-tag' }}"></i>
-                                </div>
-                                <div>
-                                    <div class="cat-name">{{ $category->name }}</div>
-                                    <div class="cat-meta">
-                                        {{ $totalRules }} {{ Str::plural('rule', $totalRules) }}
-                                        · {{ $activeRules }} active
-                                    </div>
+                    {{-- Category header — the left side toggles the rules table; the
+                         action buttons on the right stay outside so they don't toggle. --}}
+                    <div class="cat-header" style="border-left:4px solid {{ $category->color ?? '#1a4a8a' }}">
+                        <div class="cat-toggle d-flex align-items-center gap-3 flex-wrap"
+                             role="button" tabindex="0" aria-expanded="false"
+                             onclick="toggleCategory('{{ $category->id }}')"
+                             onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleCategory('{{ $category->id }}'); }">
+                            <i class="bi bi-chevron-down cat-chevron"></i>
+                            <div class="cat-icon-wrap" style="background:{{ $category->color ?? '#1a4a8a' }}20;color:{{ $category->color ?? '#1a4a8a' }}">
+                                <i class="bi {{ $category->icon ?? 'bi-tag' }}"></i>
+                            </div>
+                            <div>
+                                <div class="cat-name">{{ $category->name }}</div>
+                                <div class="cat-meta">
+                                    {{ $totalRules }} {{ Str::plural('rule', $totalRules) }}
+                                    · {{ $activeRules }} active
                                 </div>
                             </div>
-                            <div class="d-flex gap-2 align-items-center">
-                                <button class="btn-cat-action edit"
-                                        onclick="editCategory('{{ $category->id }}','{{ addslashes($category->name) }}','{{ $category->icon }}','{{ $category->color }}')"
-                                        title="Edit category">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <form method="POST" action="{{ route('portal.sla-rules.category.destroy', $category) }}"
-                                      onsubmit="return confirm('Delete category \'{{ $category->name }}\' and ALL its SLA rules?')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="btn-cat-action del" title="Delete category">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
-                                <button class="btn-cat-add"
-                                        onclick="quickAddRule('{{ $category->id }}','{{ addslashes($category->name) }}')"
-                                        title="Add rule to this category">
-                                    <i class="bi bi-plus-lg me-1"></i>Add Rule
-                                </button>
-                            </div>
                         </div>
-
-                        {{-- Rules table --}}
-                        @if($category->rules->isEmpty())
-                            <div class="cat-empty">
-                                <i class="bi bi-stopwatch me-2"></i>
-                                No SLA rules yet.
-                                <button class="btn-link-add"
-                                        onclick="quickAddRule('{{ $category->id }}', '{{ addslashes($category->name) }}')">
-                                    Add the first rule →
+                        <div class="d-flex gap-2 align-items-center">
+                            <button class="btn-cat-action edit"
+                                    onclick="editCategory('{{ $category->id }}','{{ addslashes($category->name) }}','{{ $category->icon }}','{{ $category->color }}')"
+                                    title="Edit category">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <form method="POST" action="{{ route('portal.sla-rules.category.destroy', $category) }}"
+                                  onsubmit="return confirm('Delete category \'{{ $category->name }}\' and ALL its SLA rules?')">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="btn-cat-action del" title="Delete category">
+                                    <i class="bi bi-trash"></i>
                                 </button>
-                            </div>
-                        @else
-                            <div class="rules-table-wrap">
-                                <table class="rules-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Subcategory</th>
-                                            <th>Priority</th>
-                                            <th>First Response</th>
-                                            <th>Resolution</th>
-                                            <th>Status</th>
-                                            <th style="text-align:right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($category->rules as $rule)
-                                            @php
-                                                $priColor = match($rule->priority) { 'Critical' => '#fff', 'High' => '#e24b4a', 'Medium' => '#f5c842', 'Low' => '#4a7c4a', default => 'var(--tm)' };
-                                                $priBg    = match($rule->priority) { 'Critical' => '#8b0000', 'High' => '#fde8e8', 'Medium' => '#fff4cc', 'Low' => '#d4f0d4', default => 'var(--bd)' };
-                                            @endphp
-                                            <tr class="{{ !$rule->is_active ? 'row-inactive' : '' }}" id="rule-row-{{ $rule->id }}">
-                                                <td>
-                                                    <div class="sub-name d-flex align-items-center gap-2">
-                                                        {{ $rule->subcategory_name }}
-                                                        @if($rule->helpdesk_resolvable)
-                                                            <span title="Helpdesk can resolve this directly"
-                                                                  style="font-size:9px;font-weight:800;background:#e8f5ee;color:#1a5a3a;border:1px solid #a8ddc0;border-radius:20px;padding:1px 7px;letter-spacing:.3px">
-                                                                L1
-                                                            </span>
-                                                        @endif
-                                                        @if($rule->admin_only)
-                                                            <span title="Routes directly to Supervisor - IT Admin (L3)"
-                                                                  style="font-size:9px;font-weight:800;background:#eef0ff;color:#2a2a8a;border:1px solid #b8bcf0;border-radius:20px;padding:1px 7px;letter-spacing:.3px">
-                                                                L3
-                                                            </span>
-                                                        @endif
-                                                    </div>
-                                                    @if($rule->description)
-                                                        <div class="sub-desc">{{ Str::limit($rule->description, 40) }}</div>
+                            </form>
+                            <button class="btn-cat-add"
+                                    onclick="quickAddRule('{{ $category->id }}','{{ addslashes($category->name) }}')"
+                                    title="Add rule to this category">
+                                <i class="bi bi-plus-lg me-1"></i>Add Rule
+                            </button>
+                        </div>
+                    </div>
+
+                    {{-- Rules table --}}
+                    <div class="cat-body">
+                    @if($category->rules->isEmpty())
+                        <div class="cat-empty">
+                            <i class="bi bi-stopwatch me-2"></i>
+                            No SLA rules yet.
+                            <button class="btn-link-add"
+                                    onclick="quickAddRule('{{ $category->id }}', '{{ addslashes($category->name) }}')">
+                                Add the first rule →
+                            </button>
+                        </div>
+                    @else
+                        <div class="rules-table-wrap">
+                            <table class="rules-table">
+                                <thead>
+                                    <tr>
+                                        <th>Subcategory</th>
+                                        <th>Priority</th>
+                                        <th>First Response</th>
+                                        <th>Resolution</th>
+                                        <th>Status</th>
+                                        <th style="text-align:right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($category->rules as $rule)
+                                        @php
+                                            $priColor = match($rule->priority) { 'Critical' => '#fff', 'High' => '#e24b4a', 'Medium' => '#f5c842', 'Low' => '#4a7c4a', default => 'var(--tm)' };
+                                            $priBg    = match($rule->priority) { 'Critical' => '#8b0000', 'High' => '#fde8e8', 'Medium' => '#fff4cc', 'Low' => '#d4f0d4', default => 'var(--bd)' };
+                                        @endphp
+                                        <tr class="{{ !$rule->is_active ? 'row-inactive' : '' }}" id="rule-row-{{ $rule->id }}">
+                                            <td>
+                                                <div class="sub-name d-flex align-items-center gap-2">
+                                                    {{ $rule->subcategory_name }}
+                                                    @if($rule->helpdesk_resolvable)
+                                                        <span title="Helpdesk can resolve this directly"
+                                                              style="font-size:9px;font-weight:800;background:#e8f5ee;color:#1a5a3a;border:1px solid #a8ddc0;border-radius:20px;padding:1px 7px;letter-spacing:.3px">
+                                                            L1
+                                                        </span>
                                                     @endif
-                                                </td>
-                                                <td>
-                                                    <span class="pri-badge" style="background:{{ $priBg }};color:{{ $priColor }}">
-                                                        ● {{ $rule->priority }}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span class="time-badge resp">
-                                                        <i class="bi bi-bell me-1"></i>
-                                                        {{ \App\Models\SlaRule::formatMinutes($rule->response_time_minutes) }}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span class="time-badge res">
-                                                        <i class="bi bi-check-circle me-1"></i>
-                                                        {{ \App\Models\SlaRule::formatMinutes($rule->resolution_time_minutes) }}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <form method="POST" action="{{ route('portal.sla-rules.rule.toggle', $rule) }}">
-                                                        @csrf @method('PATCH')
-                                                        <button type="submit" class="toggle-btn {{ $rule->is_active ? 'active' : 'inactive' }}">
-                                                            {{ $rule->is_active ? '● Active' : '○ Inactive' }}
+                                                    @if($rule->admin_only)
+                                                        <span title="Routes directly to Supervisor - IT Admin (L3)"
+                                                              style="font-size:9px;font-weight:800;background:#eef0ff;color:#2a2a8a;border:1px solid #b8bcf0;border-radius:20px;padding:1px 7px;letter-spacing:.3px">
+                                                            L3
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                                @if($rule->workloadClass)
+                                                    <div class="sub-desc" title="Workload class — auto-selected when this subcategory is classified">
+                                                        <i class="bi bi-layers me-1"></i>{{ $rule->workloadClass->name }}
+                                                    </div>
+                                                @endif
+                                                @if($rule->description)
+                                                    <div class="sub-desc">{{ Str::limit($rule->description, 40) }}</div>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                <span class="pri-badge" style="background:{{ $priBg }};color:{{ $priColor }}">
+                                                    ● {{ $rule->priority }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="time-badge resp">
+                                                    <i class="bi bi-bell me-1"></i>
+                                                    {{ \App\Models\SlaRule::formatMinutes($rule->response_time_minutes) }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="time-badge res">
+                                                    <i class="bi bi-check-circle me-1"></i>
+                                                    {{ \App\Models\SlaRule::formatMinutes($rule->resolution_time_minutes) }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <form method="POST" action="{{ route('portal.sla-rules.rule.toggle', $rule) }}">
+                                                    @csrf @method('PATCH')
+                                                    <button type="submit" class="toggle-btn {{ $rule->is_active ? 'active' : 'inactive' }}">
+                                                        {{ $rule->is_active ? '● Active' : '○ Inactive' }}
+                                                    </button>
+                                                </form>
+                                            </td>
+                                            <td style="text-align:right">
+                                                <div class="d-flex gap-1 justify-content-end">
+                                                    <button class="btn-row-action edit"
+                                                            onclick="editRule(
+                                                                '{{ $rule->id }}',
+                                                                '{{ $rule->sla_category_id }}',
+                                                                '{{ addslashes($rule->subcategory_name) }}',
+                                                                '{{ $rule->priority }}',
+                                                                {{ $rule->response_time_minutes }},
+                                                                {{ $rule->resolution_time_minutes }},
+                                                                '{{ addslashes($rule->description ?? '') }}',
+                                                                {{ $rule->helpdesk_resolvable ? 'true' : 'false' }},
+                                                                {{ $rule->admin_only ? 'true' : 'false' }},
+                                                                '{{ $rule->workload_class_id }}'
+                                                            )"
+                                                            title="Edit">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <form method="POST" action="{{ route('portal.sla-rules.rule.destroy', $rule) }}"
+                                                          onsubmit="return confirm('Delete this SLA rule?')">
+                                                        @csrf @method('DELETE')
+                                                        <button type="submit" class="btn-row-action del" title="Delete">
+                                                            <i class="bi bi-trash"></i>
                                                         </button>
                                                     </form>
-                                                </td>
-                                                <td style="text-align:right">
-                                                    <div class="d-flex gap-1 justify-content-end">
-                                                        <button class="btn-row-action edit"
-                                                                onclick="editRule(
-                                                                    '{{ $rule->id }}',
-                                                                    '{{ $rule->sla_category_id }}',
-                                                                    '{{ addslashes($rule->subcategory_name) }}',
-                                                                    '{{ $rule->priority }}',
-                                                                    {{ $rule->response_time_minutes }},
-                                                                    {{ $rule->resolution_time_minutes }},
-                                                                    '{{ addslashes($rule->description ?? '') }}',
-                                                                    {{ $rule->helpdesk_resolvable ? 'true' : 'false' }},
-                                                                    {{ $rule->admin_only ? 'true' : 'false' }}
-                                                                )"
-                                                                title="Edit">
-                                                            <i class="bi bi-pencil"></i>
-                                                        </button>
-                                                        <form method="POST" action="{{ route('portal.sla-rules.rule.destroy', $rule) }}"
-                                                              onsubmit="return confirm('Delete this SLA rule?')">
-                                                            @csrf @method('DELETE')
-                                                            <button type="submit" class="btn-row-action del" title="Delete">
-                                                                <i class="bi bi-trash"></i>
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                        @endif
-
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
                     </div>
-                @endforeach
-            @endif
 
-        </div>
+                </div>
+            @endforeach
+        @endif
 
     </div>
 
     {{-- ══ WORKLOAD CLASSES — preset response/resolution targets Helpdesk &
          Supervisor can apply at classification, overriding the subcategory's
-         default minutes for that one ticket. ══ --}}
-    <div class="sla-main-layout mt-4">
-        <div class="sla-left">
-            <div class="sla-panel" id="wcFormCard">
-                <div class="sla-panel-head">
-                    <div class="sph-icon" style="background:var(--rd)"><i class="bi bi-speedometer2"></i></div>
-                    <div>
-                        <div class="sph-title" id="wcFormTitle">Add Workload Class</div>
-                        <div class="sph-sub">e.g. Quick Fix, Standard, Complex, Major</div>
-                    </div>
+         default minutes for that one ticket. Form is in the sidebar's Workload tab. ══ --}}
+    <div class="mt-4">
+        <div class="sla-panel">
+            <div class="sla-panel-head">
+                <div class="sph-icon" style="background:var(--rd)"><i class="bi bi-list-check"></i></div>
+                <div>
+                    <div class="sph-title">Workload Classes</div>
+                    <div class="sph-sub">Applied at Classify (& Assign) — overrides the subcategory's default response/resolution minutes</div>
                 </div>
-                <form method="POST" id="wcForm" action="{{ route('portal.sla-rules.workload-class.store') }}">
-                    @csrf
-                    <input type="hidden" id="wcMethod" name="_method" value="POST">
-
-                    <div class="sf-field">
-                        <label>Class Name <span class="req">*</span></label>
-                        <input type="text" class="form-control" name="name" id="wcName"
-                               placeholder="e.g. Quick Fix" required>
-                    </div>
-
-                    <div class="sf-field">
-                        <label>Typical Application</label>
-                        <textarea class="form-control" name="typical_application" id="wcTypical" rows="2"
-                                  placeholder="e.g. Password reset, Wi-Fi account issue, peripheral swap"></textarea>
-                    </div>
-
-                    <div class="sf-field">
-                        <label>Response Target (minutes) <span class="req">*</span></label>
-                        <input type="number" class="form-control" name="response_minutes" id="wcResponseMinutes"
-                               min="1" max="43200" required>
-                    </div>
-                    <div class="sf-field">
-                        <label>Response Label <span class="req">*</span></label>
-                        <input type="text" class="form-control" name="response_label" id="wcResponseLabel"
-                               placeholder="e.g. Within 15 Minutes" required>
-                    </div>
-
-                    <div class="sf-field">
-                        <label class="d-flex align-items-start gap-2" style="cursor:pointer;text-transform:none;font-size:12px;font-weight:700;color:var(--gd);line-height:1.4">
-                            <input type="checkbox" name="requires_manual_resolution" id="wcManual"
-                                   value="1" onchange="wcToggleManual()" style="margin-top:3px;flex-shrink:0">
-                            <span>No fixed resolution target — Helpdesk/Supervisor enters the agreed minutes per support request
-                            (e.g. vendor-committed SLA, approved project timeline)</span>
-                        </label>
-                    </div>
-
-                    <div id="wcResolutionMinutesField">
-                        <div class="sf-field">
-                            <label>Resolution Target (minutes) <span class="req" id="wcResolutionReq">*</span></label>
-                            <input type="number" class="form-control" name="resolution_minutes" id="wcResolutionMinutes"
-                                   min="1" max="43200">
-                        </div>
-                    </div>
-                    <div class="sf-field">
-                        <label>Resolution Label <span class="req">*</span></label>
-                        <input type="text" class="form-control" name="resolution_label" id="wcResolutionLabel"
-                               placeholder="e.g. Within 30 Minutes / Based on Vendor Committed SLA" required>
-                    </div>
-
-                    <div class="d-flex gap-2 mt-2">
-                        <button type="submit" class="btn-save"><i class="bi bi-check-lg me-1"></i><span id="wcSaveText">Add Workload Class</span></button>
-                        <button type="button" class="btn-cancel d-none" id="wcCancelBtn" onclick="resetWcForm()">Cancel</button>
-                    </div>
-                </form>
             </div>
-        </div>
 
-        <div class="sla-right">
-            <div class="sla-panel">
-                <div class="sla-panel-head">
-                    <div class="sph-icon" style="background:var(--rd)"><i class="bi bi-list-check"></i></div>
-                    <div>
-                        <div class="sph-title">Workload Classes</div>
-                        <div class="sph-sub">Applied at Classify (& Assign) — overrides the subcategory's default response/resolution minutes</div>
-                    </div>
+            @if($workloadClasses->isEmpty())
+                <div class="p-4 text-center" style="color:var(--tm);font-size:13px">
+                    No workload classes defined yet.
                 </div>
-
-                @if($workloadClasses->isEmpty())
-                    <div class="p-4 text-center" style="color:var(--tm);font-size:13px">
-                        No workload classes defined yet.
-                    </div>
-                @else
-                    <div class="table-responsive rules-table-wrap">
-                        <table class="rules-table">
-                            <thead>
-                                <tr>
-                                    <th>Workload Class</th>
-                                    <th>Response Target</th>
-                                    <th>Resolution Target</th>
-                                    <th>Status</th>
-                                    <th style="text-align:right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($workloadClasses as $wc)
-                                    <tr class="{{ !$wc->is_active ? 'row-inactive' : '' }}">
-                                        <td><div class="sub-name">{{ $wc->name }}</div></td>
-                                        <td>
-                                            <div class="wc-target-label wc-target-resp">
-                                                <i class="bi bi-hourglass-split"></i>
-                                                <span>{{ $wc->response_label }}</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="wc-target-label {{ $wc->requires_manual_resolution ? 'wc-target-manual' : 'wc-target-res' }}">
-                                                <i class="bi {{ $wc->requires_manual_resolution ? 'bi-pencil-square' : 'bi-check-circle' }}"></i>
-                                                <span>{{ $wc->resolution_label }}</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <form method="POST" action="{{ route('portal.sla-rules.workload-class.toggle', $wc) }}">
-                                                @csrf @method('PATCH')
-                                                <button type="submit" class="toggle-btn {{ $wc->is_active ? 'active' : 'inactive' }}">
-                                                    {{ $wc->is_active ? '● Active' : '○ Inactive' }}
+            @else
+                <div class="table-responsive rules-table-wrap">
+                    <table class="rules-table">
+                        <thead>
+                            <tr>
+                                <th>Workload Class</th>
+                                <th>Response Target</th>
+                                <th>Resolution Target</th>
+                                <th>Status</th>
+                                <th style="text-align:right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($workloadClasses as $wc)
+                                <tr class="{{ !$wc->is_active ? 'row-inactive' : '' }}">
+                                    <td><div class="sub-name">{{ $wc->name }}</div></td>
+                                    <td>
+                                        <div class="wc-target-label wc-target-resp">
+                                            <i class="bi bi-hourglass-split"></i>
+                                            <span>{{ $wc->response_label }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="wc-target-label {{ $wc->requires_manual_resolution ? 'wc-target-manual' : 'wc-target-res' }}">
+                                            <i class="bi {{ $wc->requires_manual_resolution ? 'bi-pencil-square' : 'bi-check-circle' }}"></i>
+                                            <span>{{ $wc->resolution_label }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <form method="POST" action="{{ route('portal.sla-rules.workload-class.toggle', $wc) }}">
+                                            @csrf @method('PATCH')
+                                            <button type="submit" class="toggle-btn {{ $wc->is_active ? 'active' : 'inactive' }}">
+                                                {{ $wc->is_active ? '● Active' : '○ Inactive' }}
+                                            </button>
+                                        </form>
+                                    </td>
+                                    <td style="text-align:right">
+                                        <div class="d-flex gap-1 justify-content-end">
+                                            <button class="btn-row-action edit"
+                                                    onclick="editWorkloadClass(
+                                                        '{{ route('portal.sla-rules.workload-class.update', $wc) }}',
+                                                        '{{ addslashes($wc->name) }}',
+                                                        '{{ addslashes($wc->typical_application ?? '') }}',
+                                                        {{ $wc->response_minutes }},
+                                                        '{{ addslashes($wc->response_label) }}',
+                                                        {{ $wc->requires_manual_resolution ? 'true' : 'false' }},
+                                                        {{ $wc->resolution_minutes ?? 'null' }},
+                                                        '{{ addslashes($wc->resolution_label) }}'
+                                                    )"
+                                                    title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <form method="POST" action="{{ route('portal.sla-rules.workload-class.destroy', $wc) }}"
+                                                  onsubmit="return confirm('Delete the &quot;{{ addslashes($wc->name) }}&quot; workload class?')">
+                                                @csrf @method('DELETE')
+                                                <button type="submit" class="btn-row-action del" title="Delete">
+                                                    <i class="bi bi-trash"></i>
                                                 </button>
                                             </form>
-                                        </td>
-                                        <td style="text-align:right">
-                                            <div class="d-flex gap-1 justify-content-end">
-                                                <button class="btn-row-action edit"
-                                                        onclick="editWorkloadClass(
-                                                            '{{ route('portal.sla-rules.workload-class.update', $wc) }}',
-                                                            '{{ addslashes($wc->name) }}',
-                                                            '{{ addslashes($wc->typical_application ?? '') }}',
-                                                            {{ $wc->response_minutes }},
-                                                            '{{ addslashes($wc->response_label) }}',
-                                                            {{ $wc->requires_manual_resolution ? 'true' : 'false' }},
-                                                            {{ $wc->resolution_minutes ?? 'null' }},
-                                                            '{{ addslashes($wc->resolution_label) }}'
-                                                        )"
-                                                        title="Edit">
-                                                    <i class="bi bi-pencil"></i>
-                                                </button>
-                                                <form method="POST" action="{{ route('portal.sla-rules.workload-class.destroy', $wc) }}"
-                                                      onsubmit="return confirm('Delete the &quot;{{ addslashes($wc->name) }}&quot; workload class?')">
-                                                    @csrf @method('DELETE')
-                                                    <button type="submit" class="btn-row-action del" title="Delete">
-                                                        <i class="bi bi-trash"></i>
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @endif
-            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -680,28 +725,27 @@
     .sla-bar-fill.warn { background:linear-gradient(90deg,#f5c842,#d29922); }
     .sla-bar-fill.bad  { background:linear-gradient(90deg,#f85149,#d29922); }
 
-    /* ── Main layout ── */
-    .sla-main-layout { display:grid; grid-template-columns:320px 1fr; gap:24px; align-items:start; }
-    @media (max-width:900px) { .sla-main-layout { grid-template-columns:1fr; } }
-
-    /* Each column scrolls independently instead of growing the whole page —
-       the left form column stays sticky+scrollable, the right category/rule
-       list gets its own capped, scrollable pane. */
-    .sla-left, .sla-right {
-        max-height: calc(100vh - 32px);
-        overflow-y: auto;
-        padding-right: 6px;
-        scrollbar-width: thin;
-        scrollbar-color: var(--bd) transparent;
+    /* ── Sidebar: settings nav + tabbed forms, sticky beside the full-width lists ── */
+    @media (min-width:992px) {
+        .sla-sidebar {
+            position: sticky;
+            top: 16px;
+            max-height: calc(100vh - 32px);
+            overflow-y: auto;
+            padding-right: 6px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--bd) transparent;
+        }
+        .sla-sidebar::-webkit-scrollbar { width:7px; }
+        .sla-sidebar::-webkit-scrollbar-track { background:transparent; }
+        .sla-sidebar::-webkit-scrollbar-thumb { background:var(--bd); border-radius:10px; }
+        .sla-sidebar::-webkit-scrollbar-thumb:hover { background:var(--gl); }
     }
-    .sla-left { position:sticky; top:16px; }
-    .sla-left::-webkit-scrollbar, .sla-right::-webkit-scrollbar { width:7px; }
-    .sla-left::-webkit-scrollbar-track, .sla-right::-webkit-scrollbar-track { background:transparent; }
-    .sla-left::-webkit-scrollbar-thumb, .sla-right::-webkit-scrollbar-thumb { background:var(--bd); border-radius:10px; }
-    .sla-left::-webkit-scrollbar-thumb:hover, .sla-right::-webkit-scrollbar-thumb:hover { background:var(--gl); }
-    @media (max-width:900px) {
-        .sla-left, .sla-right { max-height:none; overflow-y:visible; position:static; }
-    }
+    .form-tabs { display:flex; gap:4px; background:var(--cr); border:1.5px solid var(--bd); border-radius:14px; padding:4px; margin-bottom:12px; }
+    .form-tab { flex:1; border:none; background:transparent; color:var(--tm); font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 6px; border-radius:10px; cursor:pointer; transition:all .2s; white-space:nowrap; }
+    .form-tab:hover { color:var(--gd); background:var(--ygl); }
+    .form-tab.active { background:var(--gd); color:var(--yg); }
+    .form-pane:not(.active) { display:none; }
 
     /* ── Panel ── */
     .sla-panel { background:var(--cr); border:1.5px solid var(--bd); border-radius:20px; padding:22px; }
@@ -756,6 +800,17 @@
     .cat-icon-wrap { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
     .cat-name { font-family:'Nunito',sans-serif; font-weight:900; font-size:16px; color:var(--gd); }
     .cat-meta { font-size:12px; color:var(--tm); font-weight:600; margin-top:2px; }
+
+    /* ── Collapsible categories ── */
+    .cat-toggle { cursor:pointer; flex:1; min-width:0; user-select:none; }
+    .cat-toggle:focus-visible { outline:2px solid var(--gl); outline-offset:4px; border-radius:10px; }
+    .cat-chevron { font-size:14px; color:var(--tm); transition:transform .2s; }
+    .cat-block.collapsed .cat-chevron { transform:rotate(-90deg); }
+    .cat-block.collapsed .cat-header { border-bottom:none; }
+    .cat-block.collapsed .cat-body { display:none; }
+    .cat-toolbar { display:flex; justify-content:flex-end; gap:8px; margin-bottom:12px; }
+    .cat-toolbar-btn { background:var(--cr); border:1.5px solid var(--bd); color:var(--gd); font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:6px 14px; border-radius:20px; cursor:pointer; transition:all .2s; display:inline-flex; align-items:center; }
+    .cat-toolbar-btn:hover { background:var(--ygl); border-color:var(--gl); }
 
     .btn-cat-action { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:12px; cursor:pointer; border:1.5px solid; transition:all .2s; }
     .btn-cat-action.edit { background:var(--ygl); color:var(--gd); border-color:var(--bd); }
@@ -896,6 +951,7 @@ function updateSubcategoryHint() {
 
 /* ── Quick-add rule: pre-select category ── */
 function quickAddRule(catId, catName) {
+    showFormTab('rule');
     document.getElementById('ruleCategoryId').value = catId;
     updateSubcategoryHint();
     document.getElementById('ruleFormCard').scrollIntoView({ behavior:'smooth', block:'start' });
@@ -904,6 +960,7 @@ function quickAddRule(catId, catName) {
 
 /* ── Edit category ── */
 function editCategory(id, name, icon, color) {
+    showFormTab('category');
     document.getElementById('catForm').action    =
         '{{ route("portal.sla-rules.category.update", ["slaCategory" => "__ID__"]) }}'.replace('__ID__', id);
     document.getElementById('catMethod').value   = 'PUT';
@@ -933,7 +990,8 @@ function resetCatForm() {
 }
 
 /* ── Edit rule ── */
-function editRule(id, catId, subcat, priority, respMins, resMins, desc, helpdeskResolvable, adminOnly) {
+function editRule(id, catId, subcat, priority, respMins, resMins, desc, helpdeskResolvable, adminOnly, workloadClassId) {
+    showFormTab('rule');
     document.getElementById('ruleForm').action          =
         '{{ route("portal.sla-rules.rule.update", ["slaRule" => "__ID__"]) }}'.replace('__ID__', id);
     document.getElementById('ruleMethod').value         = 'PUT';
@@ -944,6 +1002,9 @@ function editRule(id, catId, subcat, priority, respMins, resMins, desc, helpdesk
     document.getElementById('ruleDescription').value    = desc;
     document.getElementById('ruleHelpdeskResolvable').checked = helpdeskResolvable;
     document.getElementById('ruleAdminOnly').checked    = adminOnly;
+    // Set silently — the rule's stored minutes already reflect the class (or were customized).
+    document.getElementById('ruleWorkloadClass').value  = workloadClassId || '';
+    toggleRuleWorkloadHint();
 
     syncTimeUnit('ruleResponse',   'ruleResponseUnit');
     syncTimeUnit('ruleResolution', 'ruleResolutionUnit');
@@ -979,6 +1040,8 @@ function resetRuleForm() {
     document.getElementById('rulePriority').value       = '';
     document.getElementById('ruleHelpdeskResolvable').checked = false;
     document.getElementById('ruleAdminOnly').checked    = false;
+    document.getElementById('ruleWorkloadClass').value  = '';
+    toggleRuleWorkloadHint();
     document.querySelectorAll('#ruleFormCard .pri-chip').forEach(c => c.classList.remove('selected'));
     document.getElementById('ruleFormTitle').textContent = 'Add SLA Rule';
     document.getElementById('ruleSaveText').textContent  = 'Add Rule';
@@ -991,6 +1054,95 @@ function resetRuleForm() {
     document.querySelectorAll('.qbtn').forEach(b => b.classList.remove('active'));
     document.getElementById('subcatHint').textContent = '';
 }
+
+/* ── Workload class on an SLA rule — fills in the rule's response/resolution time.
+       Manual-resolution classes (Project/Planned, Vendor) only fill the response. ── */
+function selectedRuleWorkloadOption() {
+    const sel = document.getElementById('ruleWorkloadClass');
+    return sel.value ? sel.options[sel.selectedIndex] : null;
+}
+
+function toggleRuleWorkloadHint() {
+    const opt = selectedRuleWorkloadOption();
+    document.getElementById('ruleWorkloadManualHint').classList.toggle('d-none', !(opt && opt.dataset.manual === '1'));
+}
+
+function onRuleWorkloadChange() {
+    const opt = selectedRuleWorkloadOption();
+    toggleRuleWorkloadHint();
+    if (!opt) return;
+
+    document.getElementById('ruleResponse').value = opt.dataset.response;
+    if (opt.dataset.manual === '1') {
+        document.getElementById('ruleResolution').focus();
+    } else {
+        document.getElementById('ruleResolution').value = opt.dataset.resolution;
+    }
+
+    document.querySelectorAll('#ruleFormCard .qbtn').forEach(b => b.classList.remove('active'));
+    syncTimeUnit('ruleResponse',   'ruleResponseUnit');
+    syncTimeUnit('ruleResolution', 'ruleResolutionUnit');
+    updateRulePreview();
+}
+
+/* ── Sidebar form tabs — one form visible at a time; the last tab used is
+       remembered per browser so it's still selected after a save reloads the page. ── */
+const FORM_TAB_KEY = 'sla-rules.form-tab';
+
+function showFormTab(name) {
+    if (!document.querySelector(`.form-pane[data-pane="${name}"]`)) return;
+    document.querySelectorAll('.form-tab').forEach(t => {
+        const active = t.dataset.tab === name;
+        t.classList.toggle('active', active);
+        t.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    document.querySelectorAll('.form-pane').forEach(p => p.classList.toggle('active', p.dataset.pane === name));
+    try { localStorage.setItem(FORM_TAB_KEY, name); } catch (e) {}
+}
+
+(function restoreFormTab() {
+    let saved = null;
+    try { saved = localStorage.getItem(FORM_TAB_KEY); } catch (e) {}
+    if (saved) showFormTab(saved);
+})();
+
+/* ── Collapsible categories — start collapsed; the ones you open are remembered
+       per browser so they stay open after saving a rule (the page reloads). ── */
+const CAT_STATE_KEY = 'sla-rules.expanded-categories';
+
+function readExpandedCategories() {
+    try { return JSON.parse(localStorage.getItem(CAT_STATE_KEY)) || []; } catch (e) { return []; }
+}
+
+function saveExpandedCategories() {
+    const open = [...document.querySelectorAll('.cat-block[data-cat-id]:not(.collapsed)')].map(b => b.dataset.catId);
+    try { localStorage.setItem(CAT_STATE_KEY, JSON.stringify(open)); } catch (e) {}
+}
+
+function applyCategoryState(block, open) {
+    block.classList.toggle('collapsed', !open);
+    const toggle = block.querySelector('.cat-toggle');
+    if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function toggleCategory(id, force) {
+    const block = document.querySelector(`.cat-block[data-cat-id="${id}"]`);
+    if (!block) return;
+    applyCategoryState(block, force ?? block.classList.contains('collapsed'));
+    saveExpandedCategories();
+}
+
+function setAllCategories(open) {
+    document.querySelectorAll('.cat-block[data-cat-id]').forEach(b => applyCategoryState(b, open));
+    saveExpandedCategories();
+}
+
+(function restoreCategoryState() {
+    const open = new Set(readExpandedCategories());
+    const hashId = location.hash.startsWith('#cat-') ? location.hash.slice(5) : null;
+    if (hashId) open.add(hashId);
+    document.querySelectorAll('.cat-block[data-cat-id]').forEach(b => applyCategoryState(b, open.has(b.dataset.catId)));
+})();
 
 /* ── Helpdesk-resolvable (L1) and Admin-only (L3) are mutually exclusive ── */
 document.getElementById('ruleHelpdeskResolvable').addEventListener('change', function () {
@@ -1010,6 +1162,7 @@ function wcToggleManual() {
 }
 
 function editWorkloadClass(updateUrl, name, typical, respMins, respLabel, requiresManual, resMins, resLabel) {
+    showFormTab('workload');
     document.getElementById('wcForm').action     = updateUrl;
     document.getElementById('wcMethod').value    = 'PUT';
     document.getElementById('wcName').value      = name;

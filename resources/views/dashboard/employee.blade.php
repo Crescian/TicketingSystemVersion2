@@ -242,8 +242,18 @@
     .btn-chat { background:#e8eeff; color:#2a4ab0; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #b8c8ff; cursor:pointer; transition:all .2s; display:inline-flex; align-items:center; gap:5px; }
     .btn-chat:hover { background:#d0dcff; border-color:#8898dd; }
     .chat-count-badge { background:#e24b4a; color:#fff; font-size:10px; font-weight:900; border-radius:20px; padding:1px 6px; font-family:'Nunito',sans-serif; min-width:18px; text-align:center; }
-    .btn-acknowledge { background:#e0f5e0; color:#1e6b1e; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #a8dba8; cursor:pointer; transition:all .2s; display:inline-flex; align-items:center; gap:5px; }
-    .btn-acknowledge:hover { background:#c8ecc8; border-color:#7fc97f; }
+    /* Highlighted — the one action the employee needs to take on an
+       "Awaiting Your Confirmation" request, so it stands out from the outline buttons. */
+    .btn-acknowledge { background:linear-gradient(135deg, #2e8b2e, #1e6b1e); color:#fff; font-family:'Nunito',sans-serif; font-weight:900; font-size:13px; padding:8px 20px; border-radius:50px; border:1.5px solid #1e6b1e; cursor:pointer; transition:transform .2s, background .2s; display:inline-flex; align-items:center; gap:5px; animation:ackPulse 2s ease-in-out infinite; }
+    .btn-acknowledge:hover { background:linear-gradient(135deg, #34a034, #237a23); transform:translateY(-1px); }
+    .btn-acknowledge:focus-visible { outline:3px solid var(--yg); outline-offset:2px; }
+    @keyframes ackPulse {
+        0%, 100% { box-shadow: 0 3px 10px rgba(30, 107, 30, .30); }
+        50%      { box-shadow: 0 3px 18px rgba(30, 107, 30, .60), 0 0 0 4px rgba(200, 230, 60, .35); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .btn-acknowledge { animation:none; box-shadow:0 3px 12px rgba(30, 107, 30, .40); }
+    }
     .btn-rate { background:#fff4cc; color:#7a5a00; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 16px; border-radius:20px; border:1.5px solid #f5c842; cursor:pointer; transition:all .2s; display:inline-flex; align-items:center; gap:5px; }
     .btn-rate:hover { background:#ffe999; border-color:#e0b020; }
 

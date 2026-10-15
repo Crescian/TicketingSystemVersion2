@@ -57,6 +57,77 @@ class SupervisorDashboardController extends Controller
         }
     }
 
+    // Hand an unassigned ticket back to Helpdesk's For Classification queue —
+    // for a misrouted/misclassified ticket the Supervisor shouldn't have to
+    // force through Classify & Assign. Stays acknowledged, so Helpdesk can go
+    // straight to re-classifying (or cancelling) it via the normal flow.
+    private function sendBackToHelpdesk(Request $request, Tickets $ticket, string $queue, array $allowedStatuses)
+    {
+        if (!in_array($ticket->status, $allowedStatuses, true)
+            || $ticket->pending_role !== $queue
+            || !is_null($ticket->assigned_to)) {
+            return back()->with('error', 'Only unassigned tickets in your queue can be returned to Helpdesk.');
+        }
+
+        $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        $oldStatus = $ticket->status;
+
+        $attributes = [
+            'status' => TicketStatus::FOR_CLASSIFICATION,
+            'pending_role' => TicketStatus::QUEUE_HELPDESK,
+            'scheduled_start' => null,
+            'scheduled_end' => null,
+            'is_overtime' => false,
+            'queued_at' => null,
+        ];
+
+        // Helpdesk classify() refuses tickets with no acknowledgement stamp —
+        // a ticket routed straight into the admin queue may never have had one.
+        if (is_null($ticket->date_acknowledged)) {
+            $attributes['date_acknowledged'] = now()->timezone('Asia/Manila')->toDateString();
+            $attributes['time_acknowledged'] = now()->timezone('Asia/Manila')->toTimeString();
+        }
+
+        $ticket->update($attributes);
+
+        TicketStatusHistories::create([
+            'ticket_id' => $ticket->id,
+            'old_status' => $oldStatus,
+            'new_status' => TicketStatus::FOR_CLASSIFICATION,
+            'changed_by' => Auth::id(),
+            'notes' => "Returned to Helpdesk by {$queue} - " . Auth::user()->name . ". Reason: {$request->reason}",
+            'changed_at' => now(),
+        ]);
+
+        $helpdeskUsers = User::withActiveRole('Helpdesk')->get();
+        foreach ($helpdeskUsers as $helpdeskUser) {
+            if ($helpdeskUser->email) {
+                Mail::to($helpdeskUser->email)->send(
+                    new TicketAssignedMail($ticket, 'A ticket has been returned by the Supervisor and needs re-classification.', 'helpdesk.dashboard')
+                );
+            }
+        }
+
+        return back()->with('success', "Ticket #{$ticket->ticket_number} returned to Helpdesk.");
+    }
+
+    public function returnToHelpdesk(Request $request, Tickets $ticket)
+    {
+        return $this->sendBackToHelpdesk($request, $ticket, TicketStatus::QUEUE_SUPPORT_SUPERVISOR, [TicketStatus::CLASSIFIED]);
+    }
+
+    public function adminReturnToHelpdesk(Request $request, Tickets $ticket)
+    {
+        return $this->sendBackToHelpdesk($request, $ticket, TicketStatus::QUEUE_ADMIN_SUPERVISOR, [
+            TicketStatus::FOR_ACKNOWLEDGMENT,
+            TicketStatus::CLASSIFIED,
+            TicketStatus::ESCALATED,
+        ]);
+    }
+
     // Support Supervisor Openning
     public function supportIndex(Request $request)
     {
@@ -260,6 +331,16 @@ class SupervisorDashboardController extends Controller
             fn($q) =>
             $q->where('role_name', 'IT Support Specialist')
         )
+            // Ticket workload for the sidebar roster, next to free time
+            ->withCount([
+                'assignedTickets as in_progress_count' => fn($q) => $q->whereIn('status', [
+                    TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
+                    TicketStatus::IN_PROGRESS_SERVICE_REPORT,
+                ]),
+                'assignedTickets as queued_count' => fn($q) => $q->where('status', TicketStatus::ASSIGNED),
+                'assignedTickets as on_hold_count' => fn($q) => $q->where('status', TicketStatus::ON_HOLD),
+            ])
+            ->orderBy('name')
             ->get()
             ->map(function ($tech) {
                 $status = TicketScheduler::statusFor($tech);
@@ -280,7 +361,7 @@ class SupervisorDashboardController extends Controller
         $slaCategories = SlaCategory::with([
             'rules' => function ($q) {
                 $q->where('is_active', true)
-                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes', 'description')
+                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'workload_class_id', 'response_time_minutes', 'resolution_time_minutes', 'description')
                     ->orderBy('subcategory_name');
             }
         ])
@@ -296,6 +377,7 @@ class SupervisorDashboardController extends Controller
                 'rule_id' => $r->id,
                 'name' => $r->subcategory_name,
                 'priority' => $r->priority,
+                'workload_class_id' => $r->workload_class_id,
                 'response' => $r->response_time_minutes,
                 'resolution' => $r->resolution_time_minutes,
                 'description' => $r->description,
@@ -946,22 +1028,42 @@ class SupervisorDashboardController extends Controller
         $oldStatus = $ticket->status;
         $technician = $ticket->assignedTo;
 
+        // A busy IT Support Specialist gets the revision queued (Assigned, already
+        // acknowledged) instead of the request being refused. Helpdesk has no Start
+        // step for queued tickets, so a busy Helpdesk user is still refused.
+        $activeTicket = $technician ? $this->activeTicketFor($technician, $ticket->id) : null;
+        $queue = $activeTicket && $technician->role?->role_name === 'IT Support Specialist';
+
+        if ($activeTicket && !$queue) {
+            return back()->with(
+                'error',
+                "{$technician->name} is already working on ticket #{$activeTicket->ticket_number} — they need to resolve or escalate it before revising this one."
+            );
+        }
+
         $scheduleFields = [];
 
         if ($technician) {
-            if ($activeTicket = $this->activeTicketFor($technician, $ticket->id)) {
-                return back()->with(
-                    'error',
-                    "{$technician->name} is already working on ticket #{$activeTicket->ticket_number} — they need to resolve or escalate it before revising this one."
-                );
-            }
+            $decision = $request->input('schedule_decision', 'auto');
 
-            $slot = TicketScheduler::commitDirectSlot(
-                $ticket,
-                $technician,
-                TicketScheduler::effortMinutes($ticket),
-                $request->input('schedule_decision', 'auto')
-            );
+            // Queued revisions keep their original arrival time, so they sort ahead of
+            // newer tickets in the same priority tier.
+            $slot = $queue
+                ? TicketScheduler::commitAssignment(
+                    $ticket,
+                    $technician,
+                    (string) $ticket->ticket_type,
+                    TicketScheduler::effortMinutes($ticket),
+                    $decision,
+                    null,
+                    $ticket->queued_at ?? $ticket->created_at
+                )
+                : TicketScheduler::commitDirectSlot(
+                    $ticket,
+                    $technician,
+                    TicketScheduler::effortMinutes($ticket),
+                    $decision
+                );
 
             if ($slot['needs_decision']) {
                 return back()->withInput()->with('scheduleConflict', [
@@ -983,31 +1085,47 @@ class SupervisorDashboardController extends Controller
             ];
         }
 
+        $newStatus = $queue ? TicketStatus::ASSIGNED : TicketStatus::IN_PROGRESS_SERVICE_REQUEST;
+
         $ticket->update(array_merge([
-            'status' => TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
+            'status' => $newStatus,
             'resolved_at' => null,
             'resolved_by' => null,
             'resolution_notes' => null,
             'service_type' => null,
             'findings' => null,
             'recommendation' => null,
-        ], $scheduleFields));
+            'revision_requested_at' => now(),
+            'revision_notes' => $request->revision_notes,
+        ], $queue ? ['tech_acknowledged_at' => now()] : [], $scheduleFields));
 
         TicketStatusHistories::create([
             'ticket_id' => $ticket->id,
             'old_status' => $oldStatus,
-            'new_status' => TicketStatus::IN_PROGRESS_SERVICE_REQUEST,
+            'new_status' => $newStatus,
             'changed_by' => Auth::id(),
             'notes' => 'Resolution returned for revision by Supervisor - ' . Auth::user()->name .
-                ($technician ? ". Returned to {$technician->name}." : '.') .
+                ($technician ? ". Returned to {$technician->name}" : '') .
+                ($queue ? " (queued behind #{$activeTicket->ticket_number})." : '.') .
                 " Reason: {$request->revision_notes}",
             'changed_at' => now(),
         ]);
 
         if ($technician?->email) {
             Mail::to($technician->email)->send(
-                new TicketAssignedMail($ticket, 'Your Supervisor requested revisions on this resolution and has returned it to you.', 'technician.dashboard')
+                new TicketAssignedMail(
+                    $ticket,
+                    ($queue
+                        ? 'Your Supervisor requested revisions on this resolution. It has been queued for you — start it once you finish your current ticket.'
+                        : 'Your Supervisor requested revisions on this resolution and has returned it to you.')
+                        . " Reason: {$request->revision_notes}",
+                    'technician.dashboard'
+                )
             );
+        }
+
+        if ($queue) {
+            return back()->with('success', "Ticket #{$ticket->ticket_number} queued for {$technician->name} for revision — they'll start it after #{$activeTicket->ticket_number}.");
         }
 
         return back()->with('success', "Ticket #{$ticket->ticket_number} returned to " . ($technician?->name ?? 'the technician') . ' for revision.');
@@ -1600,7 +1718,7 @@ class SupervisorDashboardController extends Controller
         $slaCategories = SlaCategory::with([
             'rules' => function ($q) {
                 $q->where('is_active', true)
-                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'response_time_minutes', 'resolution_time_minutes', 'description')
+                    ->select('id', 'sla_category_id', 'subcategory_name', 'priority', 'workload_class_id', 'response_time_minutes', 'resolution_time_minutes', 'description')
                     ->orderBy('subcategory_name');
             }
         ])
@@ -1618,6 +1736,7 @@ class SupervisorDashboardController extends Controller
                 'rule_id' => $r->id,
                 'name' => $r->subcategory_name,
                 'priority' => $r->priority,
+                'workload_class_id' => $r->workload_class_id,
                 'response' => $r->response_time_minutes,
                 'resolution' => $r->resolution_time_minutes,
                 'description' => $r->description,
