@@ -40,6 +40,10 @@ return [
         'client_secret' => env('AZURE_CLIENT_SECRET'),
         'redirect' => env('AZURE_REDIRECT_URI'),
         'tenant' => env('AZURE_TENANT_ID'),
+        // App registration the mobile app signs in with (expo-auth-session) —
+        // Microsoft tokens sent to POST /api/auth/microsoft must be issued to
+        // this client id (or the web one, if the mobile app reuses it).
+        'mobile_client_id' => env('AZURE_MOBILE_CLIENT_ID'),
     ],
 
 ];

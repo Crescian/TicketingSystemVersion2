@@ -49,6 +49,8 @@ class TicketHold
         if ($ticket->user?->email) {
             Mail::to($ticket->user->email)->send(new TicketPausedMail($ticket, $reason));
         }
+
+        RequestorPush::send($ticket, 'on_hold', 'Request on hold', "#{$ticket->ticket_number} — {$reason}");
     }
 
     public static function resume(Tickets $ticket): void

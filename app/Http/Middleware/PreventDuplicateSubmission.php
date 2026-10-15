@@ -35,7 +35,9 @@ class PreventDuplicateSubmission
         $response = $next($request);
 
         // A validation failure isn't an in-flight duplicate — let the user fix and resubmit right away.
-        if ($response->getStatusCode() === 302 && $request->session()->get('errors')?->any()) {
+        // Web forms get a 302 with errors in the session; the token-based API (no session) gets a 422.
+        if ($response->getStatusCode() === 422
+            || ($response->getStatusCode() === 302 && $request->hasSession() && $request->session()->get('errors')?->any())) {
             Cache::forget($key);
         }
 

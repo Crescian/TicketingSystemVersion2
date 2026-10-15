@@ -149,7 +149,7 @@ class Tickets extends Model
         // count — a row count drifts the moment tickets are cancelled/deleted or a
         // ticket_number is hand-edited (e.g. via direct DB update).
         $maxSuffix = static::where('ticket_number', 'like', $prefix . '%')
-            ->selectRaw('MAX(RIGHT(ticket_number, 4)::int) as max_suffix')
+            ->selectRaw('MAX(CAST(RIGHT(ticket_number, 4) AS INTEGER)) as max_suffix')
             ->value('max_suffix') ?? 0;
 
         $floor = config("ticketing.ticket_number_floors.{$shortYear}", 0);

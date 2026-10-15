@@ -2,105 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\TicketAssignedMail;
-use App\Mail\TicketClosedByRequestorMail;
-use App\Mail\TicketSubmittedMail;
+use App\Exceptions\TicketActionException;
 use App\Models\Tickets;
 use App\Models\SlaCategory;
 use App\Models\TicketAttachment;
-use App\Models\TicketStatusHistories;
-use App\Models\User;
-use App\Support\TicketStatus;
+use App\Services\RequestorTicketService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 class TicketsController extends Controller
 {
-    // Roles the employee "Available IT" panel surfaces — the tiers a requester's
-    // ticket can pass through (Helpdesk triage, the technician who gets assigned,
-    // or an IT Admin/Supervisor track for admin-side requests) plus the
-    // supervisors who oversee them. Same online-window mechanism as the
-    // Admin/Executive presence panels (sessions.last_activity).
-    private const IT_TEAM_ROLES = [
-        'Helpdesk',
-        'IT Support Specialist',
-        'Supervisor - Support Specialist',
-        'IT Admin',
-        'Supervisor - IT Admin',
-    ];
-
-    private const ONLINE_WINDOW_MINUTES = 5;
-
-    private function onlineUserIds(): \Illuminate\Support\Collection
+    public function __construct(private RequestorTicketService $requestorTickets)
     {
-        return DB::table('sessions')
-            ->whereNotNull('user_id')
-            ->where('last_activity', '>=', now()->subMinutes(self::ONLINE_WINDOW_MINUTES)->timestamp)
-            ->distinct()
-            ->pluck('user_id');
-    }
-
-    // Not-yet-started statuses a ticket passes through once a specialist is assigned —
-    // matches App\Services\TicketScheduler's own NOT_STARTED_STATUSES, duplicated here
-    // since that constant is private to the scheduler.
-    private const QUEUED_STATUSES = [TicketStatus::ASSIGNED];
-
-    // A soft, employee-facing ETA for when a specialist will actually start on this
-    // ticket — deliberately fuzzy (rounded hour today, day name if further out) rather
-    // than the exact scheduled_start minute, since that projection can legitimately
-    // shift later (a higher-priority ticket jumping the queue) or earlier (an earlier
-    // ticket finishing ahead of schedule). Showing a precise time that then moves would
-    // read as a broken promise even though the system behaved correctly.
-    private function expectedStartLabel(Tickets $ticket): ?string
-    {
-        if (in_array($ticket->status, [TicketStatus::FOR_ACKNOWLEDGMENT, TicketStatus::FOR_CLASSIFICATION, TicketStatus::CLASSIFIED], true)) {
-            return 'Awaiting assignment';
-        }
-
-        if ($ticket->status === TicketStatus::IN_PROGRESS_SERVICE_REQUEST) {
-            return 'Being worked on now';
-        }
-
-        if (!in_array($ticket->status, self::QUEUED_STATUSES, true) || !$ticket->scheduled_start) {
-            return null;
-        }
-
-        $now = now('Asia/Manila');
-        $start = $ticket->scheduled_start->copy()->timezone('Asia/Manila');
-
-        if ($start->isSameDay($now)) {
-            return $start->lte($now) ? 'Today, shortly' : 'Today, after ' . $start->format('g:00 A');
-        }
-
-        if ($start->isSameDay($now->copy()->addDay())) {
-            return 'Tomorrow';
-        }
-
-        if ($now->diffInDays($start) <= 6) {
-            return $start->format('l');
-        }
-
-        return 'On ' . $start->format('M j');
-    }
-
-    private function itTeamStatus(): \Illuminate\Support\Collection
-    {
-        $onlineIds = $this->onlineUserIds();
-
-        return User::with('role')
-            ->whereHas('role', fn($q) => $q->whereIn('role_name', self::IT_TEAM_ROLES))
-            ->where('active', true)
-            ->orderBy('name')
-            ->get()
-            ->map(function ($member) use ($onlineIds) {
-                $member->online = $onlineIds->contains($member->id);
-                return $member;
-            })
-            ->sortByDesc('online')
-            ->values();
     }
 
     // Named-route prefix for the requestor-facing views (dashboard.employee,
@@ -136,90 +50,17 @@ class TicketsController extends Controller
         ->where('users.id', $user->id)
         ->first();
         
-        $query = Tickets::with(['assignedTo', 'feedback', 'unreadMessages', 'slaCategory'])
-            ->where('users_id', $user->id);
-
-        // ── Phase filters — same 5-phase vocabulary as the simplified tracker on
-        //    the ticket card (App\Support\TicketTrackerStep: Submitted -> Scheduled
-        //    -> In Progress -> Awaiting Your Confirmation -> Closed), so a tab and
-        //    the tracker never disagree about where a ticket sits. The employee
-        //    side doesn't surface the detailed internal workflow (acknowledged vs.
-        //    classified vs. assigned), so those no longer get separate tabs.
-        $phaseFilters = [
-            'submitted' => function ($q) {
-                $q->whereIn('status', [
-                    TicketStatus::FOR_ACKNOWLEDGMENT,
-                    TicketStatus::FOR_CLASSIFICATION,
-                    TicketStatus::CLASSIFIED,
-                ]);
-            },
-            'scheduled' => function ($q) {
-                $q->where('status', TicketStatus::ASSIGNED);
-            },
-            'in_progress' => function ($q) {
-                $q->whereIn('status', [
-                    TicketStatus::IN_PROGRESS_SERVICE_REQUEST, TicketStatus::CLOSED_SERVICE_REQUEST,
-                    TicketStatus::IN_PROGRESS_SERVICE_REPORT, TicketStatus::DONE_SERVICE_REPORT,
-                    TicketStatus::REPORT_FOR_REVIEW, TicketStatus::APPROVED_SERVICE_REPORT, TicketStatus::ESCALATED,
-                ]);
-            },
-            'awaiting_requestor' => function ($q) {
-                $q->where('status', TicketStatus::REQUESTOR_CONFIRMATION);
-            },
-            'closed' => function ($q) {
-                $q->where('status', TicketStatus::CLOSED);
-            },
-            'cancelled' => function ($q) {
-                $q->where('status', TicketStatus::CANCELLED);
-            },
-        ];
-
-        // Status filter
-        if ($status !== 'all' && isset($phaseFilters[$status])) {
-            $query->where($phaseFilters[$status]);
-        }
-
-        // Search
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('subject', 'ilike', "%{$search}%")
-                    ->orWhere('ticket_number', 'ilike', "%{$search}%")
-                    ->orWhere('concern', 'ilike', "%{$search}%")
-                    ->orWhere('request_category', 'ilike', "%{$search}%");
-            });
-        }
-
-        // ── Category filter — matches the ticket's classified SLA category
-        //    (only set once Helpdesk classifies it), not the employee's
-        //    self-submitted request_category, which isn't reliably populated.
-        if ($request->filled('category')) {
-            $query->where('sla_category_id', $request->get('category'));
-        }
-
-        // From/To date filter — scoped to when the ticket was submitted.
-        if ($request->filled('from_date')) {
-            $query->whereDate('created_at', '>=', $request->get('from_date'));
-        }
-        if ($request->filled('to_date')) {
-            $query->whereDate('created_at', '<=', $request->get('to_date'));
-        }
-
-        // Sort
-        match ($sort) {
-            'oldest' => $query->oldest(),
-            'priority' => $query->orderByRaw("CASE ticket_type WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 WHEN 'Low' THEN 4 END"),
-            default => $query->latest(),
-        };
+        // Phase tabs, search, category, date range and sort — shared with the
+        // mobile API (see RequestorTicketService::listQuery()).
+        $query = $this->requestorTickets->listQuery($user, $request->only(['status', 'search', 'category', 'from_date', 'to_date', 'sort']))
+            ->with(['assignedTo', 'feedback', 'unreadMessages', 'slaCategory']);
 
         $tickets = $query->paginate(10)->withQueryString();
         $tickets->getCollection()->each(function (Tickets $ticket) {
-            $ticket->expected_start_label = $this->expectedStartLabel($ticket);
+            $ticket->expected_start_label = $this->requestorTickets->expectedStartLabel($ticket);
         });
 
-        $counts = ['all' => Tickets::where('users_id', $user->id)->count()];
-        foreach ($phaseFilters as $key => $filter) {
-            $counts[$key] = Tickets::where('users_id', $user->id)->where($filter)->count();
-        }
+        $counts = $this->requestorTickets->counts($user);
 
         // ── Load SLA categories with their active rules for the ticket modal
         $slaCategories = SlaCategory::with([
@@ -245,7 +86,7 @@ class TicketsController extends Controller
             ])->values()->toArray(),
         ])->values()->toArray();
 
-        $itTeam = $this->itTeamStatus();
+        $itTeam = $this->requestorTickets->itTeamStatus();
         // ── Onboarding tour is Employee-only — staff roles filing their own
         //    request already know the system from their day job.
         $showOnboarding = $routePrefix === 'employee.' && is_null($user->onboarded_at);
@@ -283,7 +124,7 @@ class TicketsController extends Controller
         }
 
         $ticket->load(['assignedTo', 'statusHistories.changedBy', 'feedback', 'attachments', 'slaCategory']);
-        $ticket->expected_start_label = $this->expectedStartLabel($ticket);
+        $ticket->expected_start_label = $this->requestorTickets->expectedStartLabel($ticket);
         $routePrefix = $this->requestRoutePrefix();
 
         return view('employee.ticket-detail', compact('ticket', 'routePrefix'));
@@ -329,14 +170,8 @@ class TicketsController extends Controller
 
     // Store new ticket
     // ── Simplified: employee modal is now Issue Type -> Review only.
-    // ── Requestor info + date/time received are auto-filled server-side.
-    // Every employee self-filed ticket starts at this priority — the employee
-    // form has no category/priority picker (that's Helpdesk/Supervisor's job at
-    // classification), so nothing employee-supplied is trusted for it. Only
-    // Helpdesk's own "file on behalf of" form (which has a real category+
-    // subcategory picker wired to the SLA Rule table) can set it directly.
-    private const DEFAULT_PRIORITY = 'Medium';
-
+    // ── Requestor info + date/time received are auto-filled server-side
+    //    (RequestorTicketService::selfFiledAttributes()).
     public function store(Request $request)
     {
         // ── users_id is always sent by the employee modal too (hidden field, pre-filled
@@ -361,84 +196,35 @@ class TicketsController extends Controller
             'attachments.*'      => 'file|max:10240|mimes:jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,txt',
         ]);
 
-        $usersId = $isHelpdeskFiling ? $request->users_id : Auth::id();
+        // ── Helpdesk filing on behalf of an employee enters the requestor context,
+        //    date/time received and method by hand; a self-filed ticket gets all of
+        //    those auto-filled from the requestor's own account.
+        $attributes = $isHelpdeskFiling
+            ? [
+                'users_id'         => $request->users_id,
+                'ticket_type'      => $request->ticket_type,
+                'request_category' => $request->request_category,
+                'subject'          => $request->subject,
+                'concern'          => $request->concern,
+                'request_details'  => $request->request_details,
+                'asset'            => $request->asset,
+                'location'         => $request->location,
+                'position'         => $request->position,
+                'business_unit'    => $request->business_unit,
+                'company'          => $request->company,
+                'department'       => $request->department,
+                'date_received'    => $request->date_received,
+                'time_received'    => $request->time_received,
+                'method'           => $request->method,
+            ]
+            : $this->requestorTickets->selfFiledAttributes(Auth::user(), $request->all());
 
-        // ── For self-filed (employee) tickets: auto-fill requestor context.
-        // ── Adjust the User model attribute names below (position/business_unit/
-        //    company/department) to match whatever columns actually exist on `users`.
-        $requestor = $isHelpdeskFiling ? \App\Models\User::find($usersId) : Auth::user();
-
-        $ticket = Tickets::create([
-            'ticket_number'     => Tickets::generateTicketNumber(),
-            'users_id'          => $usersId,
-            'ticket_type'       => $isHelpdeskFiling ? $request->ticket_type : self::DEFAULT_PRIORITY,
-            'request_category'  => $isHelpdeskFiling ? $request->request_category : null,
-            'subject'           => $request->subject,
-            'concern'           => $request->concern,
-            'request_details'   => $request->request_details,
-            'asset'             => $request->asset,
-            'location'          => $request->location,
-            'status'            => TicketStatus::FOR_ACKNOWLEDGMENT,
-            'pending_role'      => TicketStatus::QUEUE_HELPDESK,
-            'escalation_level'  => 0,
-
-            // ── Requestor context — auto-filled, not user-entered when self-filed.
-            // department/company/business_unit are traversed off User::department()
-            // (a belongsTo relation, not a plain column) — grabbing the relation
-            // directly instead of ->department_name would silently JSON-encode the
-            // related model into these varchar columns.
-            'position'       => $isHelpdeskFiling ? $request->position       : ($requestor->position ?? null),
-            'business_unit'  => $isHelpdeskFiling ? $request->business_unit  : ($requestor->department?->company?->businessUnit?->business_units_name ?? null),
-            'company'        => $isHelpdeskFiling ? $request->company        : ($requestor->department?->company?->company_name ?? null),
-            'department'     => $isHelpdeskFiling ? $request->department     : ($requestor->department?->department_name ?? null),
-
-            // ── Date/time received: system timestamp for self-filed tickets. Plain
-            // strings, not Carbon-cast — computed as Asia/Manila wall-clock values
-            // directly, since app.timezone is UTC.
-            'date_received'  => $isHelpdeskFiling ? $request->date_received  : now()->timezone('Asia/Manila')->toDateString(),
-            'time_received'  => $isHelpdeskFiling ? $request->time_received  : now()->timezone('Asia/Manila')->format('H:i'),
-
-            // ── Method: defaults to "System" for self-filed tickets
-            'method'         => $isHelpdeskFiling ? $request->method : 'System',
-        ]);
-
-        foreach ($request->file('attachments', []) as $file) {
-            $storedPath = $file->store('ticket-attachments/' . $ticket->id, 'local');
-
-            TicketAttachment::create([
-                'ticket_id'     => $ticket->id,
-                'uploaded_by'   => Auth::id(),
-                'original_name' => $file->getClientOriginalName(),
-                'stored_path'   => $storedPath,
-                'mime_type'     => $file->getClientMimeType(),
-                'size'          => $file->getSize(),
-            ]);
-        }
-
-        TicketStatusHistories::create([
-            'ticket_id'  => $ticket->id,
-            'old_status' => null,
-            'new_status' => TicketStatus::FOR_ACKNOWLEDGMENT,
-            'changed_by' => Auth::id(),
-            'notes'      => $isHelpdeskFiling
-                ? 'Ticket filed by Helpdesk on behalf of employee.'
-                : 'Ticket submitted by employee.',
-            'changed_at' => now(),
-        ]);
-
-        if ($requestor && $requestor->email) {
-            Mail::to($requestor->email)->send(new TicketSubmittedMail($ticket));
-        }
-
-        // Helpdesk owns triage of self-filed tickets — no need to notify them of their own filing.
-        if (!$isHelpdeskFiling) {
-            $helpdeskUsers = User::withActiveRole('Helpdesk')->get();
-            foreach ($helpdeskUsers as $helpdeskUser) {
-                Mail::to($helpdeskUser->email)->send(
-                    new TicketAssignedMail($ticket, 'A new ticket has been submitted and needs triage.', 'helpdesk.dashboard')
-                );
-            }
-        }
+        $ticket = $this->requestorTickets->file(
+            $attributes,
+            $request->file('attachments', []),
+            Auth::user(),
+            $isHelpdeskFiling,
+        );
 
         if ($request->ajax()) {
             return response()->json([
@@ -453,77 +239,25 @@ class TicketsController extends Controller
             ->with('success', "Ticket #{$ticket->ticket_number} submitted successfully!");
     }
 
-    // Cancel ticket
+    // Cancel ticket — only while still unacknowledged in Helpdesk's queue.
     public function cancel(Tickets $ticket)
     {
-        if ($ticket->users_id !== Auth::id()) {
-            abort(403);
+        try {
+            $this->requestorTickets->cancel($ticket, Auth::user());
+        } catch (TicketActionException $e) {
+            return back()->with('error', $e->getMessage());
         }
-
-        if ($ticket->status !== TicketStatus::FOR_ACKNOWLEDGMENT
-            || $ticket->pending_role !== TicketStatus::QUEUE_HELPDESK
-            || !is_null($ticket->date_acknowledged)) {
-            return back()->with('error', 'This ticket can no longer be cancelled — it has already been acknowledged by Helpdesk.');
-        }
-
-        $oldStatus = $ticket->status;
-
-        $ticket->update(['status' => TicketStatus::CANCELLED]);
-
-        TicketStatusHistories::create([
-            'ticket_id'  => $ticket->id,
-            'old_status' => $oldStatus,
-            'new_status' => TicketStatus::CANCELLED,
-            'changed_by' => Auth::id(),
-            'notes'      => 'Cancelled by employee.',
-            'changed_at' => now(),
-        ]);
 
         return back()->with('success', "Ticket #{$ticket->ticket_number} has been cancelled.");
     }
 
-    // ── NEW: Employee acknowledges resolution -> ticket moves to Closed
+    // Employee acknowledges resolution -> ticket moves to Closed
     public function acknowledge(Tickets $ticket)
     {
-        if ($ticket->users_id !== Auth::id()) {
-            abort(403);
-        }
-
-        if ($ticket->status !== TicketStatus::REQUESTOR_CONFIRMATION) {
-            return back()->with('error', 'This ticket is not currently awaiting your acknowledgment.');
-        }
-
-        $oldStatus = $ticket->status;
-        $now = now();
-
-        $ticket->update([
-            'status'      => TicketStatus::CLOSED,
-            'resolved_at' => $ticket->resolved_at ?? $now,
-            'closed_at'   => $now,
-        ]);
-
-        TicketStatusHistories::create([
-            'ticket_id'  => $ticket->id,
-            'old_status' => $oldStatus,
-            'new_status' => TicketStatus::CLOSED,
-            'changed_by' => Auth::id(),
-            'notes'      => 'Requestor acknowledged resolution — ticket closed.',
-            'changed_at' => $now,
-        ]);
-
-        // FYI to Helpdesk (coordination hub, same convention as
-        // notifyHelpdeskFyi() in SupervisorDashboardController) plus whoever
-        // actually resolved the ticket — they're the internal/ICT side that
-        // cares this closed the loop. Deduped by id in case the resolver is
-        // themselves a Helpdesk agent.
-        $recipients = User::withActiveRole('Helpdesk')->get()
-            ->when($ticket->resolvedBy, fn ($users) => $users->push($ticket->resolvedBy))
-            ->unique('id');
-
-        foreach ($recipients as $recipient) {
-            if ($recipient->email) {
-                Mail::to($recipient->email)->send(new TicketClosedByRequestorMail($ticket));
-            }
+        try {
+            $this->requestorTickets->confirmResolution($ticket, Auth::user());
+        } catch (TicketActionException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
         return back()->with('success', "Ticket #{$ticket->ticket_number} has been closed. Thanks for confirming!");
@@ -540,19 +274,13 @@ class TicketsController extends Controller
         };
     }
 
-    // ── Feedback now gated on 'Closed' instead of 'Resolved'
+    // Feedback is gated on 'Closed', once per ticket.
     public function storeFeedback(Request $request, Tickets $ticket)
     {
-        if ($ticket->users_id !== Auth::id()) {
-            abort(403);
-        }
-
-        if ($ticket->status !== 'Closed') {
-            return back()->with('error', 'You can only rate closed tickets.');
-        }
-
-        if ($ticket->feedback) {
-            return back()->with('error', 'You have already submitted feedback for this ticket.');
+        try {
+            $this->requestorTickets->assertCanRate($ticket, Auth::user());
+        } catch (TicketActionException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
         $request->validate([
@@ -560,13 +288,7 @@ class TicketsController extends Controller
             'comments' => 'nullable|string|max:500',
         ]);
 
-        \App\Models\TicketFeedback::create([
-            'ticket_id'  => $ticket->id,
-            'user_id'    => Auth::id(),
-            'rating'     => $request->rating,
-            'comments'   => $request->comments,
-            'created_at' => now(),
-        ]);
+        $this->requestorTickets->rate($ticket, Auth::user(), (int) $request->rating, $request->comments);
 
         return back()->with('success', 'Thank you for your feedback! ⭐');
     }
@@ -577,13 +299,9 @@ class TicketsController extends Controller
     // what they filed.
     public function update(Request $request, Tickets $ticket)
     {
-        if ($ticket->users_id !== Auth::id()) {
-            abort(403);
-        }
+        $this->requestorTickets->assertOwner($ticket, Auth::user());
 
-        if ($ticket->status !== TicketStatus::FOR_ACKNOWLEDGMENT
-            || $ticket->pending_role !== TicketStatus::QUEUE_HELPDESK
-            || !is_null($ticket->date_acknowledged)) {
+        if (!$this->requestorTickets->isStillWithHelpdesk($ticket)) {
             return back()->with('error', 'This support request can no longer be edited — it has already been acknowledged by Helpdesk.');
         }
 
@@ -596,43 +314,10 @@ class TicketsController extends Controller
             'attachments.*'     => 'file|max:10240|mimes:jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,txt',
         ]);
 
-        $ticket->update([
-            'subject'          => $request->subject,
-            'concern'          => $request->concern,
-            'request_details'  => $request->request_details,
-            'location'         => $request->location,
-        ]);
-
-        foreach ($request->file('attachments', []) as $file) {
-            $storedPath = $file->store('ticket-attachments/' . $ticket->id, 'local');
-
-            TicketAttachment::create([
-                'ticket_id'     => $ticket->id,
-                'uploaded_by'   => Auth::id(),
-                'original_name' => $file->getClientOriginalName(),
-                'stored_path'   => $storedPath,
-                'mime_type'     => $file->getClientMimeType(),
-                'size'          => $file->getSize(),
-            ]);
-        }
-
-        TicketStatusHistories::create([
-            'ticket_id'  => $ticket->id,
-            'old_status' => $ticket->status,
-            'new_status' => $ticket->status,
-            'changed_by' => Auth::id(),
-            'notes'      => 'Request details updated by employee.',
-            'changed_at' => now(),
-        ]);
-
-        // Same pattern as a fresh submission (see store() above) — Helpdesk
-        // hasn't acknowledged this ticket yet (that's the only time update() is
-        // reachable), so they need to know the details changed before they do.
-        $helpdeskUsers = User::withActiveRole('Helpdesk')->get();
-        foreach ($helpdeskUsers as $helpdeskUser) {
-            Mail::to($helpdeskUser->email)->send(
-                new TicketAssignedMail($ticket, 'The employee updated this request\'s details before it was acknowledged.', 'helpdesk.dashboard')
-            );
+        try {
+            $this->requestorTickets->update($ticket, Auth::user(), $request->all(), $request->file('attachments', []));
+        } catch (TicketActionException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
         return back()->with('success', "Support request #{$ticket->ticket_number} updated successfully.");

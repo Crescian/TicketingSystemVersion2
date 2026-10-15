@@ -45,5 +45,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('tickets:auto-close-confirmations')->everyFifteenMinutes();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // The employee mobile API always answers in JSON (401/403/404/422),
+        // even when the app leaves out the Accept header — never a redirect
+        // to the web login page.
+        $exceptions->shouldRenderJsonWhen(
+            fn (\Illuminate\Http\Request $request) => $request->is('api/mobile/*') || $request->expectsJson()
+        );
     })->create();
