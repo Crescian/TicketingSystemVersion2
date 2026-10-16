@@ -5,7 +5,8 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 
-// Mobile API counterpart of RequirePasswordChange: an Employee flagged
+// Mobile API counterpart of RequirePasswordChange (Employee-only, like the
+// web): an Employee flagged
 // needs_account_setup can only reach the setup endpoints (profile, org info,
 // password, department picker, push registration) until both steps are done.
 // The app reacts to code "account_setup_required" by opening its setup screens.
@@ -25,6 +26,7 @@ class RequireMobileAccountSetup
         $user = $request->user();
 
         if ($user?->needs_account_setup
+            && $user->role?->role_name === 'Employee'
             && !in_array($request->route()?->getName(), self::ALLOWED_ROUTES, true)) {
             return response()->json([
                 'message' => 'Please finish setting up your account first.',

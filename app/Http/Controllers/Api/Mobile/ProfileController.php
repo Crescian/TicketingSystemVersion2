@@ -49,12 +49,14 @@ class ProfileController extends Controller
         return $this->me($request);
     }
 
-    // Employees get one lifetime self-update; after that only IT can change it.
+    // Employees get one lifetime self-update (then only IT can change it);
+    // other roles are unrestricted — same as the web ProfileController.
     public function updateOrgInfo(Request $request)
     {
         $user = $request->user();
+        $isEmployee = $user->role?->role_name === 'Employee';
 
-        if ($user->org_info_updated_at !== null) {
+        if ($isEmployee && $user->org_info_updated_at !== null) {
             return response()->json([
                 'message' => 'You have already updated your account information. Please contact your IT Administrator for further changes.',
             ], 422);
@@ -68,7 +70,7 @@ class ProfileController extends Controller
         $user->update([
             'department_id' => $request->department_id,
             'position' => $request->position,
-            'org_info_updated_at' => now(),
+            'org_info_updated_at' => $isEmployee ? now() : $user->org_info_updated_at,
         ]);
 
         $this->maybeCompleteAccountSetup($user);

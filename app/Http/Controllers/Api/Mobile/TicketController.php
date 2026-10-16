@@ -118,10 +118,15 @@ class TicketController extends Controller
     }
 
     // A ticket's own files or its chat attachments — inline by default,
-    // ?download=1 for a download. Owner only (staff don't use the mobile app).
+    // ?download=1 for a download. The requester, or any staff role — same
+    // rule as the web (TicketsController::authorizeAttachmentAccess).
     public function attachment(Request $request, TicketAttachment $attachment)
     {
-        $this->tickets->assertOwner($attachment->ticket, $request->user());
+        $user = $request->user();
+        $isStaff = !in_array($user->role?->role_name, ['Employee', 'Developer'], true);
+        if (!$isStaff) {
+            $this->tickets->assertOwner($attachment->ticket, $user);
+        }
 
         if (!Storage::disk('local')->exists($attachment->stored_path)) {
             return response()->json(['message' => 'File no longer available.'], 404);

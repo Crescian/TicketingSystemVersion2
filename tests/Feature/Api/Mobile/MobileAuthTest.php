@@ -40,11 +40,14 @@ class MobileAuthTest extends MobileApiTestCase
             ->assertJsonPath('user.role', 'IT Admin');
     }
 
-    public function test_mobile_routes_are_employee_only(): void
+    public function test_staff_can_use_my_requests_but_developer_has_no_staff_queue(): void
     {
+        // Staff file their own requests too (the web's my-requests.* pages).
         $admin = $this->userWithRole('IT Admin');
+        $this->getJson('/api/mobile/tickets', $this->tokenFor($admin))->assertOk();
 
-        $this->getJson('/api/mobile/tickets', $this->tokenFor($admin))->assertForbidden();
+        $this->app['auth']->forgetGuards();
+        $this->getJson('/api/mobile/staff/queue', $this->tokenFor($this->userWithRole('Developer')))->assertForbidden();
     }
 
     public function test_unauthenticated_gets_json_401_without_accept_header(): void

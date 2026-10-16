@@ -5,7 +5,9 @@ use App\Http\Controllers\Api\Mobile\DeviceController as MobileDeviceController;
 use App\Http\Controllers\Api\Mobile\MessageController as MobileMessageController;
 use App\Http\Controllers\Api\Mobile\NotificationController as MobileNotificationController;
 use App\Http\Controllers\Api\Mobile\ProfileController as MobileProfileController;
+use App\Http\Controllers\Api\Mobile\Staff\StaffTicketController;
 use App\Http\Controllers\Api\Mobile\TicketController as MobileTicketController;
+use App\Support\Mobile\StaffActions;
 use App\Http\Controllers\Api\OrgController;
 use App\Http\Controllers\Api\TicketsController;
 use Illuminate\Support\Facades\Route;
@@ -38,14 +40,15 @@ Route::middleware(['auth:sanctum', 'abilities:org:read'])->prefix('org')->group(
 Route::middleware(['auth:sanctum', 'abilities:tickets:read'])->group(function () {
     Route::get('/tickets', [TicketsController::class, 'index']);
 });
-// Employee mobile app (React Native / Expo) — the requestor side of the web
-// /employee/* pages, for user login tokens ('user' ability) held by Employees.
-// Same rules as the web via RequestorTicketService / TicketChatService.
+// Mobile app (React Native / Expo), for user login tokens ('user' ability).
+// This group is every role's own side — profile, push devices, chat, and
+// "My Requests" (staff file their own tickets too, like the web's
+// my-requests.* pages). Same rules as the web via RequestorTicketService /
+// TicketChatService. Staff ticket work is the `staff` group below.
 // Reference: docs/api/employee-mobile-api.md.
 Route::middleware([
     'auth:sanctum',
     'abilities:' . AuthController::USER_ABILITY,
-    'role:Employee',
     \App\Http\Middleware\RequireMobileAccountSetup::class,
     'throttle:ticket-actions',
 ])
@@ -82,4 +85,26 @@ Route::middleware([
         Route::get('/notifications', [MobileNotificationController::class, 'index'])->name('notifications.index');
         Route::post('/devices', [MobileDeviceController::class, 'store'])->name('devices.store');
         Route::delete('/devices', [MobileDeviceController::class, 'destroy'])->name('devices.destroy');
+    });
+
+// Staff ticket work on the phone — each ticket role's queue, ticket detail and
+// actions, run through the role's own web controllers (App\Support\Mobile\
+// WebBridge + StaffActions), so the rules are exactly the web's.
+Route::middleware([
+    'auth:sanctum',
+    'abilities:' . AuthController::USER_ABILITY,
+    'role:' . implode(',', StaffActions::ROLES),
+    'throttle:ticket-actions',
+])
+    ->prefix('mobile/staff')
+    ->name('mobile.staff.')
+    ->group(function () {
+        Route::get('/queue', [StaffTicketController::class, 'queue'])->name('queue');
+        Route::get('/lookups', [StaffTicketController::class, 'lookups'])->name('lookups');
+        Route::get('/tickets/{ticket}', [StaffTicketController::class, 'show'])->name('tickets.show');
+        // POST for every action (multipart where the form has files).
+        Route::post('/tickets/{ticket}/actions/{action}', [StaffTicketController::class, 'act'])
+            ->where('action', '[a-z_]+')
+            ->name('tickets.act')
+            ->middleware('idempotent:8');
     });

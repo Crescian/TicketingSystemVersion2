@@ -121,13 +121,13 @@ class TicketChatService
             ->count();
     }
 
-    // Unread count per ticket for the user's own requests, keyed by ticket id
-    // (tickets with nothing unread are left out).
+    // Unread count per ticket the user filed or is assigned to, keyed by
+    // ticket id (tickets with nothing unread are left out).
     public function unreadByTicket(User $user): Collection
     {
         return TicketMessage::query()
             ->join('tickets', 'tickets.id', '=', 'ticket_messages.ticket_id')
-            ->where('tickets.users_id', $user->id)
+            ->where(fn ($q) => $q->where('tickets.users_id', $user->id)->orWhere('tickets.assigned_to', $user->id))
             ->where('ticket_messages.sender_id', '!=', $user->id)
             ->where('ticket_messages.is_read', false)
             ->groupBy('ticket_messages.ticket_id')
