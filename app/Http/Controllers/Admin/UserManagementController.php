@@ -32,11 +32,8 @@ class UserManagementController extends Controller
 
     private function onlineUserIds(): \Illuminate\Support\Collection
     {
-        return DB::table('sessions')
-            ->whereNotNull('user_id')
-            ->where('last_activity', '>=', now()->subMinutes(self::ONLINE_WINDOW_MINUTES)->timestamp)
-            ->distinct()
-            ->pluck('user_id');
+        // Web or mobile app activity — same helper as every other presence panel.
+        return \App\Support\Presence::onlineUserIds(self::ONLINE_WINDOW_MINUTES);
     }
 
     public function index(Request $request)

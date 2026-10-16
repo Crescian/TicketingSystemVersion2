@@ -7,6 +7,7 @@ use App\Models\MobileNotification;
 use App\Models\User;
 use App\Models\UserDevice;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 // Notifies staff on the mobile app: records an inbox row (GET /mobile/inbox)
 // and pushes to their registered phones. Fed by PushStaffMailNotification
@@ -18,24 +19,32 @@ class StaffNotifier
     public static function notify(Collection|array $users, string $type, string $title, ?string $body, ?string $ticketId = null, ?string $concernId = null): void
     {
         rescue(function () use ($users, $type, $title, $body, $ticketId, $concernId) {
-            foreach (collect($users)->unique('id') as $user) {
-                MobileNotification::create([
-                    'user_id' => $user->id,
+            $userIds = collect($users)->pluck('id')->unique()->values();
+            if ($userIds->isEmpty()) {
+                return;
+            }
+
+            // One insert for all recipients, one lookup for who has a phone.
+            $now = now();
+            MobileNotification::insert($userIds->map(fn ($id) => [
+                'id' => (string) Str::uuid(),
+                'user_id' => $id,
+                'type' => $type,
+                'title' => $title,
+                'body' => $body,
+                'ticket_id' => $ticketId,
+                'concern_id' => $concernId,
+                'created_at' => $now,
+            ])->all());
+
+            $withDevices = UserDevice::whereIn('user_id', $userIds)->distinct()->pluck('user_id');
+            foreach ($withDevices as $userId) {
+                SendExpoPush::dispatch($userId, $title, (string) $body, array_filter([
                     'type' => $type,
-                    'title' => $title,
-                    'body' => $body,
                     'ticket_id' => $ticketId,
                     'concern_id' => $concernId,
-                ]);
-
-                if (UserDevice::where('user_id', $user->id)->exists()) {
-                    SendExpoPush::dispatch($user->id, $title, (string) $body, array_filter([
-                        'type' => $type,
-                        'ticket_id' => $ticketId,
-                        'concern_id' => $concernId,
-                        'audience' => 'staff',
-                    ]));
-                }
+                    'audience' => 'staff',
+                ]));
             }
         }, report: true);
     }

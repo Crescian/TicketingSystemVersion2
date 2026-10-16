@@ -24,8 +24,9 @@ class NotificationController extends Controller
         $request->validate(['since' => 'nullable|date']);
 
         $user = $request->user();
+        // Converted to the app timezone: the compared columns have no zone.
         $since = $request->filled('since')
-            ? Carbon::parse($request->since)
+            ? Carbon::parse($request->since)->setTimezone(config('app.timezone'))
             : now()->subDays(self::DEFAULT_LOOKBACK_DAYS);
 
         $statusChanges = TicketStatusHistories::query()

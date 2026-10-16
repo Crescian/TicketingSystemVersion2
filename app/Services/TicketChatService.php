@@ -93,11 +93,15 @@ class TicketChatService
 
             RequestorPush::send($ticket, 'new_message', "New message on #{$ticket->ticket_number}", $preview);
         } else {
-            // The requester wrote: tell whoever is working the ticket on the
-            // mobile app, or Helpdesk while nobody is assigned yet.
-            $recipients = $ticket->assigned_to && $ticket->assigned_to !== $sender->id
-                ? User::whereKey($ticket->assigned_to)->get()
-                : ($ticket->assigned_to ? collect() : User::withActiveRole('Helpdesk')->get());
+            // The requester wrote: tell whoever is working the ticket, or —
+            // while nobody is assigned — whoever's queue it's waiting in
+            // (pending_role is a role name: Helpdesk, either Supervisor,
+            // Manager), falling back to Helpdesk.
+            $recipients = match (true) {
+                $ticket->assigned_to === $sender->id => collect(),
+                (bool) $ticket->assigned_to => User::whereKey($ticket->assigned_to)->get(),
+                default => User::withActiveRole($ticket->pending_role ?: 'Helpdesk')->get(),
+            };
 
             StaffNotifier::notify($recipients, 'new_message', "New message on #{$ticket->ticket_number}", $preview, $ticket->id);
         }

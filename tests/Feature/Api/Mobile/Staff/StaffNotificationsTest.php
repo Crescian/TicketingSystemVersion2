@@ -11,7 +11,12 @@ use App\Models\UserDevice;
 use App\Services\RequestorTicketService;
 use App\Services\TicketChatService;
 use App\Support\TicketStatus;
+use App\Support\Presence;
 use Illuminate\Mail\Events\MessageSending;
+use Illuminate\Mail\Events\MessageSent;
+use Illuminate\Mail\SentMessage;
+use Symfony\Component\Mailer\Envelope;
+use Symfony\Component\Mailer\SentMessage as SymfonySentMessage;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Mime\Email;
@@ -24,7 +29,9 @@ class StaffNotificationsTest extends StaffTestCase
 {
     private function mailSent(string $mailable, string $to, array $data): void
     {
-        event(new MessageSending((new Email())->to($to)->subject('x'), ['__laravel_mailable' => $mailable] + $data));
+        $email = (new Email())->from('noreply@example.com')->to($to)->subject('x')->text('x');
+        $sent = new SentMessage(new SymfonySentMessage($email, Envelope::create($email)));
+        event(new MessageSent($sent, ['__laravel_mailable' => $mailable] + $data));
     }
 
     public function test_staff_email_becomes_inbox_item_and_push(): void
@@ -96,5 +103,91 @@ class StaffNotificationsTest extends StaffTestCase
         $member = app(RequestorTicketService::class)->itTeamStatus()->firstWhere('id', $helpdesk->id);
 
         $this->assertTrue($member->online);
+    }
+
+    // The listener runs after a successful send only — a failed attempt the
+    // queue retries (MessageSending without MessageSent) notifies nobody.
+    public function test_sending_alone_does_not_notify(): void
+    {
+        $tech = $this->staff('IT Support Specialist');
+        $ticket = $this->staffTicket();
+
+        event(new MessageSending((new Email())->to($tech->email)->subject('x'), ['__laravel_mailable' => TicketAssignedMail::class, 'ticket' => $ticket, 'action' => 'Assigned']));
+
+        $this->assertDatabaseCount('mobile_notifications', 0);
+    }
+
+    public function test_listener_problems_never_break_the_email(): void
+    {
+        $tech = $this->staff('IT Support Specialist');
+
+        // Unexpected data shape (no ticket model) must not throw out of the listener.
+        $this->mailSent(TicketAssignedMail::class, $tech->email, ['ticket' => 'not-a-model', 'action' => ['odd']]);
+
+        $this->assertTrue(true);
+    }
+
+    public function test_informational_assignment_mail_is_not_action_needed(): void
+    {
+        $tech = $this->staff('IT Support Specialist');
+        $ticket = $this->staffTicket();
+
+        $this->mailSent(TicketAssignedMail::class, $tech->email, ['ticket' => $ticket, 'action' => 'Your re-classification request was declined by your Supervisor.']);
+
+        $this->assertDatabaseHas('mobile_notifications', ['user_id' => $tech->id, 'type' => 'update', 'title' => "Update · #{$ticket->ticket_number}"]);
+    }
+
+    public function test_requester_message_goes_to_the_queue_owner_when_unassigned(): void
+    {
+        Bus::fake([SendExpoPush::class, SendTicketChatDigest::class]);
+        $employee = $this->employee();
+        $helpdesk = $this->staff('Helpdesk');
+        $supervisor = $this->staff('Supervisor - Support Specialist');
+        $ticket = $this->staffTicket(['users_id' => $employee->id, 'status' => TicketStatus::CLASSIFIED, 'pending_role' => TicketStatus::QUEUE_SUPPORT_SUPERVISOR]);
+
+        app(TicketChatService::class)->send($ticket, $employee, 'Any update?', []);
+
+        $this->assertSame(1, MobileNotification::where('user_id', $supervisor->id)->count());
+        $this->assertSame(0, MobileNotification::where('user_id', $helpdesk->id)->count());
+    }
+
+    public function test_empty_ids_marks_nothing_read(): void
+    {
+        $tech = $this->staff('IT Support Specialist');
+        MobileNotification::create(['user_id' => $tech->id, 'type' => 'action_needed', 'title' => 'Mine']);
+
+        $this->postJson('/api/mobile/inbox/read', ['ids' => []], $this->tokenFor($tech))->assertNoContent();
+
+        $this->assertSame(1, MobileNotification::whereNull('read_at')->count());
+    }
+
+    public function test_since_pages_forward_without_losing_items(): void
+    {
+        $tech = $this->staff('IT Support Specialist');
+        $start = now()->subHours(3);
+        foreach (range(1, 60) as $i) {
+            MobileNotification::forceCreate(['id' => (string) \Illuminate\Support\Str::uuid(), 'user_id' => $tech->id, 'type' => 'action_needed', 'title' => "N{$i}", 'created_at' => $start->copy()->addMinutes($i)]);
+        }
+        $headers = $this->tokenFor($tech);
+
+        $first = $this->getJson('/api/mobile/inbox?since=' . urlencode($start->toIso8601String()), $headers)->assertOk();
+        $this->assertCount(50, $first->json('notifications'));
+
+        $second = $this->getJson('/api/mobile/inbox?since=' . urlencode($first->json('server_time')), $headers)->assertOk();
+        $titles = collect($first->json('notifications'))->merge($second->json('notifications'))->pluck('title')->unique();
+        $this->assertCount(60, $titles);
+    }
+
+    public function test_only_the_mobile_apps_token_counts_as_online(): void
+    {
+        $helpdesk = $this->staff('Helpdesk');
+        $helpdesk->createToken('intranet-portal', ['user']);
+        DB::table('personal_access_tokens')->update(['last_used_at' => now()]);
+
+        $this->assertFalse(Presence::onlineUserIds()->contains($helpdesk->id));
+
+        $helpdesk->createToken('mobile', ['user']);
+        DB::table('personal_access_tokens')->update(['last_used_at' => now()]);
+        $this->assertTrue(Presence::onlineUserIds()->contains($helpdesk->id));
     }
 }

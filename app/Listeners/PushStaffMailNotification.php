@@ -11,14 +11,16 @@ use App\Mail\TicketClosedByRequestorMail;
 use App\Mail\TicketReadyForRequestorMail;
 use App\Models\User;
 use App\Support\StaffNotifier;
-use Illuminate\Mail\Events\MessageSending;
+use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 // Every staff-facing email (assignment, escalation, reclassification, report
 // review, SLA alert, FYI, developer concern…) is also a mobile notification
-// for the same recipients — one hook instead of ~25 call sites. Runs when the
-// mail is actually sent (in the queue worker for queued mail).
+// for the same recipients — one hook instead of ~25 call sites. Listens to
+// MessageSent (after the mail service accepted it), so a failed send that the
+// queue retries doesn't notify once per attempt. Everything runs inside
+// rescue(): a notification problem must never fail or retry the email.
 class PushStaffMailNotification
 {
     private const STAFF_MAILABLES = [
@@ -31,26 +33,33 @@ class PushStaffMailNotification
         DeveloperConcernClosedMail::class,
     ];
 
-    public function handle(MessageSending $event): void
+    public function handle(MessageSent $event): void
     {
-        $mailable = $event->data['__laravel_mailable'] ?? null;
-        if (!in_array($mailable, self::STAFF_MAILABLES, true)) {
-            return;
-        }
+        rescue(function () use ($event) {
+            $mailable = $event->data['__laravel_mailable'] ?? null;
+            if (!in_array($mailable, self::STAFF_MAILABLES, true)) {
+                return;
+            }
 
-        $emails = collect($event->message->getTo())->map(fn ($address) => strtolower($address->getAddress()));
-        // Case-insensitive: stored emails can have capitals, mail addresses vary.
-        $recipients = User::whereIn(DB::raw('lower(email)'), $emails->all())->get();
-        if ($recipients->isEmpty()) {
-            return;
-        }
+            $emails = collect($event->message->getTo())->map(fn ($address) => strtolower($address->getAddress()));
+            // Case-insensitive: stored emails can have capitals, mail addresses vary.
+            $recipients = User::whereIn(DB::raw('lower(email)'), $emails->all())->get();
+            if ($recipients->isEmpty()) {
+                return;
+            }
 
-        [$type, $title, $body] = $this->describe($mailable, $event->data);
-        $ticket = $event->data['ticket'] ?? null;
-        $concern = $event->data['concern'] ?? null;
+            [$type, $title, $body] = $this->describe($mailable, $event->data);
+            $ticket = $event->data['ticket'] ?? null;
+            $concern = $event->data['concern'] ?? null;
 
-        StaffNotifier::notify($recipients, $type, $title, $body, $ticket?->id, $concern?->id);
+            StaffNotifier::notify($recipients, $type, $title, $body, $ticket?->id, $concern?->id);
+        }, report: true);
     }
+
+    // TicketAssignedMail also carries a couple of plain updates ("your
+    // reclassification request was declined", "the employee updated the
+    // request") — those aren't titled "Action needed".
+    private const INFO_ONLY_PHRASES = ['declined', 'updated this request'];
 
     private function describe(string $mailable, array $data): array
     {
@@ -59,7 +68,11 @@ class PushStaffMailNotification
         $number = $ticket ? "#{$ticket->ticket_number}" : null;
 
         return match ($mailable) {
-            TicketAssignedMail::class => ['action_needed', "Action needed · {$number}", Str::limit(trim(($data['action'] ?? '') . ' ' . ($ticket?->subject ? "— {$ticket->subject}" : '')), 180)],
+            TicketAssignedMail::class => [
+                Str::contains($data['action'] ?? '', self::INFO_ONLY_PHRASES, true) ? 'update' : 'action_needed',
+                (Str::contains($data['action'] ?? '', self::INFO_ONLY_PHRASES, true) ? 'Update' : 'Action needed') . " · {$number}",
+                Str::limit(trim(($data['action'] ?? '') . ' ' . ($ticket?->subject ? "— {$ticket->subject}" : '')), 180),
+            ],
             SlaAlertMail::class => [
                 'sla_alert',
                 ($data['level'] ?? '') === 'breached' ? "SLA breached · {$number}" : "SLA at risk · {$number}",
