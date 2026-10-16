@@ -798,11 +798,7 @@ class TicketController extends Controller
 
     private function isCoverageGapActive(): bool
     {
-        $onlineUserIds = DB::table('sessions')
-            ->whereNotNull('user_id')
-            ->where('last_activity', '>=', now()->subMinutes(self::ONLINE_WINDOW_MINUTES)->timestamp)
-            ->distinct()
-            ->pluck('user_id');
+        $onlineUserIds = \App\Support\Presence::onlineUserIds(self::ONLINE_WINDOW_MINUTES);
 
         if ($onlineUserIds->isEmpty()) {
             return true;

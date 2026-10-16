@@ -1692,11 +1692,7 @@ class SupervisorDashboardController extends Controller
         // same mechanism as the Employee dashboard's "Available IT" panel, since
         // Helpdesk/Technician tracks don't share a ticket-count or schedule gauge
         // with the Admin track.
-        $itTeamOnlineIds = DB::table('sessions')
-            ->whereNotNull('user_id')
-            ->where('last_activity', '>=', now()->subMinutes(5)->timestamp)
-            ->distinct()
-            ->pluck('user_id');
+        $itTeamOnlineIds = \App\Support\Presence::onlineUserIds(5);
 
         $itTeamAvailability = User::with('role')
             ->whereHas('role', fn ($q) => $q->whereIn('role_name', [

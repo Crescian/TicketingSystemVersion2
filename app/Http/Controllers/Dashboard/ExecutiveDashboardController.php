@@ -513,11 +513,7 @@ class ExecutiveDashboardController extends Controller
     // same mechanism as Admin > User Management's presence panel.
     private function onlineUserIds(): \Illuminate\Support\Collection
     {
-        return DB::table('sessions')
-            ->whereNotNull('user_id')
-            ->where('last_activity', '>=', now()->subMinutes(self::ONLINE_WINDOW_MINUTES)->timestamp)
-            ->distinct()
-            ->pluck('user_id');
+        return \App\Support\Presence::onlineUserIds(self::ONLINE_WINDOW_MINUTES);
     }
 
     // ── "IT Team Status" panel: every active support-tier member with presence,

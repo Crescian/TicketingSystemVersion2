@@ -179,6 +179,18 @@ abstract class MobileApiTestCase extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('mobile_notifications', function ($table) {
+            $table->uuid('id')->primary();
+            $table->uuid('user_id');
+            $table->string('type', 40);
+            $table->string('title');
+            $table->text('body')->nullable();
+            $table->uuid('ticket_id')->nullable();
+            $table->uuid('concern_id')->nullable();
+            $table->timestamp('read_at')->nullable();
+            $table->timestamp('created_at')->nullable();
+        });
+
         Mail::fake();
         Storage::fake('local');
     }

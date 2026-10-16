@@ -7,6 +7,7 @@ use App\Models\TicketMessage;
 use App\Models\Tickets;
 use App\Models\User;
 use App\Support\RequestorPush;
+use App\Support\StaffNotifier;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -82,18 +83,23 @@ class TicketChatService
 
         $this->requestorTickets->storeAttachments($ticket, $files, $sender, $msg->id);
 
+        $preview = $sender->name . ': ' . ($message !== null && $message !== '' ? Str::limit($message, 120) : 'sent an attachment');
+
         // Only staff replies need to notify the requestor — they already know
         // what they themselves just typed. Email is a debounced digest; the
         // mobile push goes out per message.
         if ($ticket->users_id !== $sender->id) {
             SendTicketChatDigest::scheduleIfNeeded($ticket);
 
-            RequestorPush::send(
-                $ticket,
-                'new_message',
-                "New message on #{$ticket->ticket_number}",
-                $sender->name . ': ' . ($message !== null && $message !== '' ? Str::limit($message, 120) : 'sent an attachment'),
-            );
+            RequestorPush::send($ticket, 'new_message', "New message on #{$ticket->ticket_number}", $preview);
+        } else {
+            // The requester wrote: tell whoever is working the ticket on the
+            // mobile app, or Helpdesk while nobody is assigned yet.
+            $recipients = $ticket->assigned_to && $ticket->assigned_to !== $sender->id
+                ? User::whereKey($ticket->assigned_to)->get()
+                : ($ticket->assigned_to ? collect() : User::withActiveRole('Helpdesk')->get());
+
+            StaffNotifier::notify($recipients, 'new_message', "New message on #{$ticket->ticket_number}", $preview, $ticket->id);
         }
 
         return $msg->load(['sender.role', 'attachments']);

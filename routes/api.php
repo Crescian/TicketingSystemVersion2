@@ -84,8 +84,10 @@ Route::middleware([
         Route::post('/tickets/{ticket}/messages', [MobileMessageController::class, 'store'])->name('messages.store');
         Route::get('/messages/unread', [MobileMessageController::class, 'unread'])->name('messages.unread');
 
-        // Notifications
+        // Notifications — employees: activity on their requests; staff: inbox.
         Route::get('/notifications', [MobileNotificationController::class, 'index'])->name('notifications.index');
+        Route::get('/inbox', [\App\Http\Controllers\Api\Mobile\InboxController::class, 'index'])->name('inbox.index');
+        Route::post('/inbox/read', [\App\Http\Controllers\Api\Mobile\InboxController::class, 'read'])->name('inbox.read');
         Route::post('/devices', [MobileDeviceController::class, 'store'])->name('devices.store');
         Route::delete('/devices', [MobileDeviceController::class, 'destroy'])->name('devices.destroy');
     });

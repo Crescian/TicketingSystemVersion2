@@ -187,11 +187,7 @@ class RequestorTicketService
     // Active IT team members with an `online` flag, online first.
     public function itTeamStatus(): Collection
     {
-        $onlineIds = DB::table('sessions')
-            ->whereNotNull('user_id')
-            ->where('last_activity', '>=', now()->subMinutes(self::ONLINE_WINDOW_MINUTES)->timestamp)
-            ->distinct()
-            ->pluck('user_id');
+        $onlineIds = \App\Support\Presence::onlineUserIds(self::ONLINE_WINDOW_MINUTES);
 
         return User::with('role')
             ->whereHas('role', fn ($q) => $q->whereIn('role_name', self::IT_TEAM_ROLES))
