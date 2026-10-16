@@ -429,6 +429,9 @@ class TicketController extends Controller
             'service_type' => $request->service_type,
             'findings' => $request->findings,
             'recommendation' => $request->recommendation,
+            // A previous "request revision" is answered by this resubmission.
+            'revision_requested_at' => null,
+            'revision_notes' => null,
         ]);
 
         foreach ($request->file('attachments', []) as $file) {
@@ -598,6 +601,21 @@ class TicketController extends Controller
             'assigned_to' => null,
             'pending_role' => TicketStatus::QUEUE_ADMIN_SUPERVISOR,
             'escalation_level' => $ticket->escalation_level + 1,
+        ]);
+
+        // Same record the other tracks write — it's what this dashboard's own
+        // "Escalated" tab reads (index(): whereHas escalations escalated_by me).
+        DB::table('escalations')->insert([
+            'id' => \Illuminate\Support\Str::uuid(),
+            'ticket_id' => $ticket->id,
+            'escalation_level' => $ticket->escalation_level,
+            'escalated_by' => Auth::id(),
+            'previous_tech_id' => Auth::id(),
+            'reassigned_to' => null,
+            'reason' => $request->reason,
+            'resolution_notes' => null,
+            'escalated_at' => now(),
+            'resolved_at' => null,
         ]);
 
         TicketStatusHistories::create([

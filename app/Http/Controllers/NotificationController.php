@@ -87,8 +87,8 @@ class NotificationController extends Controller
             }
         }
 
-        // ── New assignments (IT Technician only)
-        if ($roleName === 'IT Technician') {
+        // ── New assignments (the two resolver roles that get assigned work)
+        if (in_array($roleName, ['IT Support Specialist', 'IT Admin'], true)) {
             $newAssigned = Tickets::where('assigned_to', $user->id)
                 ->where('updated_at', '>=', $sinceTs)
                 ->where('status', TicketStatus::ASSIGNED)
@@ -99,7 +99,7 @@ class NotificationController extends Controller
                     'type' => 'new_assignment',
                     'title' => '📋 New Ticket Assigned',
                     'body' => "#{$ticket->ticket_number} — {$ticket->subject}",
-                    'url' => route('technician.dashboard'),
+                    'url' => $this->getDashboardUrl($roleName),
                     'tag' => 'assign-' . $ticket->id,
                     'time' => $ticket->updated_at,
                 ]);
@@ -142,8 +142,11 @@ class NotificationController extends Controller
                 ]);
             }
 
+            // Support track only — IT Admin requests go to the IT Admin
+            // Supervisor (see that branch below).
             $newReclassifications = ReclassificationRequest::where('status', 'pending')
                 ->where('requested_at', '>=', $sinceTs)
+                ->whereDoesntHave('ticket.assignedTo.role', fn ($q) => $q->where('role_name', 'IT Admin'))
                 ->with('ticket')
                 ->get();
 
@@ -296,7 +299,10 @@ class NotificationController extends Controller
     {
         return match ($roleName) {
             'IT Admin', 'Helpdesk', 'Manager' => DB::table('tickets')->pluck('id'),
-            'IT Technician' => DB::table('tickets')->where('assigned_to', $user->id)->pluck('id'),
+            // Tickets they're working on, plus any they filed themselves.
+            'IT Support Specialist' => DB::table('tickets')
+                ->where(fn ($q) => $q->where('assigned_to', $user->id)->orWhere('users_id', $user->id))
+                ->pluck('id'),
             default => DB::table('tickets')->where('users_id', $user->id)->pluck('id'),
         };
     }
@@ -306,7 +312,9 @@ class NotificationController extends Controller
         return match ($roleName) {
             'Employee' => route('employee.tickets.show', $ticket->id),
             'Helpdesk' => route('helpdesk.dashboard'),
-            'IT Technician' => route('technician.dashboard'),
+            'IT Support Specialist' => route('technician.dashboard'),
+            'Supervisor - Support Specialist' => route('supervisor.support.dashboard'),
+            'Supervisor - IT Admin' => route('supervisor.dashboard'),
             'IT Admin' => route('admin.dashboard'),
             'Manager' => route('executive.tickets.index'),
             default => '/',

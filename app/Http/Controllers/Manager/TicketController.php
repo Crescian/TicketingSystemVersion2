@@ -17,6 +17,8 @@ use Illuminate\Support\Facades\Mail;
 
 class TicketController extends Controller
 {
+    private const AWAITING_MANAGER_STATUSES = [TicketStatus::FOR_ACKNOWLEDGMENT, TicketStatus::ESCALATED];
+
     public function index(Request $request)
     {
         $status = $request->filled('status') ? $request->get('status') : 'awaiting-manager';
@@ -25,7 +27,7 @@ class TicketController extends Controller
 
         $query = Tickets::with(['user.department', 'assignedTo', 'statusHistories.changedBy'])
             ->orderByRaw("CASE
-                WHEN status = 'For Acknowledgment' AND pending_role = 'Manager' THEN 1
+                WHEN status IN ('For Acknowledgment', 'Escalated') AND pending_role = 'Manager' THEN 1
                 WHEN status = 'In Progress Service Request' THEN 2
                 WHEN status = 'In Progress Service Report' THEN 3
                 WHEN status = 'Closed' THEN 4
@@ -36,7 +38,10 @@ class TicketController extends Controller
         // assigned_to = Auth::id() first, so it's never ambiguous which manager's
         // ticket it is.
         $inProgressStatuses = [TicketStatus::IN_PROGRESS_SERVICE_REQUEST, TicketStatus::IN_PROGRESS_SERVICE_REPORT];
-        $awaitingManager = fn ($q) => $q->where('status', TicketStatus::FOR_ACKNOWLEDGMENT)
+        // Tickets reach the Manager either filed straight to the Manager queue
+        // (For Acknowledgment) or escalated to it (Escalated — from the Support
+        // Supervisor's L4 escalation and the IT Admin Supervisor's escalateToManager).
+        $awaitingManager = fn ($q) => $q->whereIn('status', self::AWAITING_MANAGER_STATUSES)
             ->where('pending_role', TicketStatus::QUEUE_MANAGER);
 
         if ($status === 'active') {
@@ -93,17 +98,18 @@ class TicketController extends Controller
     // cascades through all four statuses, logging each hop.
     public function acknowledge(Tickets $ticket)
     {
-        if ($ticket->status !== TicketStatus::FOR_ACKNOWLEDGMENT || $ticket->pending_role !== TicketStatus::QUEUE_MANAGER) {
+        if (!in_array($ticket->status, self::AWAITING_MANAGER_STATUSES, true) || $ticket->pending_role !== TicketStatus::QUEUE_MANAGER) {
             return back()->with('error', 'This ticket is not awaiting Manager acknowledgment.');
         }
 
         $now = now();
         $actor = 'Manager - ' . Auth::user()->name;
+        $fromStatus = $ticket->status;
 
         $ticket->update(['status' => TicketStatus::CLASSIFIED, 'pending_role' => null]);
         TicketStatusHistories::create([
             'ticket_id' => $ticket->id,
-            'old_status' => TicketStatus::FOR_ACKNOWLEDGMENT,
+            'old_status' => $fromStatus,
             'new_status' => TicketStatus::CLASSIFIED,
             'changed_by' => Auth::id(),
             'notes' => "Acknowledged by {$actor}.",

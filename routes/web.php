@@ -202,7 +202,6 @@ Route::middleware(['auth', 'role:Helpdesk', 'throttle:ticket-actions'])
         Route::post('/tickets/{ticket}/acknowledge', [HelpdeskTicketController::class, 'acknowledge'])->name('tickets.acknowledge')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/classify', [HelpdeskTicketController::class, 'classify'])->name('tickets.classify')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/cancel', [HelpdeskTicketController::class, 'cancel'])->name('tickets.cancel')->middleware('idempotent:8');
-        Route::post('/tickets/{ticket}/assign', [HelpdeskTicketController::class, 'assign'])->name('tickets.assign')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/reassign', [HelpdeskTicketController::class, 'reassign'])->name('tickets.reassign')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/escalate', [HelpdeskTicketController::class, 'escalate'])->name('tickets.escalate')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/update', [HelpdeskTicketController::class, 'update'])->name('tickets.update')->middleware('idempotent:8');

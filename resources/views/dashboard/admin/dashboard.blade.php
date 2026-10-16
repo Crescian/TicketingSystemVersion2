@@ -1937,9 +1937,8 @@
     window.openAssignModal = function (ticketId, ticketNumber, isReassign) {
         $('#assignTicketRef').text('#' + ticketNumber);
         $('#assignModalTitle').html(isReassign ? 'Reassign <em>Technician</em>' : 'Assign <em>Technician</em>');
-        $('#assignForm').attr('action', isReassign
-            ? '/helpdesk/tickets/' + ticketId + '/reassign'
-            : '/helpdesk/tickets/' + ticketId + '/assign');
+        // Only the reassign endpoint exists — the old /assign route was never implemented.
+        $('#assignForm').attr('action', '/helpdesk/tickets/' + ticketId + '/reassign');
         $('#selectedTechId').val('');
         $('.tech-select-option').removeClass('selected');
         $('.tech-select-option:not(.disabled)').first().trigger('click');

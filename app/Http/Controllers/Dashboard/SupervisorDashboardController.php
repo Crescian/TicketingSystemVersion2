@@ -287,10 +287,11 @@ class SupervisorDashboardController extends Controller
             $techId = $t->assignedTo->id;
 
             if (!isset($techCapacityCache[$techId])) {
-                $status = TicketScheduler::statusFor($t->assignedTo);
+                // Its own variable — $status is the selected tab, passed to the view below.
+                $scheduleStatus = TicketScheduler::statusFor($t->assignedTo);
                 $techCapacityCache[$techId] = [
-                    'schedule_status' => $status,
-                    'availability' => match ($status) {
+                    'schedule_status' => $scheduleStatus,
+                    'availability' => match ($scheduleStatus) {
                         'available' => 'free',
                         'busy' => 'busy',
                         'overtime', 'on_leave' => 'full',

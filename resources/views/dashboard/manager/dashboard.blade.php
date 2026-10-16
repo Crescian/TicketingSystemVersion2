@@ -177,6 +177,7 @@
                 };
                 $badgeClass = match($ticket->status) {
                     'For Acknowledgment'      => 'badge-unassigned',
+                    'Escalated'               => 'badge-unassigned',
                     'In Progress Service Request'   => 'badge-in-progress',
                     'In Progress Service Report' => 'badge-in-progress',
                     'On Hold'               => 'badge-unassigned',
@@ -187,6 +188,7 @@
                 // status now, not a derived label.
                 $badgeLabel = match($ticket->status) {
                     'For Acknowledgment'      => '<i class="bi bi-inbox me-1"></i>Awaiting You',
+                    'Escalated'               => '<i class="bi bi-exclamation-triangle me-1"></i>Escalated to You',
                     'In Progress Service Request'   => '<i class="bi bi-gear-fill me-1"></i>In Progress',
                     'In Progress Service Report' => '<i class="bi bi-file-earmark-text me-1"></i>Preparing Report',
                     'On Hold'               => '<i class="bi bi-pause-circle me-1"></i>On Hold',
@@ -274,8 +276,8 @@
                 {{-- Action buttons --}}
                 <div class="d-flex gap-2 flex-wrap">
 
-                    {{-- For Acknowledgment: Acknowledge --}}
-                    @if($ticket->status === 'For Acknowledgment')
+                    {{-- Waiting on the Manager (filed to the Manager queue, or escalated to it): Acknowledge --}}
+                    @if(in_array($ticket->status, ['For Acknowledgment', 'Escalated'], true) && $ticket->pending_role === 'Manager')
                         <form method="POST" action="{{ route('executive.tickets.acknowledge', $ticket) }}">
                             @csrf
                             <button type="submit" class="btn-acknowledge">
@@ -368,6 +370,21 @@
                         <div class="resolve-info p-3 mb-3">
                             <i class="bi bi-check-circle me-1"></i>
                             Resolving <strong id="resolveRef"></strong> sends it straight to the requestor for confirmation — Helpdesk is notified by email.
+                        </div>
+                        {{-- Required by TicketResolutionRules::BASE — same choice as the other resolve forms. --}}
+                        <div class="mb-3">
+                            <label class="form-label">Service Type <span class="text-danger">*</span></label>
+                            <div class="d-flex gap-3 flex-wrap" style="font-size:13px;font-weight:600">
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="service_type" value="Onsite" checked>Onsite
+                                </label>
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="service_type" value="Remote">Remote
+                                </label>
+                                <label class="d-flex align-items-center gap-1" style="cursor:pointer">
+                                    <input type="radio" name="service_type" value="Preventive">Preventive
+                                </label>
+                            </div>
                         </div>
                         <label class="form-label">Resolution summary <span class="text-danger">*</span></label>
                         <textarea class="form-control" name="resolution_notes" rows="3" required
