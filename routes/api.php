@@ -5,6 +5,9 @@ use App\Http\Controllers\Api\Mobile\DeviceController as MobileDeviceController;
 use App\Http\Controllers\Api\Mobile\MessageController as MobileMessageController;
 use App\Http\Controllers\Api\Mobile\NotificationController as MobileNotificationController;
 use App\Http\Controllers\Api\Mobile\ProfileController as MobileProfileController;
+use App\Http\Controllers\Api\Mobile\DeveloperConcernController as MobileDeveloperConcernController;
+use App\Http\Controllers\Api\Mobile\Staff\ExecutiveController;
+use App\Http\Controllers\Api\Mobile\Staff\StaffCalendarController;
 use App\Http\Controllers\Api\Mobile\Staff\StaffTicketController;
 use App\Http\Controllers\Api\Mobile\TicketController as MobileTicketController;
 use App\Support\Mobile\StaffActions;
@@ -107,4 +110,37 @@ Route::middleware([
             ->where('action', '[a-z_]+')
             ->name('tickets.act')
             ->middleware('idempotent:8');
+
+        // Same role access as the matching web pages.
+        Route::get('/calendar', [StaffCalendarController::class, 'show'])->name('calendar')
+            ->middleware('role:IT Support Specialist,IT Admin,Supervisor - Support Specialist,Supervisor - IT Admin');
+
+        Route::middleware('role:Manager,Helpdesk,Supervisor - Support Specialist,Supervisor - IT Admin')
+            ->prefix('executive')->name('executive.')->group(function () {
+                Route::get('/data', [ExecutiveController::class, 'data'])->name('data');
+                Route::get('/feedback', [ExecutiveController::class, 'feedback'])->name('feedback');
+                Route::get('/aging-tickets', [ExecutiveController::class, 'agingTickets'])->name('aging');
+                Route::get('/resolution-top', [ExecutiveController::class, 'resolutionTimeTop'])->name('resolution-top');
+            });
+
+        Route::middleware('role:' . implode(',', \App\Models\DeveloperConcern::SENDER_ROLES))->group(function () {
+            Route::get('/developer-concerns', [MobileDeveloperConcernController::class, 'index'])->name('developer-concerns.index');
+            Route::post('/developer-concerns', [MobileDeveloperConcernController::class, 'store'])->name('developer-concerns.store')
+                ->middleware(['throttle:ticket-submit', 'idempotent:10']);
+        });
+    });
+
+// The Developer role's concern queue (it has no ticket queue).
+Route::middleware([
+    'auth:sanctum',
+    'abilities:' . AuthController::USER_ABILITY,
+    'role:Developer',
+    'throttle:ticket-actions',
+])
+    ->prefix('mobile/developer')
+    ->name('mobile.developer.')
+    ->group(function () {
+        Route::get('/concerns', [MobileDeveloperConcernController::class, 'queue'])->name('concerns');
+        Route::patch('/concerns/{concern}/acknowledge', [MobileDeveloperConcernController::class, 'acknowledge'])->name('concerns.acknowledge')->middleware('idempotent:8');
+        Route::patch('/concerns/{concern}/close', [MobileDeveloperConcernController::class, 'close'])->name('concerns.close')->middleware('idempotent:8');
     });

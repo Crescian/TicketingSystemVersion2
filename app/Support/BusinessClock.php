@@ -200,6 +200,13 @@ class BusinessClock
     // re-querying for every day walked while laying out a specialist's queue.
     private static array $holidayCache = [];
 
+    // For long-lived processes and tests: forget memoized holiday lookups so a
+    // holiday added afterwards is seen.
+    public static function flushHolidayCache(): void
+    {
+        self::$holidayCache = [];
+    }
+
     private static function isHolidayDate(Carbon $moment): bool
     {
         $key = $moment->copy()->setTimezone(self::TIMEZONE)->format('Y-m-d');

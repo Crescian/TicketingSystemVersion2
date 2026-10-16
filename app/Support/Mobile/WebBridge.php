@@ -84,6 +84,9 @@ final class WebBridge
     {
         $session = app('session')->driver('array');
         $session->start();
+        // The array driver is shared within a process (tests, queue workers);
+        // start every bridged call clean so an earlier call's flash can't leak in.
+        $session->flush();
 
         $request->setLaravelSession($session);
         app('redirect')->setSession($session);
