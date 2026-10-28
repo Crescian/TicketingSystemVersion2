@@ -4,6 +4,7 @@ namespace Tests\Feature\Staff;
 
 use App\Mail\TicketAutoClosedMail;
 use App\Mail\TicketAwaitingConfirmationMail;
+use App\Mail\TicketClosedByRequestorMail;
 use App\Models\TicketStatusHistories;
 use App\Models\Tickets;
 use App\Support\TicketStatus;
@@ -94,5 +95,18 @@ class RequestorConfirmationReminderTest extends StaffTestCase
         $this->assertStringStartsWith('%PDF', $bytes);
 
         $this->assertStringContainsString('within 5 days', $mail->render());
+    }
+
+    public function test_requestor_confirmed_close_email_attaches_the_service_report(): void
+    {
+        $ticket = $this->awaitingTicket();
+
+        $attachments = (new TicketClosedByRequestorMail($ticket->fresh()))->attachments();
+
+        $this->assertCount(1, $attachments);
+        $this->assertSame("Service-Report-{$ticket->ticket_number}.pdf", $attachments[0]->as);
+
+        $bytes = $attachments[0]->attachWith(fn () => null, fn ($data) => $data());
+        $this->assertStringStartsWith('%PDF', $bytes);
     }
 }

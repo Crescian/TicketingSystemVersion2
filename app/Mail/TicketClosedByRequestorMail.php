@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\AttachesServiceReport;
 use App\Models\Tickets;
 use App\Support\TicketMailThread;
 use Illuminate\Bus\Queueable;
@@ -16,10 +17,11 @@ use Illuminate\Queue\SerializesModels;
 // TicketsController::acknowledge()) once the requestor confirms the resolution
 // and the ticket lands on Closed. No action needed — mirrors
 // TicketReadyForRequestorMail's "FYI, not Action Needed" framing, just one step
-// later in the lifecycle.
+// later in the lifecycle. Carries the service report PDF, same as the
+// auto-close email (TicketAutoClosedMail).
 class TicketClosedByRequestorMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use AttachesServiceReport, Queueable, SerializesModels;
 
     public function __construct(
         public Tickets $ticket,
