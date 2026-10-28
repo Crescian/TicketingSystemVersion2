@@ -232,6 +232,7 @@ Route::middleware(['auth', 'role:IT Support Specialist', 'throttle:ticket-action
         Route::post('/tickets/{ticket}/resume', [TechnicianTicketController::class, 'resume'])->name('tickets.resume')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/request-reclassification', [TechnicianTicketController::class, 'requestReclassification'])->name('tickets.request-reclassification')->middleware('idempotent:8');
         Route::post('/tickets/{ticket}/self-triage', [TechnicianTicketController::class, 'selfTriage'])->name('tickets.self-triage')->middleware('idempotent:8');
+        Route::get('/tickets/{ticket}', [TechnicianTicketController::class, 'show'])->name('tickets.show');
     });
 
 // ── IT Admin routes

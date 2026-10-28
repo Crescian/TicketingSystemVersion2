@@ -1047,11 +1047,10 @@
                         </button>
                     @endif
 
-                    {{-- View Details (full timeline) — available for every status, not just Closed --}}
-                    <button type="button" class="btn-view-detail"
-                            data-bs-toggle="modal" data-bs-target="#detailModal-{{ $ticket->id }}">
-                        <i class="bi bi-eye me-1"></i>View Details
-                    </button>
+                    {{-- Full Support Request Details page — available for every status, not just Closed --}}
+                    <a href="{{ route('technician.tickets.show', $ticket) }}" class="btn-view-detail">
+                        <i class="bi bi-eye me-1"></i>View Support Request Details
+                    </a>
                     @if($ticket->status === 'Closed')
                         <button type="button" class="btn-service-report"
                                 onclick="openServiceReportPreview('{{ $ticket->id }}', '{{ $ticket->ticket_number }}')">
@@ -1061,128 +1060,6 @@
                 </div>
             </div>
 
-            {{-- Ticket detail modal — full status history timeline, available regardless of status --}}
-                <div class="modal fade" id="detailModal-{{ $ticket->id }}" tabindex="-1">
-                    <div class="modal-dialog modal-dialog-centered modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header-gd d-flex align-items-center justify-content-between">
-                                <h5 class="mb-0">Support Request <em>#{{ $ticket->ticket_number }}</em></h5>
-                                <button class="btn-close-w" data-bs-dismiss="modal">✕</button>
-                            </div>
-                            <div class="modal-body px-4 py-4">
-                                <div class="d-flex flex-wrap gap-3 mb-3">
-                                    @if($isNew)
-                                        <span class="badge-status badge-new">
-                                            <i class="bi bi-bell me-1"></i>For Acknowledgment
-                                        </span>
-                                    @elseif($isAcknowledged)
-                                        <span class="badge-status badge-acknowledged" style="background:var(--ygl);color:var(--gd)">
-                                            <i class="bi bi-eye me-1"></i>Ready to Start
-                                        </span>
-                                    @elseif($ticket->status === 'In Progress Service Report')
-                                        <span class="badge-status badge-in-progress">
-                                            <i class="bi bi-file-earmark-text me-1"></i>In Progress Service Report
-                                        </span>
-                                    @elseif($isInProgress)
-                                        <span class="badge-status badge-in-progress">
-                                            <i class="bi bi-arrow-repeat me-1"></i>In Progress Service Request
-                                        </span>
-                                    @elseif($isOnHold)
-                                        <span class="badge-status" style="background:#fff4cc;color:#8a6d00">
-                                            <i class="bi bi-pause-circle me-1"></i>On Hold
-                                        </span>
-                                    @elseif($isEscalated)
-                                        <span class="badge-status badge-escalated">
-                                            <i class="bi bi-exclamation-triangle me-1"></i>Escalated
-                                        </span>
-                                    @elseif($ticket->status === 'Report For Review')
-                                        <span class="badge-status" style="background:#fff4cc;color:#8a6d00">
-                                            <i class="bi bi-hourglass-split me-1"></i>Report For Review
-                                        </span>
-                                    @elseif($ticket->status === 'Approved Service Report')
-                                        <span class="badge-status" style="background:#fff4cc;color:#8a6d00">
-                                            <i class="bi bi-hourglass-split me-1"></i>Approved Service Report
-                                        </span>
-                                    @elseif($ticket->status === 'Requestor Confirmation')
-                                        <span class="badge-status" style="background:#e6f0ff;color:#1a4d8f">
-                                            <i class="bi bi-person-check me-1"></i>Requestor Confirmation
-                                        </span>
-                                    @elseif($isClosed)
-                                        <span class="badge-status badge-resolved">
-                                            <i class="bi bi-check-circle me-1"></i>Closed
-                                        </span>
-                                    @endif
-                                    <span class="badge-type">{{ $ticket->request_category }}</span>
-                                    <span class="meta-item">
-                                        <span class="priority-dot {{ $priorityClass }}"></span>
-                                        {{ $ticket->ticket_type }} priority
-                                    </span>
-                                </div>
-
-                                <div class="font-brand fw-900 mb-1" style="font-size:16px">{{ $ticket->subject }}</div>
-                                <div class="mb-3" style="font-size:13px;color:var(--tm)">{{ $ticket->concern }}</div>
-
-                                @if($ticket->request_details)
-                                    <div class="mb-3" style="font-size:13px;background:var(--ygl);padding:10px;border-radius:8px">
-                                        {{ $ticket->request_details }}
-                                    </div>
-                                @endif
-
-                                <div class="d-flex flex-wrap gap-3 mb-3" style="font-size:12px;color:var(--tm)">
-                                    @if($ticket->user)
-                                        <span><i class="bi bi-person me-1"></i>{{ $ticket->user->name }}</span>
-                                    @endif
-                                    @if($ticket->asset)
-                                        <span><i class="bi bi-laptop me-1"></i>{{ $ticket->asset }}</span>
-                                    @endif
-                                    @if($ticket->location)
-                                        <span><i class="bi bi-geo-alt me-1"></i>{{ $ticket->location }}</span>
-                                    @endif
-                                    @if($ticket->started_at)
-                                        <span><i class="bi bi-play-circle me-1"></i>Started {{ \Carbon\Carbon::parse($ticket->started_at)->format('M d, g:i A') }}</span>
-                                    @endif
-                                    @if($ticket->resolved_at)
-                                        <span><i class="bi bi-check-circle me-1"></i>Resolved {{ $ticket->resolved_at->format('M d, g:i A') }}</span>
-                                    @endif
-                                    @if($ticket->actualResolutionTime())
-                                        <span><i class="bi bi-stopwatch me-1"></i>Actual resolution time: {{ $ticket->actualResolutionTime() }}</span>
-                                    @endif
-                                </div>
-
-                                @if($ticket->attachments->isNotEmpty())
-                                    <div class="mb-3">
-                                        <div class="detail-lbl mb-2" style="font-size:12px;font-weight:800;color:var(--tm)">Attachments</div>
-                                        <div class="d-flex flex-column gap-1">
-                                            @foreach($ticket->attachments as $attachment)
-                                                <button type="button"
-                                                   onclick="openAttachmentPreview('{{ $attachment->id }}', {{ Illuminate\Support\Js::from($attachment->original_name) }}, '{{ $attachment->mime_type }}')"
-                                                   class="text-decoration-none border-0 bg-transparent p-0 text-start" style="font-size:12px;color:var(--gd);font-weight:600">
-                                                    <i class="bi bi-paperclip me-1"></i>{{ $attachment->original_name }}
-                                                </button>
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                @endif
-
-                                <div class="detail-lbl mb-2" style="font-size:12px;font-weight:800;color:var(--tm)">Full History</div>
-                                <div class="d-flex flex-column gap-2">
-                                    @foreach($ticket->statusHistories->sortBy('changed_at') as $history)
-                                        <div style="font-size:12px;border-left:2px solid var(--bd);padding-left:10px">
-                                            <div style="color:var(--tm);font-weight:700">
-                                                {{ \Carbon\Carbon::parse($history->changed_at)->timezone('Asia/Manila')->format('M d, Y g:i A') }}
-                                                — {{ $history->changedBy->name ?? 'System' }}
-                                            </div>
-                                            <div>{{ $history->notes }}</div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </div>
-                            <div class="modal-footer border-top px-4 py-3">
-                                <button type="button" class="btn-cancel-modal" data-bs-dismiss="modal">Close</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
           @empty
             <div class="ticket-card p-5 text-center">
                 <div style="font-size:48px;opacity:.3">🛠️</div>

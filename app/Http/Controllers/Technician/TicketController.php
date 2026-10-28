@@ -758,6 +758,17 @@ class TicketController extends Controller
         );
     }
 
+    // Full Support Request Details page — same layout as Helpdesk's
+    // (helpdesk.ticket-detail), limited to the tech's own tickets like the queue.
+    public function show(Tickets $ticket)
+    {
+        $this->authorizeTech($ticket);
+
+        $ticket->load(['user.department', 'assignedTo.role', 'statusHistories.changedBy', 'feedback', 'attachments.uploader', 'slaCategory']);
+
+        return view('technician.ticket-detail', compact('ticket'));
+    }
+
     // Authorize that only the assigned tech can act
     private function authorizeTech(Tickets $ticket): void
     {
