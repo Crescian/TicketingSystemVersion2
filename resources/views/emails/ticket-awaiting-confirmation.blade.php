@@ -19,6 +19,10 @@ The completed service report for your request has been reviewed, and it's now re
 
 <x-mail::panel>
 Please review the resolution and confirm it from your dashboard. Once confirmed, this support request will be closed.
+@isset($autoCloseAt)
+
+If we don't hear back, this request will close automatically on **{{ $autoCloseAt->format('M j, Y g:i A') }}**.
+@endisset
 </x-mail::panel>
 
 <x-mail::button :url="route('employee.tickets.show', $ticket)">

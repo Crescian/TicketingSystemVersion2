@@ -40,7 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('tickets:remind-stale')->everyFifteenMinutes()->when($withinNotificationWindow);
 
         // Deliberately NOT gated by isWithinNotificationWindow — this is a real
-        // 24-hour wall-clock SLA on the requestor, not a "don't email off-hours"
+        // 5-day wall-clock SLA on the requestor, not a "don't email off-hours"
         // courtesy, so it keeps ticking through nights/weekends.
         $schedule->command('tickets:auto-close-confirmations')->everyFifteenMinutes();
     })

@@ -2,7 +2,9 @@
 
 namespace App\Mail;
 
+use App\Console\Commands\AutoCloseStaleConfirmations;
 use App\Models\Tickets;
+use App\Support\BusinessClock;
 use App\Support\TicketMailThread;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -49,6 +51,7 @@ class TicketAwaitingConfirmationMail extends Mailable implements ShouldQueue
             with: [
                 'ticket' => $this->ticket,
                 'isReminder' => $this->isReminder,
+                'autoCloseAt' => BusinessClock::toLocal(AutoCloseStaleConfirmations::autoCloseAt($this->ticket)),
             ],
         );
     }

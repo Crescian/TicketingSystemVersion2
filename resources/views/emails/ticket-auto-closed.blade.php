@@ -3,7 +3,7 @@
 
 Hi {{ $ticket->user->name ?? 'there' }},
 
-Your resolved support request was awaiting your confirmation, but we didn't hear back within 24 hours — so it's been automatically confirmed and closed.
+Your resolved support request was awaiting your confirmation, but we didn't hear back within {{ \App\Console\Commands\AutoCloseStaleConfirmations::THRESHOLD_DAYS }} days — so the system has automatically confirmed and closed it. The service report is attached for your records.
 
 - **Subject:** {{ $ticket->subject }}
 @if($ticket->resolution_notes)

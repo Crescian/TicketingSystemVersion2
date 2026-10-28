@@ -232,6 +232,13 @@ class BusinessClock
         return in_array($local->dayOfWeek, self::BUSINESS_DAYS, true) && !self::isHolidayDate($local);
     }
 
+    // $moment as office-local wall-clock time — for calendar-day comparisons and
+    // dates shown to users.
+    public static function toLocal(Carbon $moment): Carbon
+    {
+        return $moment->copy()->setTimezone(self::TIMEZONE);
+    }
+
     // Gate for scheduled reminder/alert triggers: business day, 8:00 AM through
     // 5:30 PM (the 30-minute grace period past END_HOUR — see NOTIFICATION_END_HOUR).
     // Not used for SLA deadline math, only for deciding whether an automated

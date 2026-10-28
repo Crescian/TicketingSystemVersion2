@@ -7,6 +7,7 @@ use App\Mail\TicketAwaitingConfirmationMail;
 use App\Models\ReclassificationRequest;
 use App\Models\Tickets;
 use App\Models\User;
+use App\Support\BusinessClock;
 use App\Support\TicketReportProgress;
 use App\Support\TicketStatus;
 use Illuminate\Console\Command;
@@ -17,11 +18,13 @@ class RemindStaleTickets extends Command
 {
     protected $signature = 'tickets:remind-stale';
 
-    protected $description = 'Re-notify Helpdesk/supervisors/assignees when a request has sat too long in For Acknowledgment, For Classification, For Reclassification, or Report For Review — and re-notify the employee when their request is still Awaiting Your Confirmation.';
+    protected $description = 'Re-notify Helpdesk/supervisors/assignees when a request has sat too long in For Acknowledgment, For Classification, For Reclassification, or Report For Review — and remind the employee once a day while their request is still Awaiting Your Confirmation.';
 
     // How long a request can sit untouched before its first reminder, and the
     // repeat gap after that — a ticket still stuck at the next check gets
     // nudged again rather than only ever reminding once.
+    // Staff queues only — the requestor's confirmation reminder is daily, see
+    // remindRequestorConfirmation().
     private const THRESHOLD_HOURS = 1;
 
     public function handle(): int
@@ -242,9 +245,9 @@ class RemindStaleTickets extends Command
             }
 
             $checkpoint = $ticket->requestor_confirmation_reminded_at
-                ?? $this->statusEnteredAt($ticket, TicketStatus::REQUESTOR_CONFIRMATION);
+                ?? AutoCloseStaleConfirmations::statusEnteredAt($ticket);
 
-            if (!$this->dueForReminder($checkpoint)) {
+            if (!$this->dueForDailyReminder($checkpoint)) {
                 continue;
             }
 
@@ -254,6 +257,15 @@ class RemindStaleTickets extends Command
         }
 
         return $sent;
+    }
+
+    // The requestor isn't staff working a queue — one nudge a day until the
+    // ticket auto-closes (AutoCloseStaleConfirmations::THRESHOLD_DAYS). Due once
+    // the last reminder (or entering the status) was on an earlier local calendar
+    // day, so it goes out on the first run of each business day's window.
+    private function dueForDailyReminder(Carbon $checkpoint): bool
+    {
+        return BusinessClock::toLocal($checkpoint)->toDateString() < BusinessClock::toLocal(now())->toDateString();
     }
 
     private function dueForReminder(?Carbon $checkpoint): bool

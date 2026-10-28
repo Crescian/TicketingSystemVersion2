@@ -14,15 +14,18 @@ use Illuminate\Support\Facades\Mail;
 // the requestor just has to confirm the resolution. If they never respond,
 // the ticket would sit open forever waiting on them. This mirrors the manual
 // confirm path (TicketsController::acknowledge) but runs unattended: after
-// THRESHOLD_HOURS with no response, it auto-confirms on the requestor's
+// THRESHOLD_DAYS with no response, it auto-confirms on the requestor's
 // behalf and closes the ticket, same as if they'd clicked confirm themselves.
+// Until then the requestor gets one reminder a day (RemindStaleTickets).
 class AutoCloseStaleConfirmations extends Command
 {
     protected $signature = 'tickets:auto-close-confirmations';
 
-    protected $description = 'Automatically confirm and close tickets that have sat in Requestor Confirmation for 24+ hours with no requestor response.';
+    protected $description = 'Automatically confirm and close tickets that have sat in Requestor Confirmation for 5+ days with no requestor response.';
 
-    private const THRESHOLD_HOURS = 24;
+    // Calendar days, not business days — counted from when the ticket entered
+    // Requestor Confirmation.
+    public const THRESHOLD_DAYS = 5;
 
     public function handle(): int
     {
@@ -33,9 +36,7 @@ class AutoCloseStaleConfirmations extends Command
         $closed = 0;
 
         foreach ($tickets as $ticket) {
-            $enteredAt = $this->statusEnteredAt($ticket);
-
-            if ($enteredAt === null || $enteredAt->diffInHours(now()) < self::THRESHOLD_HOURS) {
+            if (self::autoCloseAt($ticket)->isFuture()) {
                 continue;
             }
 
@@ -57,7 +58,7 @@ class AutoCloseStaleConfirmations extends Command
                 // with the notes making clear it was automatic.
                 'changed_by' => $ticket->users_id,
                 'notes' => 'Automatically confirmed and closed — no requestor response within '
-                    . self::THRESHOLD_HOURS . ' hours.',
+                    . self::THRESHOLD_DAYS . ' days.',
                 'changed_at' => $now,
             ]);
 
@@ -73,13 +74,20 @@ class AutoCloseStaleConfirmations extends Command
         return self::SUCCESS;
     }
 
-    private function statusEnteredAt(Tickets $ticket): ?Carbon
+    // When a ticket sitting in Requestor Confirmation gets auto-closed — also
+    // shown to the requestor in the confirmation/reminder emails.
+    public static function autoCloseAt(Tickets $ticket): Carbon
+    {
+        return self::statusEnteredAt($ticket)->copy()->addDays(self::THRESHOLD_DAYS);
+    }
+
+    public static function statusEnteredAt(Tickets $ticket): Carbon
     {
         $history = $ticket->statusHistories()
             ->where('new_status', TicketStatus::REQUESTOR_CONFIRMATION)
             ->orderByDesc('changed_at')
             ->first();
 
-        return $history->changed_at ?? $ticket->updated_at;
+        return $history->changed_at ?? $ticket->updated_at ?? now();
     }
 }
